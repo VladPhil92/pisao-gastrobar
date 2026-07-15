@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RolUsuario {
+  ADMIN
+  CAJERO
+  COCINA
+}
+
+enum TipoEntrega {
+  DOMICILIO
+  RECOGIDA
+}
+
+enum EstadoPedido {
+  PENDIENTE_PAGO
+  PENDIENTE_VERIFICACION
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  EN_CAMINO
+  ENTREGADO
+  CANCELADO
+}
+
+enum MetodoPago {
+  QR_TRANSFERENCIA
+  CRIPTO
+  TARJETA
+}
+
+enum EstadoPago {
+  PENDIENTE
+  EN_VERIFICACION
+  APROBADO
+  RECHAZADO
+}
+
+enum ProveedorTarjeta {
+  WOMPI
+  PAYU
+  EPAYCO
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
+// ---------------------------------------------------------------------------
+// Modelos
+// ---------------------------------------------------------------------------
+
+/// Usuarios del panel administrativo (no clientes finales).
+model Usuario {
+  id           String     @id @default(cuid())
+  nombre       String
+  email        String     @unique
+  passwordHash String
+  rol          RolUsuario @default(CAJERO)
+  activo       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  pagosVerificados Pago[] @relation("PagoVerificadoPor")
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id          String  @id @default(cuid())
+  nombre      String
+  slug        String  @unique
+  descripcion String?
+  orden       Int     @default(0)
+  activa      Boolean @default(true)
+
+  productos Producto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categorias")
+}
+
+model Producto {
+  id          String  @id @default(cuid())
+  nombre      String
+  slug        String  @unique
+  descripcion String
+  precio      Decimal @db.Decimal(10, 2)
+  imagenUrl   String?
+  disponible  Boolean @default(true)
+  destacado   Boolean @default(false)
+  orden       Int     @default(0)
+
+  categoriaId String
+  categoria   Categoria @relation(fields: [categoriaId], references: [id])
+
+  itemsPedido ItemPedido[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoriaId])
+  @@map("productos")
+}
+
+model Pedido {
+  id     String @id @default(cuid())
+  numero Int    @unique @default(autoincrement())
+
+  clienteNombre   String
+  clienteTelefono String
+  clienteEmail    String?
+
+  tipoEntrega      TipoEntrega
+  direccionEntrega String?
+  notas            String?
+
+  items ItemPedido[]
+
+  subtotal  Decimal @db.Decimal(10, 2)
+  descuento Decimal @default(0) @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  estado EstadoPedido @default(PENDIENTE_PAGO)
+
+  pago Pago?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id       String @id @default(cuid())
+  cantidad Int
+
+  precioUnitario Decimal @db.Decimal(10, 2)
+  subtotal       Decimal @db.Decimal(10, 2)
+
+  pedidoId String
+  pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id])
+
+  @@index([pedidoId])
+  @@map("items_pedido")
+}
+
+/// Registro de pago asociado 1:1 a un pedido. Los campos son opcionales
+/// porque varían según el método (QR/transferencia, cripto o tarjeta).
+model Pago {
+  id     String     @id @default(cuid())
+  metodo MetodoPago
+  estado EstadoPago @default(PENDIENTE)
+
+  monto  Decimal @db.Decimal(10, 2)
+  moneda String  @default("COP")
+
+  // Método QR / transferencia bancaria
+  comprobanteUrl String? // imagen o PDF subido por el cliente como evidencia
+
+  // Método criptomonedas
+  criptoMoneda          String? // ej. USDT, BTC, ETH
+  walletDireccion       String?
+  txHash                String? // hash de la transacción on-chain
+  descuentoAplicadoPct  Decimal? @db.Decimal(5, 2) // % de descuento configurable aplicado
+  confirmacionesOnchain Int?
+
+  // Método tarjeta (pasarela colombiana, proveedor intercambiable)
+  proveedorTarjeta    ProveedorTarjeta?
+  linkPago            String?
+  referenciaProveedor String? // id/reference que devuelve el proveedor
+  payloadProveedor    Json? // respuesta cruda del proveedor (webhook/consulta)
+
+  verificadoPorId String?
+  verificadoPor   Usuario?  @relation("PagoVerificadoPor", fields: [verificadoPorId], references: [id])
+  verificadoEn    DateTime?
+
+  pedidoId String @unique
+  pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pagos")
+}
+
+model Reserva {
+  id String @id @default(cuid())
+
+  nombre   String
+  telefono String
+  email    String?
+
+  fecha    DateTime
+  hora     String
+  personas Int
+
+  notas  String?
+  estado EstadoReserva @default(PENDIENTE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fecha])
+  @@map("reservas")
+}
+
+model Evento {
+  id String @id @default(cuid())
+
+  titulo      String
+  slug        String  @unique
+  descripcion String
+  imagenUrl   String?
+
+  fecha      DateTime
+  horaInicio String
+  horaFin    String?
+  ubicacion  String   @default("Terraza Panorámica, C.C. Mall Plaza Cartagena")
+  cupo       Int?
+  activo     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("eventos")
+}
