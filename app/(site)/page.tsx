@@ -70,7 +70,7 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className="bg-pisao-carbon-soft py-16">
+      <section className="bg-pisao-carbon py-16">
         <Container className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <div className="relative aspect-square overflow-hidden rounded-xl">
             <Image
