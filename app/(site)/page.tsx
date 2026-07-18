@@ -8,7 +8,7 @@ export default function HomePage() {
     <>
       <section className="bg-pisao-noche relative flex min-h-[70svh] items-center overflow-hidden sm:min-h-[80svh] lg:min-h-[calc(100svh-4rem)]">
         <Image
-          src="/gallery/patacon-especial.jpg"
+          src="/gallery/patacon_callejero.jpg"
           alt=""
           fill
           priority

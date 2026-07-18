@@ -11,7 +11,7 @@ export const datosTransferenciaBancaria = {
   nit: process.env.BANK_TRANSFER_NIT ?? "900.000.000-0",
   /** URL de la imagen del código QR (ej. Bre-B / llave bancaria) subida a /public o a un bucket. */
   qrImageUrl:
-    process.env.BANK_TRANSFER_QR_IMAGE_URL ?? "/pagos/qr-placeholder.svg",
+    process.env.BANK_TRANSFER_QR_IMAGE_URL ?? "/QR/QRTransferencia.jpeg",
 };
 
 export const EVIDENCIA_TIPOS_PERMITIDOS = [

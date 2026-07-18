@@ -37,9 +37,8 @@ export const siteConfig = {
     rappi: true,
   },
   hours: [
-    { dia: "Martes a jueves", horario: "5:00 p. m. – 12:00 a. m." },
-    { dia: "Viernes y sábado", horario: "5:00 p. m. – 2:00 a. m." },
-    { dia: "Domingo", horario: "4:00 p. m. – 11:00 p. m." },
+    { dia: "Lunes a jueves", horario: "4:00 p. m. – 10:00 p. m." },
+    { dia: "Viernes a domingo", horario: "2:00 p. m. – 10:00 p. m." },
   ],
   nav: [
     { href: "/nosotros", label: "Nosotros" },

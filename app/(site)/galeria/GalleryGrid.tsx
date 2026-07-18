@@ -42,13 +42,13 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
         {visibles.map((photo) => (
           <a
             key={photo.slug}
-            href={`/gallery/${photo.slug}.jpg`}
+            href={`/gallery/${photo.file}`}
             target="_blank"
             rel="noreferrer"
             className="group bg-pisao-carbon-soft relative block aspect-square overflow-hidden rounded-lg"
           >
             <Image
-              src={`/gallery/${photo.slug}.jpg`}
+              src={`/gallery/${photo.file}`}
               alt={photo.alt}
               fill
               sizes="(min-width: 1024px) 24vw, (min-width: 640px) 33vw, 50vw"

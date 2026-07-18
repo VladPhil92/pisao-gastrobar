@@ -5,7 +5,6 @@ import Link from "next/link";
 import { CheckoutSteps, type CheckoutStepId } from "./CheckoutSteps";
 import { StepEntrega } from "./steps/StepEntrega";
 import { StepMetodoPago } from "./steps/StepMetodoPago";
-import { StepPagoQr } from "./steps/StepPagoQr";
 import { StepPagoCripto } from "./steps/StepPagoCripto";
 import { StepPagoTarjeta } from "./steps/StepPagoTarjeta";
 import { StepConfirmacion } from "./steps/StepConfirmacion";
@@ -35,7 +34,7 @@ export function CheckoutWizard() {
     null,
   );
 
-  const crearPedido = async (metodoPago: MetodoPago) => {
+  const crearPedido = async (metodoPago: MetodoPago, avanzarAPago = true) => {
     setLoading(true);
     setError(null);
     try {
@@ -61,16 +60,21 @@ export function CheckoutWizard() {
       const data: PedidoCreadoResponse = await res.json();
       setPedidoData(data);
       setState((s) => ({ ...s, metodoPago, pedidoId: data.pedido.id }));
-      setStep("pago");
+      if (avanzarAPago) setStep("pago");
       clearCart();
+      return data;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado");
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  if (items.length === 0 && step !== "confirmacion") {
+  // Una vez creado el pedido, el carrito se vacía intencionalmente (ver
+  // crearPedido arriba); no debe volver a mostrarse el mensaje de "carrito
+  // vacío" a partir de ese punto, sin importar en qué paso esté el cliente.
+  if (items.length === 0 && !pedidoData) {
     return (
       <p className="text-pisao-cream-muted text-sm">
         Tu carrito está vacío.{" "}
@@ -112,18 +116,10 @@ export function CheckoutWizard() {
           onSelect={(metodo) => {
             if (!loading) crearPedido(metodo);
           }}
+          onCrearPedidoQr={() => crearPedido("QR_TRANSFERENCIA", false)}
+          onQrCompletado={() => setStep("confirmacion")}
         />
       )}
-
-      {step === "pago" &&
-        pedidoData &&
-        state.metodoPago === "QR_TRANSFERENCIA" && (
-          <StepPagoQr
-            pedidoId={pedidoData.pedido.id}
-            total={Number(pedidoData.pedido.total)}
-            onUploaded={() => setStep("confirmacion")}
-          />
-        )}
 
       {step === "pago" &&
         pedidoData?.cripto &&

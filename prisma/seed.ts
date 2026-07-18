@@ -30,7 +30,12 @@ async function main() {
     await prisma.categoria.upsert({
       where: { slug: categoria.slug },
       update: { nombre: categoria.nombre, orden: index },
-      create: { nombre: categoria.nombre, slug: categoria.slug, orden: index },
+      create: {
+        id: categoria.id,
+        nombre: categoria.nombre,
+        slug: categoria.slug,
+        orden: index,
+      },
     });
   }
 
@@ -54,6 +59,7 @@ async function main() {
         categoriaId,
       },
       create: {
+        id: producto.id,
         nombre: producto.nombre,
         slug: producto.slug,
         descripcion: producto.descripcion || "",
