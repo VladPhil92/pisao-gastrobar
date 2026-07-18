@@ -11,7 +11,7 @@ export interface GalleryPhoto {
 
 /**
  * Fotografía real de PISÁO. Los archivos viven en /public/gallery/,
- * nombrados por plato (algunos en .jpg, otros en .png).
+ * nombrados por plato.
  */
 export const galleryPhotos: GalleryPhoto[] = [
   {
@@ -48,7 +48,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "pataconCosteno",
-    file: "pataconCosteno.png",
+    file: "pataconCosteno.jpg",
     alt: "Patacón Costeño con pollo y carne desmechada",
     categoria: "comida",
     width: 1086,
@@ -88,7 +88,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "pataconBurger",
-    file: "pataconBurger.png",
+    file: "pataconBurger.jpg",
     alt: "Patacón Burger con carne, queso cheddar y relish",
     categoria: "comida",
     width: 1086,
@@ -96,7 +96,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "pisaoBurger",
-    file: "pisaoBurger.png",
+    file: "pisaoBurger.jpg",
     alt: "PISÁO Burger cortada a la mitad con ripio de plátano",
     categoria: "comida",
     width: 1086,
@@ -128,7 +128,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "pisaoBowl",
-    file: "pisaoBowl.png",
+    file: "pisaoBowl.jpg",
     alt: "Bowl PISÁO con pollo, queso, maíz, pico de gallo y guacamole",
     categoria: "comida",
     width: 1023,
@@ -136,7 +136,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "cayeyeSencillo",
-    file: "cayeyeSencillo.png",
+    file: "cayeyeSencillo.jpg",
     alt: "Cayeye de plátano verde con hogao y queso",
     categoria: "comida",
     width: 1536,
@@ -144,7 +144,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "cayeyeChicharron",
-    file: "cayeyeChicharron.png",
+    file: "cayeyeChicharron.jpg",
     alt: "Cayeye de plátano verde con chicharrones",
     categoria: "comida",
     width: 1254,
@@ -152,7 +152,7 @@ export const galleryPhotos: GalleryPhoto[] = [
   },
   {
     slug: "cayeyeCostilla",
-    file: "cayeyeCostilla.png",
+    file: "cayeyeCostilla.jpg",
     alt: "Cayeye de plátano verde con costilla glaseada en panela",
     categoria: "comida",
     width: 1122,

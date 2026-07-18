@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "cp -r public .next/standalone/public && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "format": "prettier --write .",
     "postinstall": "prisma generate",
