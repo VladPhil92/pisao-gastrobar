@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ReservationStatusButtons } from "@/components/admin/ReservationStatusButtons";
 
 async function getReservas() {
   try {
@@ -35,12 +36,20 @@ export default async function AdminReservasPage() {
                 <th className="px-4 py-3">Hora</th>
                 <th className="px-4 py-3">Personas</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Operación</th>
               </tr>
             </thead>
             <tbody>
               {reservas.map((r) => (
-                <tr key={r.id} className="border-pisao-gold/10 border-t">
-                  <td className="text-pisao-cream px-4 py-3">{r.nombre}</td>
+                <tr key={r.id} className="border-pisao-gold/10 border-t align-top">
+                  <td className="text-pisao-cream px-4 py-3">
+                    {r.nombre}
+                    {r.ctgOneSubject && (
+                      <span className="text-pisao-gold/80 mt-1 block text-[10px] uppercase tracking-wide">
+                        CTG One
+                      </span>
+                    )}
+                  </td>
                   <td className="text-pisao-cream-muted px-4 py-3">
                     {r.telefono}
                   </td>
@@ -54,12 +63,15 @@ export default async function AdminReservasPage() {
                   <td className="text-pisao-cream-muted px-4 py-3">
                     {r.estado}
                   </td>
+                  <td className="px-4 py-3">
+                    <ReservationStatusButtons reservaId={r.id} estado={r.estado} />
+                  </td>
                 </tr>
               ))}
               {reservas.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="text-pisao-cream-muted px-4 py-6 text-center"
                   >
                     Aún no hay reservas.
