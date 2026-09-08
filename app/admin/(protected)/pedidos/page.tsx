@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
+import { OrderStatusButtons } from "@/components/admin/OrderStatusButtons";
 
 async function getPedidos() {
   try {
@@ -38,15 +39,20 @@ export default async function AdminPedidosPage() {
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Total</th>
                 <th className="px-4 py-3">Comprobante</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3">Operación</th>
               </tr>
             </thead>
             <tbody>
               {pedidos.map((p) => (
-                <tr key={p.id} className="border-pisao-gold/10 border-t">
+                <tr key={p.id} className="border-pisao-gold/10 border-t align-top">
                   <td className="text-pisao-cream px-4 py-3">{p.numero}</td>
                   <td className="text-pisao-cream px-4 py-3">
                     {p.clienteNombre}
+                    {p.ctgOneSubject && (
+                      <span className="text-pisao-gold/80 mt-1 block text-[10px] uppercase tracking-wide">
+                        CTG One
+                      </span>
+                    )}
                   </td>
                   <td className="text-pisao-cream-muted px-4 py-3">
                     {p.pago?.metodo ?? "—"}
@@ -72,8 +78,10 @@ export default async function AdminPedidosPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {p.estado === "PENDIENTE_VERIFICACION" && (
+                    {p.estado === "PENDIENTE_VERIFICACION" ? (
                       <VerificarPagoButtons pedidoId={p.id} />
+                    ) : (
+                      <OrderStatusButtons pedidoId={p.id} estado={p.estado} />
                     )}
                   </td>
                 </tr>
