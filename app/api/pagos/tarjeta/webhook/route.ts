@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCardPaymentProvider } from "@/lib/payments/providers";
+import { drainRewardsAfterCommit } from "@/lib/ctgone/rewards";
 
 /**
  * Webhook único para el proveedor de tarjeta activo. La verificación de
@@ -26,17 +27,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
   }
 
-  await prisma.pago.update({
-    where: { id: pago.id },
-    data: { estado: evento.estado, payloadProveedor: payload },
+  await prisma.$transaction(async (tx) => {
+    const pedido = await tx.pedido.findUnique({
+      where: { id: pago.pedidoId },
+      select: { id: true, total: true, ctgOneSubject: true },
+    });
+    if (!pedido) throw new Error("PEDIDO_NOT_FOUND");
+
+    await tx.pago.update({
+      where: { id: pago.id },
+      data: { estado: evento.estado, payloadProveedor: payload },
+    });
+
+    if (evento.estado === "APROBADO" || evento.estado === "RECHAZADO") {
+      await tx.pedido.update({
+        where: { id: pago.pedidoId },
+        data: { estado: evento.estado === "APROBADO" ? "CONFIRMADO" : "CANCELADO" },
+      });
+    }
+
+    if (pedido.ctgOneSubject && (evento.estado === "APROBADO" || evento.estado === "RECHAZADO")) {
+      const type = evento.estado === "APROBADO" ? "ORDER_PAID" : "ORDER_CANCELLED";
+      const eventKey = `pisao:order:${pedido.id}:${type.toLowerCase()}`;
+      await tx.ctgOneRewardOutbox.upsert({
+        where: { eventKey },
+        update: {},
+        create: {
+          eventKey,
+          type,
+          ctgOneSubject: pedido.ctgOneSubject,
+          pedidoId: pedido.id,
+          amountCop: pedido.total,
+        },
+      });
+    }
   });
 
-  if (evento.estado === "APROBADO") {
-    await prisma.pedido.update({
-      where: { id: pago.pedidoId },
-      data: { estado: "CONFIRMADO" },
-    });
-  }
-
+  await drainRewardsAfterCommit();
   return NextResponse.json({ ok: true });
 }
