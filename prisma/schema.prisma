@@ -64,6 +64,19 @@ enum EstadoReserva {
   COMPLETADA
 }
 
+enum CtgOneRewardEventType {
+  ORDER_PAID
+  ORDER_FULFILLED
+  ORDER_CANCELLED
+  RESERVATION_COMPLETED
+}
+
+enum CtgOneRewardEventStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
 // ---------------------------------------------------------------------------
 // Modelos
 // ---------------------------------------------------------------------------
@@ -230,6 +243,29 @@ model Reserva {
   @@index([fecha])
   @@index([ctgOneSubject])
   @@map("reservas")
+}
+
+/// Outbox duradero para eventos de historial/Rewards enviados a CTG One.
+/// La operación del restaurante se confirma primero en la misma transacción;
+/// la entrega federada puede reintentarse sin duplicar beneficios.
+model CtgOneRewardOutbox {
+  id            String                    @id @default(cuid())
+  eventKey      String                    @unique
+  type          CtgOneRewardEventType
+  ctgOneSubject String
+  pedidoId      String?
+  reservaId     String?
+  amountCop     Decimal?                  @db.Decimal(12, 2)
+  status        CtgOneRewardEventStatus   @default(PENDING)
+  attempts      Int                       @default(0)
+  lastError     String?
+  deliveredAt   DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([ctgOneSubject, createdAt])
+  @@map("ctgone_reward_outbox")
 }
 
 model Evento {
