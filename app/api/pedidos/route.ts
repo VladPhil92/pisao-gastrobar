@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { crearPedidoSchema } from "@/lib/orders/schema";
 import { crearPedido } from "@/lib/orders/create-order";
+import { getCtgOneCustomerSession } from "@/lib/ctgone/customer-session";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -13,8 +14,9 @@ export async function POST(request: Request) {
     );
   }
 
+  const session = await getCtgOneCustomerSession();
   const baseUrl = new URL(request.url).origin;
-  const resultado = await crearPedido(parsed.data, baseUrl);
+  const resultado = await crearPedido(parsed.data, baseUrl, session?.sub);
 
   return NextResponse.json(resultado, { status: 201 });
 }

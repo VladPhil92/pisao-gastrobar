@@ -8,6 +8,7 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
 import { useCartStore, cartItemCount } from "@/lib/cart/store";
+import { CtgOneAccount } from "@/components/layout/CtgOneAccount";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,6 +46,8 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <CtgOneAccount />
+
           <button
             type="button"
             aria-label="Abrir carrito"
@@ -102,6 +105,12 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <a
+              href="/auth/ctgone/start"
+              className="text-pisao-cream-muted hover:bg-pisao-carbon-soft hover:text-pisao-gold rounded-md px-2 py-2.5 text-sm"
+            >
+              Entrar con CTG One
+            </a>
             <div className="mt-2 flex gap-2">
               <Button href="/reservas" variant="outline" className="flex-1">
                 Reservar

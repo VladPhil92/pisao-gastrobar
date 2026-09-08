@@ -130,6 +130,7 @@ model Pedido {
   clienteNombre   String
   clienteTelefono String
   clienteEmail    String?
+  ctgOneSubject   String?
 
   tipoEntrega      TipoEntrega
   direccionEntrega String?
@@ -148,6 +149,7 @@ model Pedido {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([ctgOneSubject])
   @@map("pedidos")
 }
 
@@ -210,9 +212,10 @@ model Pago {
 model Reserva {
   id String @id @default(cuid())
 
-  nombre   String
-  telefono String
-  email    String?
+  nombre        String
+  telefono      String
+  email         String?
+  ctgOneSubject String?
 
   fecha    DateTime
   hora     String
@@ -225,6 +228,7 @@ model Reserva {
   updatedAt DateTime @updatedAt
 
   @@index([fecha])
+  @@index([ctgOneSubject])
   @@map("reservas")
 }
 
