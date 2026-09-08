@@ -15,7 +15,11 @@ import { crearCargoCripto } from "@/lib/payments/crypto";
  * - TARJETA: se genera un link de pago con el proveedor activo
  *   (Wompi/PayU/ePayco, según PAYMENT_GATEWAY_PROVIDER).
  */
-export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
+export async function crearPedido(
+  input: CrearPedidoInput,
+  baseUrl: string,
+  ctgOneSubject?: string,
+) {
   const { subtotal, descuento, total } = calcularTotalesPedido(
     input.items,
     input.metodoPago,
@@ -26,6 +30,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       clienteNombre: input.cliente.nombre,
       clienteTelefono: input.cliente.telefono,
       clienteEmail: input.cliente.email,
+      ctgOneSubject,
       tipoEntrega: input.tipoEntrega,
       direccionEntrega: input.direccionEntrega,
       notas: input.notas,
