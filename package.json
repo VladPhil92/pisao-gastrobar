@@ -7,7 +7,7 @@
     "prebuild": "node scripts/optimize-images.mjs",
     "build": "next build",
     "images:optimize": "node scripts/optimize-images.mjs",
-    "postbuild": "cp -r public .next/standalone/public && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static",
+    "postbuild": "node scripts/postbuild-standalone.mjs",
     "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint",
     "format": "prettier --write .",
