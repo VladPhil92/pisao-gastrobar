@@ -1,12 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Build de producción autónomo (solo el código realmente usado, sin
-  // depender del árbol completo de node_modules en runtime). Reduce
-  // significativamente la memoria y el tamaño del proceso `next start`
-  // en el servidor de 512MB de Render. Ver package.json ("postbuild"
-  // y "start") para el paso de copiado de assets que requiere.
-  output: "standalone",
+  // Render usa el bundle standalone para ejecutar la app con una huella
+  // reducida. Vercel 16.3+ inyecta su build adapter y actualmente no
+  // emite next-server.js.nft.json cuando `output: standalone` está activo;
+  // por eso dejamos que Vercel use su output nativo y conservamos
+  // standalone para despliegues fuera de Vercel.
+  output: process.env.VERCEL ? undefined : "standalone",
   images: {
     // Las imágenes se pre-generan en build (scripts/optimize-images.mjs)
     // y este loader apunta directo a esos archivos estáticos, en vez de
