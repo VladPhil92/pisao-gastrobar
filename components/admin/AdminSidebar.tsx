@@ -8,6 +8,7 @@ import {
   UtensilsCrossed,
   CalendarDays,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -18,6 +19,12 @@ const items = [
     label: "Panel",
     icon: LayoutDashboard,
     roles: ["ADMIN", "CAJERO", "COCINA"],
+  },
+  {
+    href: "/admin/ia",
+    label: "Centro IA",
+    icon: Sparkles,
+    roles: ["ADMIN"],
   },
   {
     href: "/admin/pedidos",
