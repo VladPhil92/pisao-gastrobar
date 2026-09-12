@@ -76,8 +76,8 @@ export default function ReservasPage() {
               <p className="text-xs font-semibold tracking-[0.16em] text-pisao-gold uppercase">Horario</p>
               <div className="mt-3 space-y-2 text-sm text-pisao-cream-muted">
                 {siteConfig.hours.map((item) => (
-                  <p key={item.days}>
-                    <span className="font-semibold text-pisao-cream">{item.days}:</span> {item.hours}
+                  <p key={item.dia}>
+                    <span className="font-semibold text-pisao-cream">{item.dia}:</span> {item.horario}
                   </p>
                 ))}
               </div>
