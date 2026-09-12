@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { ArrowUpRight, Check, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart/store";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
@@ -21,6 +21,9 @@ export interface MenuCardProduct {
 
 export function MenuCard({ product }: { product: MenuCardProduct }) {
   const addItem = useCartStore((s) => s.addItem);
+  const quantityInCart = useCartStore(
+    (s) => s.items.find((item) => item.productoId === product.id)?.cantidad ?? 0,
+  );
   const visual = getMenuCategoryVisual(product.categoriaSlug);
 
   return (
@@ -48,6 +51,11 @@ export function MenuCard({ product }: { product: MenuCardProduct }) {
         <span className="border-pisao-gold/25 bg-pisao-carbon/75 text-pisao-gold absolute top-4 left-4 rounded-full border px-3 py-1.5 text-[10px] font-semibold tracking-[0.16em] uppercase backdrop-blur">
           {visual.badge}
         </span>
+        {quantityInCart > 0 && (
+          <span className="bg-pisao-gold text-pisao-carbon absolute top-4 right-4 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold shadow-lg">
+            <Check className="size-3" /> {quantityInCart} en mesa
+          </span>
+        )}
         <span className="text-pisao-cream absolute right-4 bottom-4 inline-flex items-center gap-1 text-xs font-semibold opacity-0 transition duration-300 group-hover:opacity-100">
           Ver detalle <ArrowUpRight className="size-3.5" />
         </span>
@@ -91,13 +99,22 @@ export function MenuCard({ product }: { product: MenuCardProduct }) {
                 slug: product.slug,
                 precio: product.precio,
                 imagenUrl: product.imagenUrl,
+                categoriaSlug: product.categoriaSlug,
               })
             }
-            className="bg-pisao-gold text-pisao-carbon hover:bg-pisao-gold-light inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
+            className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              quantityInCart > 0
+                ? "border border-pisao-gold/35 bg-pisao-gold/10 text-pisao-gold hover:bg-pisao-gold/20"
+                : "bg-pisao-gold text-pisao-carbon hover:bg-pisao-gold-light"
+            }`}
             aria-label={`Agregar ${product.nombre} al carrito`}
           >
             <Plus className="size-4" />
-            {product.disponible ? "Agregar" : "No disponible"}
+            {product.disponible
+              ? quantityInCart > 0
+                ? "Agregar otro"
+                : "A la mesa"
+              : "No disponible"}
           </button>
         </div>
       </div>
