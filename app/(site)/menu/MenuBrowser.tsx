@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Sparkles, Utensils } from "lucide-react";
 import { MenuCard, type MenuCardProduct } from "@/components/menu/MenuCard";
+import { PlanModeComposer } from "@/components/menu/PlanModeComposer";
 import { VisualTableDock } from "@/components/cart/VisualTableDock";
 import {
   CategoryFilter,
@@ -29,29 +30,33 @@ export function MenuBrowser({
 
   return (
     <div className="pb-24 sm:pb-28">
-      <div className="border-pisao-gold/15 bg-[linear-gradient(135deg,rgba(199,154,58,.12),rgba(17,17,17,.82))] mb-7 overflow-hidden rounded-[1.5rem] border p-5 sm:p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-pisao-gold/15 bg-[linear-gradient(135deg,rgba(199,154,58,.13),rgba(17,17,17,.86))] mb-7 overflow-hidden rounded-[1.5rem] border p-5 sm:p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 text-pisao-gold">
               <Sparkles className="size-4" />
               <p className="text-[10px] font-semibold tracking-[0.22em] uppercase">
-                Nueva experiencia de compra
+                Compra gastronómica guiada
               </p>
             </div>
             <h2 className="font-display text-pisao-cream mt-2 text-2xl sm:text-3xl">
-              Arma la mesa, no solo el carrito.
+              Puedes explorar. O decirnos qué plan tienes.
             </h2>
             <p className="text-pisao-cream-muted mt-2 max-w-xl text-sm leading-relaxed">
-              Agrega platos y la Mesa Visual aparecerá abajo con fotografías reales, total en vivo y sugerencias para completar entrada, fuerte, bebida o postre.
+              El nuevo Modo Plan arma una propuesta de mesa según número de personas, tipo de visita y referencia de gasto. Usa únicamente platos disponibles y precios reales de esta carta.
             </p>
           </div>
-          <div className="border-pisao-gold/20 bg-pisao-noche/70 text-pisao-cream flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
-            <span className="bg-pisao-gold text-pisao-carbon flex size-9 items-center justify-center rounded-full">
-              <Utensils className="size-4" />
-            </span>
-            <div>
-              <p className="font-semibold">Mesa Visual PISÁO</p>
-              <p className="text-pisao-cream-muted text-[11px]">Se activa con tu primer producto.</p>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <PlanModeComposer products={products} />
+            <div className="border-pisao-gold/20 bg-pisao-noche/70 text-pisao-cream flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-3 text-sm">
+              <span className="bg-pisao-gold text-pisao-carbon flex size-9 items-center justify-center rounded-full">
+                <Utensils className="size-4" />
+              </span>
+              <div>
+                <p className="font-semibold">Mesa Visual PISÁO</p>
+                <p className="text-pisao-cream-muted text-[11px]">Se activa con tu primer producto.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -74,7 +79,7 @@ export function MenuBrowser({
           <p className="text-pisao-cream-muted mt-3 text-sm leading-relaxed sm:text-base">
             {active
               ? visual.description
-              : "Explora la carta completa: patacones insignia, burgers, cayeye, bebidas y opciones para compartir sin convertir la elección en una tarea."}
+              : "Explora la carta completa: patacones insignia, burgers, cayeye, bebidas y opciones para compartir. Si prefieres decidir más rápido, usa Modo Plan y luego ajusta la propuesta en tu Mesa Visual."}
           </p>
         </div>
         <p className="text-pisao-cream-muted text-xs font-semibold tracking-wide uppercase">
