@@ -1,5 +1,9 @@
 import Link from "next/link";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  MouseEventHandler,
+  ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 
 const styles = {
@@ -27,6 +31,7 @@ interface ButtonAsLink extends CommonProps {
   target?: string;
   rel?: string;
   children?: ReactNode;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 }
 
 export function Button({
@@ -38,9 +43,15 @@ export function Button({
   const classes = cn(base, styles[variant], className);
 
   if (href) {
-    const { children, target, rel } = props as ButtonAsLink;
+    const { children, target, rel, onClick } = props as ButtonAsLink;
     return (
-      <Link href={href} className={classes} target={target} rel={rel}>
+      <Link
+        href={href}
+        className={classes}
+        target={target}
+        rel={rel}
+        onClick={onClick}
+      >
         {children}
       </Link>
     );
