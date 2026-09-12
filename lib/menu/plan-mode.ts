@@ -29,12 +29,7 @@ export interface PlanProposal {
 }
 
 const SHARE = new Set(["entradas"]);
-const MAIN = new Set([
-  "patacones-insignia",
-  "hamburguesas",
-  "bowls",
-  "menu-infantil",
-]);
+const MAIN = new Set(["patacones-insignia", "hamburguesas", "bowls"]);
 const DRINK_NON_ALCOHOLIC = new Set([
   "sodas-saborizadas",
   "limonadas",
