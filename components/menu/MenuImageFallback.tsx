@@ -4,11 +4,27 @@ import { getMenuCategoryVisual } from "@/lib/menu/visual-language";
 export function MenuImageFallback({
   name,
   categorySlug,
+  compact = false,
 }: {
   name: string;
   categorySlug?: string | null;
+  compact?: boolean;
 }) {
   const visual = getMenuCategoryVisual(categorySlug);
+
+  if (compact) {
+    return (
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_70%_18%,rgba(199,154,58,.2),transparent_30%),linear-gradient(145deg,#20170f_0%,#111111_52%,#1c1c1c_100%)]">
+        <Image
+          src="/brand/pisao-mark.png"
+          alt=""
+          width={36}
+          height={36}
+          className="h-7 w-7 object-contain opacity-80"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-full w-full items-end overflow-hidden bg-[radial-gradient(circle_at_70%_18%,rgba(199,154,58,.2),transparent_30%),linear-gradient(145deg,#20170f_0%,#111111_52%,#1c1c1c_100%)] p-6">
