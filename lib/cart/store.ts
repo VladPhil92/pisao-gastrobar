@@ -10,6 +10,9 @@ interface CartState {
   direccionEntrega: string;
   isOpen: boolean;
   addItem: (item: Omit<CartItem, "cantidad">, cantidad?: number) => void;
+  addItems: (
+    items: Array<{ item: Omit<CartItem, "cantidad">; cantidad: number }>,
+  ) => void;
   removeItem: (productoId: string) => void;
   updateCantidad: (productoId: string, cantidad: number) => void;
   setTipoEntrega: (tipo: TipoEntrega) => void;
@@ -44,6 +47,29 @@ export const useCartStore = create<CartState>()(
           set({ items: [...items, { ...item, cantidad }] });
         }
         set({ isOpen: true });
+      },
+
+      addItems: (entries) => {
+        const merged = [...get().items];
+
+        for (const entry of entries) {
+          if (entry.cantidad <= 0) continue;
+          const index = merged.findIndex(
+            (item) => item.productoId === entry.item.productoId,
+          );
+
+          if (index >= 0) {
+            merged[index] = {
+              ...merged[index],
+              ...entry.item,
+              cantidad: merged[index].cantidad + entry.cantidad,
+            };
+          } else {
+            merged.push({ ...entry.item, cantidad: entry.cantidad });
+          }
+        }
+
+        set({ items: merged, isOpen: false });
       },
 
       removeItem: (productoId) =>
