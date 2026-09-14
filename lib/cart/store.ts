@@ -10,6 +10,7 @@ interface CartState {
   direccionEntrega: string;
   isOpen: boolean;
   addItem: (item: Omit<CartItem, "cantidad">, cantidad?: number) => void;
+  addItemQuietly: (item: Omit<CartItem, "cantidad">, cantidad?: number) => void;
   addItems: (
     items: Array<{ item: Omit<CartItem, "cantidad">; cantidad: number }>,
   ) => void;
@@ -23,6 +24,24 @@ interface CartState {
   toggle: () => void;
 }
 
+function mergeItem(
+  items: CartItem[],
+  item: Omit<CartItem, "cantidad">,
+  cantidad: number,
+) {
+  const existing = items.find((entry) => entry.productoId === item.productoId);
+
+  if (existing) {
+    return items.map((entry) =>
+      entry.productoId === item.productoId
+        ? { ...entry, ...item, cantidad: entry.cantidad + cantidad }
+        : entry,
+    );
+  }
+
+  return [...items, { ...item, cantidad }];
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -32,21 +51,14 @@ export const useCartStore = create<CartState>()(
       isOpen: false,
 
       addItem: (item, cantidad = 1) => {
-        const items = get().items;
-        const existing = items.find((i) => i.productoId === item.productoId);
+        set({
+          items: mergeItem(get().items, item, cantidad),
+          isOpen: true,
+        });
+      },
 
-        if (existing) {
-          set({
-            items: items.map((i) =>
-              i.productoId === item.productoId
-                ? { ...i, cantidad: i.cantidad + cantidad }
-                : i,
-            ),
-          });
-        } else {
-          set({ items: [...items, { ...item, cantidad }] });
-        }
-        set({ isOpen: true });
+      addItemQuietly: (item, cantidad = 1) => {
+        set({ items: mergeItem(get().items, item, cantidad) });
       },
 
       addItems: (entries) => {
