@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Send, TriangleAlert } from "lucide-react";
 import { reservaSchema, type ReservaFormValues } from "@/lib/reservas/schema";
 import { Button } from "@/components/ui/Button";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-pisao-gold/15 bg-pisao-carbon px-4 py-3 text-sm text-pisao-cream outline-none transition placeholder:text-pisao-cream-muted/45 focus:border-pisao-gold/70 focus:ring-2 focus:ring-pisao-gold/10";
@@ -14,12 +15,19 @@ const labelClass =
 
 export function ReservaForm() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const startedRef = useRef(false);
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({ resolver: zodResolver(reservaSchema) });
+
+  const markStarted = () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    trackBehavior("reservation_start", { surface: "reservation" });
+  };
 
   const onSubmit = async (values: ReservaFormValues) => {
     setStatus("idle");
@@ -30,6 +38,10 @@ export function ReservaForm() {
         body: JSON.stringify(values),
       });
       if (!res.ok) throw new Error("Error al crear la reserva");
+      trackBehavior("reservation_submit_success", {
+        surface: "reservation",
+        diners: values.personas,
+      });
       setStatus("success");
       reset();
     } catch {
@@ -38,7 +50,11 @@ export function ReservaForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      onFocusCapture={markStarted}
+      className="space-y-5"
+    >
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Nombre completo</label>
