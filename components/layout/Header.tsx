@@ -39,7 +39,7 @@ export function Header() {
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
           {siteConfig.nav.map((item) => {
-            const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
@@ -97,7 +97,7 @@ export function Header() {
             <div className="grid gap-5 md:grid-cols-[.9fr_1.1fr]">
               <nav className="flex flex-col gap-1" aria-label="Navegación móvil">
                 {siteConfig.nav.map((item) => {
-                  const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                   return (
                     <Link
                       key={item.href}
