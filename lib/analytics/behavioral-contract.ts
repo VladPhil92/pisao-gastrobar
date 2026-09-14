@@ -19,6 +19,8 @@ export const BEHAVIOR_EVENT_NAMES = [
   "reservation_submit_success",
   "whatsapp_intent",
   "concierge_open",
+  "concierge_proposal_view",
+  "concierge_proposal_add",
 ] as const;
 
 export const BEHAVIOR_SURFACES = [
