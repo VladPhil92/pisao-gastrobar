@@ -1,5 +1,20 @@
 import type { NextConfig } from "next";
 
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+];
+
 const nextConfig: NextConfig = {
   // Render usa el bundle standalone para ejecutar la app con una huella
   // reducida. Vercel 16.3+ inyecta su build adapter y actualmente no
@@ -24,6 +39,14 @@ const nextConfig: NextConfig = {
     // scripts/optimize-images.mjs para que siempre exista el archivo.
     deviceSizes: [640, 828, 1200, 1920],
     imageSizes: [128, 256, 384],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 
