@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Check, Sparkles } from "lucide-react";
@@ -11,7 +11,7 @@ import { StepPagoCripto } from "./steps/StepPagoCripto";
 import { StepPagoTarjeta } from "./steps/StepPagoTarjeta";
 import { StepConfirmacion } from "./steps/StepConfirmacion";
 import { CHECKOUT_INICIAL, type CheckoutState } from "./types";
-import { useCartStore, cartSubtotal } from "@/lib/cart/store";
+import { useCartStore, cartItemCount, cartSubtotal } from "@/lib/cart/store";
 import { getTableMoments } from "@/lib/cart/experience";
 import type { CartItem } from "@/lib/cart/types";
 import { formatCurrency } from "@/lib/utils";
@@ -20,6 +20,7 @@ import type { CrearCargoCriptoResult } from "@/lib/payments/crypto";
 import type { CrearLinkPagoResult } from "@/lib/payments/types";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
 import { VisualOrderRail } from "@/components/cart/VisualOrderRail";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 interface PedidoCreadoResponse {
   pedido: { id: string; numero: number; total: string | number };
@@ -37,11 +38,32 @@ export function CheckoutWizard() {
   const [error, setError] = useState<string | null>(null);
   const [pedidoData, setPedidoData] = useState<PedidoCreadoResponse | null>(null);
   const [orderedItems, setOrderedItems] = useState<CartItem[] | null>(null);
+  const trackedCheckoutStart = useRef(false);
 
   const summaryItems = orderedItems ?? items;
   const subtotal = cartSubtotal(summaryItems);
+  const itemCount = cartItemCount(summaryItems);
   const moments = useMemo(() => getTableMoments(summaryItems), [summaryItems]);
   const featuredItem = summaryItems.find((item) => item.imagenUrl) ?? summaryItems[0];
+
+  useEffect(() => {
+    if (trackedCheckoutStart.current || items.length === 0) return;
+    trackedCheckoutStart.current = true;
+    trackBehavior("checkout_start", {
+      surface: "checkout",
+      step: "entrega",
+      itemCount: cartItemCount(items),
+    });
+  }, [items]);
+
+  const trackStep = (nextStep: CheckoutStepId, paymentMethod?: MetodoPago) => {
+    trackBehavior("checkout_step", {
+      surface: "checkout",
+      step: nextStep,
+      paymentMethod,
+      itemCount,
+    });
+  };
 
   const crearPedido = async (metodoPago: MetodoPago, avanzarAPago = true) => {
     setLoading(true);
@@ -67,10 +89,24 @@ export function CheckoutWizard() {
       if (!res.ok) throw new Error("No se pudo crear el pedido");
 
       const data: PedidoCreadoResponse = await res.json();
+      const orderedCount = cartItemCount(items);
       setPedidoData(data);
       setOrderedItems(items);
       setState((s) => ({ ...s, metodoPago, pedidoId: data.pedido.id }));
-      if (avanzarAPago) setStep("pago");
+      trackBehavior("checkout_complete", {
+        surface: "checkout",
+        paymentMethod: metodoPago,
+        itemCount: orderedCount,
+      });
+      if (avanzarAPago) {
+        setStep("pago");
+        trackBehavior("checkout_step", {
+          surface: "checkout",
+          step: "pago",
+          paymentMethod: metodoPago,
+          itemCount: orderedCount,
+        });
+      }
       clearCart();
       return data;
     } catch (e) {
@@ -185,6 +221,7 @@ export function CheckoutWizard() {
               onNext={(cliente, tipoEntrega) => {
                 setState((s) => ({ ...s, cliente, tipoEntrega }));
                 setStep("metodo");
+                trackStep("metodo");
               }}
             />
           )}
@@ -196,7 +233,10 @@ export function CheckoutWizard() {
                 if (!loading) crearPedido(metodo);
               }}
               onCrearPedidoQr={() => crearPedido("QR_TRANSFERENCIA", false)}
-              onQrCompletado={() => setStep("confirmacion")}
+              onQrCompletado={() => {
+                setStep("confirmacion");
+                trackStep("confirmacion", "QR_TRANSFERENCIA");
+              }}
             />
           )}
 
@@ -207,7 +247,10 @@ export function CheckoutWizard() {
                 cargo={pedidoData.cripto}
                 total={Number(pedidoData.pedido.total)}
                 descuento={Math.max(0, subtotal - Number(pedidoData.pedido.total))}
-                onContinuar={() => setStep("confirmacion")}
+                onContinuar={() => {
+                  setStep("confirmacion");
+                  trackStep("confirmacion", "CRIPTO");
+                }}
               />
             )}
 
@@ -217,7 +260,10 @@ export function CheckoutWizard() {
               <StepPagoTarjeta
                 resultado={pedidoData.tarjeta}
                 total={Number(pedidoData.pedido.total)}
-                onContinuar={() => setStep("confirmacion")}
+                onContinuar={() => {
+                  setStep("confirmacion");
+                  trackStep("confirmacion", "TARJETA");
+                }}
               />
             )}
 
