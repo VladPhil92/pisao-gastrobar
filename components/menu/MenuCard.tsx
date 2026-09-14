@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCartStore } from "@/lib/cart/store";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
 import { getMenuCategoryVisual } from "@/lib/menu/visual-language";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 export interface MenuCardProduct {
   id: string;
@@ -25,6 +26,23 @@ export function MenuCard({ product }: { product: MenuCardProduct }) {
     (s) => s.items.find((item) => item.productoId === product.id)?.cantidad ?? 0,
   );
   const visual = getMenuCategoryVisual(product.categoriaSlug);
+
+  const handleAdd = () => {
+    addItem({
+      productoId: product.id,
+      nombre: product.nombre,
+      slug: product.slug,
+      precio: product.precio,
+      imagenUrl: product.imagenUrl,
+      categoriaSlug: product.categoriaSlug,
+    });
+    trackBehavior("cart_add", {
+      surface: "menu",
+      productSlug: product.slug,
+      categorySlug: product.categoriaSlug,
+      itemCount: quantityInCart + 1,
+    });
+  };
 
   return (
     <article className="pisao-image-lift group border-pisao-gold/10 bg-pisao-noche hover:border-pisao-gold/35 flex h-full flex-col overflow-hidden rounded-[1.75rem] border">
@@ -89,16 +107,7 @@ export function MenuCard({ product }: { product: MenuCardProduct }) {
           <button
             type="button"
             disabled={!product.disponible}
-            onClick={() =>
-              addItem({
-                productoId: product.id,
-                nombre: product.nombre,
-                slug: product.slug,
-                precio: product.precio,
-                imagenUrl: product.imagenUrl,
-                categoriaSlug: product.categoriaSlug,
-              })
-            }
+            onClick={handleAdd}
             className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
               quantityInCart > 0
                 ? "border border-pisao-gold/35 bg-pisao-gold/10 text-pisao-gold hover:bg-pisao-gold/20"

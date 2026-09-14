@@ -3,6 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { PisaoConcierge } from "@/components/ai/PisaoConcierge";
 import { SpatialExperience } from "@/components/visual/SpatialExperience";
+import { BehaviorTracker } from "@/components/analytics/BehaviorTracker";
 
 export default function SiteLayout({
   children,
@@ -11,6 +12,7 @@ export default function SiteLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-1 flex-col">
+      <BehaviorTracker />
       <SpatialExperience />
       <Header />
       <main className="flex-1">{children}</main>

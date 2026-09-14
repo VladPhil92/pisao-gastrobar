@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -247,4 +245,29 @@ model Evento {
   updatedAt DateTime @updatedAt
 
   @@map("eventos")
+}
+
+/// Telemetría first-party sin PII. sessionId es efímero por pestaña y no
+/// identifica a una persona entre sesiones. No se admiten campos de texto libre.
+model EventoAnalitico {
+  id            String   @id @default(cuid())
+  tipo          String   @db.VarChar(48)
+  sessionId     String   @db.VarChar(64)
+  pathname      String   @db.VarChar(180)
+  surface       String?  @db.VarChar(48)
+  productSlug   String?  @db.VarChar(96)
+  categorySlug  String?  @db.VarChar(96)
+  intent        String?  @db.VarChar(32)
+  step          String?  @db.VarChar(48)
+  paymentMethod String?  @db.VarChar(32)
+  deviceClass   String?  @db.VarChar(16)
+  budgetTier    Int?
+  diners        Int?
+  itemCount     Int?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tipo, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("eventos_analiticos")
 }

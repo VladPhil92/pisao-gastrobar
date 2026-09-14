@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { whatsappLink } from "@/lib/site-config";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 type Message = {
   role: "user" | "assistant";
@@ -93,6 +94,15 @@ export function PisaoConcierge() {
     event.preventDefault();
     void sendMessage(input);
   }
+
+  const openConcierge = () => {
+    trackBehavior("concierge_open", { surface: "concierge" });
+    setOpen(true);
+  };
+
+  const trackWhatsappIntent = () => {
+    trackBehavior("whatsapp_intent", { surface: "concierge" });
+  };
 
   return (
     <div className="fixed right-4 bottom-4 z-50 sm:right-6 sm:bottom-6">
@@ -189,6 +199,7 @@ export function PisaoConcierge() {
                 href={whatsappLink("Hola PISÁO, necesito ayuda con mi visita o pedido.")}
                 target="_blank"
                 rel="noreferrer"
+                onClick={trackWhatsappIntent}
                 className="border-pisao-gold/20 text-pisao-cream hover:bg-pisao-gold/10 rounded-lg border px-2 py-2 text-center transition"
               >
                 WhatsApp
@@ -224,7 +235,7 @@ export function PisaoConcierge() {
       ) : (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openConcierge}
           className="bg-pisao-gold text-pisao-carbon shadow-pisao-carbon/70 group flex items-center gap-3 rounded-full px-4 py-3 font-semibold shadow-2xl transition hover:-translate-y-0.5 hover:scale-[1.02]"
           aria-label="Abrir asistente de PISÁO"
         >

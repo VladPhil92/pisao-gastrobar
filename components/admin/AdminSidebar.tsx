@@ -9,6 +9,7 @@ import {
   CalendarDays,
   BarChart3,
   Sparkles,
+  MousePointerClick,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -43,6 +44,12 @@ const items = [
     label: "Reservas",
     icon: CalendarDays,
     roles: ["ADMIN", "CAJERO"],
+  },
+  {
+    href: "/admin/comportamiento",
+    label: "Comportamiento",
+    icon: MousePointerClick,
+    roles: ["ADMIN"],
   },
   {
     href: "/admin/reportes",

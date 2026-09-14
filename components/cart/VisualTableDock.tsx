@@ -13,6 +13,7 @@ import {
   type SuggestibleProduct,
 } from "@/lib/cart/experience";
 import { formatCurrency } from "@/lib/utils";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 export function VisualTableDock({ products }: { products: SuggestibleProduct[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -54,10 +55,34 @@ export function VisualTableDock({ products }: { products: SuggestibleProduct[] }
       imagenUrl: product.imagenUrl,
       categoriaSlug: product.categoriaSlug,
     });
+    trackBehavior("visual_table_suggestion_add", {
+      surface: "table",
+      productSlug: product.slug,
+      categorySlug: product.categoriaSlug,
+      itemCount: itemCount + 1,
+    });
     setRecentlyAdded(product.id);
     window.setTimeout(() => {
       setRecentlyAdded((current) => (current === product.id ? null : current));
     }, 1200);
+  };
+
+  const toggleExpanded = () => {
+    if (!expanded) {
+      trackBehavior("visual_table_open", {
+        surface: "table",
+        itemCount,
+      });
+    }
+    setExpanded((value) => !value);
+  };
+
+  const reviewOrder = () => {
+    trackBehavior("cart_review", {
+      surface: "table",
+      itemCount,
+    });
+    openCart();
   };
 
   if (items.length === 0 || cartOpen) return null;
@@ -198,7 +223,7 @@ export function VisualTableDock({ products }: { products: SuggestibleProduct[] }
         <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
           <button
             type="button"
-            onClick={() => setExpanded((value) => !value)}
+            onClick={toggleExpanded}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
             aria-expanded={expanded}
           >
@@ -227,7 +252,7 @@ export function VisualTableDock({ products }: { products: SuggestibleProduct[] }
 
           <button
             type="button"
-            onClick={openCart}
+            onClick={reviewOrder}
             className="bg-pisao-gold text-pisao-carbon hover:bg-pisao-gold-light shrink-0 rounded-full px-4 py-2.5 text-xs font-bold transition sm:px-5"
           >
             Ver pedido

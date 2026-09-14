@@ -12,6 +12,7 @@ import {
   type Category,
 } from "@/components/menu/CategoryFilter";
 import { getMenuCategoryVisual } from "@/lib/menu/visual-language";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 export function MenuBrowser({
   categories,
@@ -38,6 +39,16 @@ export function MenuBrowser({
         .slice(0, 8),
     [products],
   );
+
+  const handleCategoryChange = (categorySlug: string | null) => {
+    setActive(categorySlug);
+    if (categorySlug) {
+      trackBehavior("category_filter", {
+        surface: "menu",
+        categorySlug,
+      });
+    }
+  };
 
   return (
     <div className="pb-24 sm:pb-28">
@@ -122,7 +133,11 @@ export function MenuBrowser({
         </section>
       )}
 
-      <CategoryFilter categories={categories} active={active} onChange={setActive} />
+      <CategoryFilter
+        categories={categories}
+        active={active}
+        onChange={handleCategoryChange}
+      />
 
       <section
         key={active ?? "all"}

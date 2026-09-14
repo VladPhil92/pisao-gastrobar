@@ -4,6 +4,7 @@ import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useCartStore } from "@/lib/cart/store";
 import type { MenuCardProduct } from "@/components/menu/MenuCard";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 export function AddToCartButton({ producto }: { producto: MenuCardProduct }) {
   const addItem = useCartStore((s) => s.addItem);
@@ -11,21 +12,29 @@ export function AddToCartButton({ producto }: { producto: MenuCardProduct }) {
     (s) => s.items.find((item) => item.productoId === producto.id)?.cantidad ?? 0,
   );
 
+  const handleAdd = () => {
+    addItem({
+      productoId: producto.id,
+      nombre: producto.nombre,
+      slug: producto.slug,
+      precio: producto.precio,
+      imagenUrl: producto.imagenUrl,
+      categoriaSlug: producto.categoriaSlug,
+    });
+    trackBehavior("cart_add", {
+      surface: "product",
+      productSlug: producto.slug,
+      categorySlug: producto.categoriaSlug,
+      itemCount: quantity + 1,
+    });
+  };
+
   return (
     <div className="mt-8">
       <Button
         variant="primary"
         className="w-full sm:w-auto"
-        onClick={() =>
-          addItem({
-            productoId: producto.id,
-            nombre: producto.nombre,
-            slug: producto.slug,
-            precio: producto.precio,
-            imagenUrl: producto.imagenUrl,
-            categoriaSlug: producto.categoriaSlug,
-          })
-        }
+        onClick={handleAdd}
       >
         {quantity > 0 ? <Check className="size-4" /> : <Plus className="size-4" />}
         {quantity > 0 ? `En tu mesa · ${quantity}` : "Agregar a mi mesa"}
