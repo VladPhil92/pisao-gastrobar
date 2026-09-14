@@ -16,10 +16,11 @@ import { formatCurrency } from "@/lib/utils";
 
 export function VisualTableDock({ products }: { products: SuggestibleProduct[] }) {
   const [expanded, setExpanded] = useState(false);
+  const [recentlyAdded, setRecentlyAdded] = useState<string | null>(null);
   const items = useCartStore((state) => state.items);
   const cartOpen = useCartStore((state) => state.isOpen);
   const openCart = useCartStore((state) => state.open);
-  const addItem = useCartStore((state) => state.addItem);
+  const addItemQuietly = useCartStore((state) => state.addItemQuietly);
 
   const effectiveItems = useMemo(
     () =>
@@ -44,13 +45,28 @@ export function VisualTableDock({ products }: { products: SuggestibleProduct[] }
   const subtotal = cartSubtotal(items);
   const itemCount = cartItemCount(items);
 
+  const addSuggestion = (product: SuggestibleProduct) => {
+    addItemQuietly({
+      productoId: product.id,
+      nombre: product.nombre,
+      slug: product.slug,
+      precio: product.precio,
+      imagenUrl: product.imagenUrl,
+      categoriaSlug: product.categoriaSlug,
+    });
+    setRecentlyAdded(product.id);
+    window.setTimeout(() => {
+      setRecentlyAdded((current) => (current === product.id ? null : current));
+    }, 1200);
+  };
+
   if (items.length === 0 || cartOpen) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 px-3 sm:bottom-5 sm:px-6">
+    <div className="pisao-dock-safe pointer-events-none fixed inset-x-0 z-40 px-3 sm:px-6">
       <div className="pointer-events-auto mx-auto max-w-5xl overflow-hidden rounded-[1.6rem] border border-pisao-gold/25 bg-pisao-carbon/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
         {expanded && (
-          <div className="border-b border-pisao-gold/10 p-4 sm:p-6">
+          <div className="max-h-[72svh] overflow-y-auto border-b border-pisao-gold/10 p-4 sm:max-h-[76svh] sm:p-6">
             <div className="grid gap-6 lg:grid-cols-[.82fr_1.18fr]">
               <div>
                 <div className="flex items-start justify-between gap-4">
@@ -102,62 +118,72 @@ export function VisualTableDock({ products }: { products: SuggestibleProduct[] }
                   </p>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-pisao-cream-muted">
-                  Sugerencias basadas únicamente en las categorías que todavía no están en tu mesa.
+                  Sugerencias basadas únicamente en las categorías que todavía no están en tu mesa. Puedes agregarlas sin abandonar esta vista.
                 </p>
 
                 {suggestions.length > 0 ? (
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    {suggestions.map((product) => (
-                      <div
-                        key={product.id}
-                        className="overflow-hidden rounded-2xl border border-pisao-gold/10 bg-pisao-carbon-soft"
-                      >
-                        <div className="relative aspect-[4/3] overflow-hidden">
-                          {product.imagenUrl ? (
-                            <Image
-                              src={product.imagenUrl}
-                              alt={product.nombre}
-                              fill
-                              sizes="160px"
-                              className="object-cover"
-                            />
-                          ) : (
-                            <MenuImageFallback
-                              name={product.nombre}
-                              categorySlug={product.categoriaSlug}
-                              compact
-                            />
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <p className="line-clamp-1 text-xs font-semibold text-pisao-cream">
-                            {product.nombre}
-                          </p>
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold text-pisao-gold">
-                              {formatCurrency(product.precio)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                addItem({
-                                  productoId: product.id,
-                                  nombre: product.nombre,
-                                  slug: product.slug,
-                                  precio: product.precio,
-                                  imagenUrl: product.imagenUrl,
-                                  categoriaSlug: product.categoriaSlug,
-                                })
-                              }
-                              className="bg-pisao-gold text-pisao-carbon flex size-8 items-center justify-center rounded-full transition hover:bg-pisao-gold-light"
-                              aria-label={`Agregar ${product.nombre}`}
-                            >
-                              <Plus className="size-4" />
-                            </button>
+                    {suggestions.map((product) => {
+                      const confirmed = recentlyAdded === product.id;
+                      return (
+                        <div
+                          key={product.id}
+                          className={`overflow-hidden rounded-2xl border bg-pisao-carbon-soft transition ${
+                            confirmed
+                              ? "pisao-suggestion-confirm border-pisao-gold/65"
+                              : "border-pisao-gold/10"
+                          }`}
+                        >
+                          <div className="relative aspect-[4/3] overflow-hidden">
+                            {product.imagenUrl ? (
+                              <Image
+                                src={product.imagenUrl}
+                                alt={product.nombre}
+                                fill
+                                sizes="160px"
+                                className="object-cover transition duration-500 hover:scale-105"
+                              />
+                            ) : (
+                              <MenuImageFallback
+                                name={product.nombre}
+                                categorySlug={product.categoriaSlug}
+                                compact
+                              />
+                            )}
+                          </div>
+                          <div className="p-3">
+                            <p className="line-clamp-1 text-xs font-semibold text-pisao-cream">
+                              {product.nombre}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold text-pisao-gold">
+                                {formatCurrency(product.precio)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => addSuggestion(product)}
+                                className={`flex size-8 items-center justify-center rounded-full transition ${
+                                  confirmed
+                                    ? "bg-pisao-green text-pisao-cream"
+                                    : "bg-pisao-gold text-pisao-carbon hover:bg-pisao-gold-light"
+                                }`}
+                                aria-label={
+                                  confirmed
+                                    ? `${product.nombre} agregado`
+                                    : `Agregar ${product.nombre}`
+                                }
+                              >
+                                {confirmed ? (
+                                  <Check className="size-4" />
+                                ) : (
+                                  <Plus className="size-4" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mt-5 rounded-xl border border-pisao-gold/10 bg-pisao-gold/5 p-4 text-sm text-pisao-cream-muted">
