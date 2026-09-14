@@ -1,5 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { buildPisaoInstructions, routePisaoAgent } from "@/lib/ai/pisao-agents";
+import {
+  analyzeCommerceRequest,
+  buildConversationalProposal,
+  deterministicCommerceReply,
+  proposalContextForModel,
+  type CommerceProduct,
+} from "@/lib/ai/conversational-commerce";
+import { productosPlaceholder } from "@/lib/menu/placeholder-data";
 import { siteConfig } from "@/lib/site-config";
 
 type ClientMessage = {
@@ -16,6 +24,12 @@ type OpenAIResponse = {
     }>;
   }>;
   error?: { message?: string };
+};
+
+type MenuCatalog = {
+  products: CommerceProduct[];
+  context: string;
+  source: "database" | "fallback";
 };
 
 function extractOutputText(payload: OpenAIResponse) {
@@ -47,36 +61,72 @@ function sanitizeMessages(value: unknown): ClientMessage[] {
     }));
 }
 
-async function getMenuContext() {
+function menuContextFromProducts(products: CommerceProduct[]) {
+  const byCategory = new Map<string, CommerceProduct[]>();
+
+  for (const product of products.filter((item) => item.disponible)) {
+    const category = product.categoriaSlug ?? "otros";
+    const entries = byCategory.get(category) ?? [];
+    entries.push(product);
+    byCategory.set(category, entries);
+  }
+
+  return [...byCategory.entries()]
+    .map(([category, entries]) => {
+      const lines = entries
+        .map(
+          (product) =>
+            `- ${product.nombre}: $${Number(product.precio).toLocaleString("es-CO")} COP. ${product.descripcion ?? ""}`.trim(),
+        )
+        .join("\n");
+      return `${category}\n${lines}`;
+    })
+    .join("\n\n")
+    .slice(0, 14000);
+}
+
+async function getMenuCatalog(): Promise<MenuCatalog> {
   try {
     const categories = await prisma.categoria.findMany({
       where: { activa: true },
       orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       include: {
         productos: {
-          where: { disponible: true },
           orderBy: [{ destacado: "desc" }, { orden: "asc" }, { nombre: "asc" }],
         },
       },
     });
 
-    if (!categories.length) return "No hay catálogo cargado en este momento.";
+    const products: CommerceProduct[] = categories.flatMap((category) =>
+      category.productos.map((product) => ({
+        id: product.id,
+        nombre: product.nombre,
+        slug: product.slug,
+        descripcion: product.descripcion,
+        precio: Number(product.precio),
+        imagenUrl: product.imagenUrl,
+        disponible: product.disponible,
+        categoriaSlug: category.slug,
+      })),
+    );
 
-    return categories
-      .map((category) => {
-        const products = category.productos
-          .map(
-            (product) =>
-              `- ${product.nombre}: $${Number(product.precio).toLocaleString("es-CO")} COP. ${product.descripcion}`,
-          )
-          .join("\n");
-        return `${category.nombre}\n${products}`;
-      })
-      .join("\n\n")
-      .slice(0, 14000);
+    if (!products.length) throw new Error("Catálogo vacío");
+
+    return {
+      products,
+      context: menuContextFromProducts(products),
+      source: "database",
+    };
   } catch (error) {
-    console.error("[PISAO AI] No se pudo cargar el menú", error);
-    return "El catálogo dinámico no está disponible. No inventes platos ni precios; dirige al visitante a /menu.";
+    console.error("[PISAO AI] Catálogo dinámico degradado; usando carta verificada", error);
+    const products: CommerceProduct[] = productosPlaceholder.map((product) => ({
+      ...product,
+    }));
+    return {
+      products,
+      context: menuContextFromProducts(products),
+      source: "fallback",
+    };
   }
 }
 
@@ -92,24 +142,36 @@ export async function POST(request: Request) {
       return Response.json({ error: "Mensaje inválido." }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return Response.json(
-        {
-          error: "El asistente todavía no tiene configurada su credencial de IA.",
-          fallback: true,
-        },
-        { status: 503 },
-      );
-    }
-
     const agent = routePisaoAgent(latestUserMessage.content);
-    const menuContext = await getMenuContext();
+    const catalog = await getMenuCatalog();
+    const transcript = messages
+      .filter((message) => message.role === "user")
+      .map((message) => message.content)
+      .join("\n");
+    const commerceAnalysis = analyzeCommerceRequest(transcript);
+    const proposal =
+      agent.id === "ventas" || (agent.id === "anfitrion" && commerceAnalysis.foodIntent)
+        ? buildConversationalProposal(catalog.products, commerceAnalysis)
+        : null;
+
+    const fallbackText = deterministicCommerceReply(commerceAnalysis, proposal);
     const hoursContext = [
       `${siteConfig.location.label}. ${siteConfig.location.address}`,
       ...siteConfig.hours.map(({ dia, horario }) => `${dia}: ${horario}`),
       `WhatsApp: ${siteConfig.contact.phone}`,
     ].join("\n");
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return Response.json({
+        text: fallbackText,
+        proposal,
+        fallback: true,
+        agent: agent.id,
+        agentLabel: agent.label,
+        menuSource: catalog.source,
+      });
+    }
 
     const upstream = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -121,11 +183,11 @@ export async function POST(request: Request) {
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
         store: false,
         max_output_tokens: 500,
-        instructions: buildPisaoInstructions({
+        instructions: `${buildPisaoInstructions({
           agent,
-          menuContext,
+          menuContext: catalog.context,
           hoursContext,
-        }),
+        })}\n\nCOMERCIO CONVERSACIONAL\n${proposalContextForModel(proposal)}\n\nSi no hay propuesta calculada, haz solo la pregunta mínima necesaria para poder construirla. Para alergias, intolerancias o veganismo, no generes una mesa automática: deriva a validación humana.`,
         input: messages.map((message) => ({
           role: message.role,
           content: message.content,
@@ -137,24 +199,25 @@ export async function POST(request: Request) {
 
     if (!upstream.ok) {
       console.error("[PISAO AI] OpenAI error", upstream.status, payload.error);
-      return Response.json(
-        { error: "No pude responder en este momento. Intenta de nuevo o escríbenos por WhatsApp." },
-        { status: 502 },
-      );
+      return Response.json({
+        text: fallbackText,
+        proposal,
+        fallback: true,
+        agent: agent.id,
+        agentLabel: agent.label,
+        menuSource: catalog.source,
+      });
     }
 
-    const text = extractOutputText(payload);
-    if (!text) {
-      return Response.json(
-        { error: "No pude generar una respuesta útil. Intenta nuevamente." },
-        { status: 502 },
-      );
-    }
+    const text = extractOutputText(payload) || fallbackText;
 
     return Response.json({
       text,
+      proposal,
+      fallback: !extractOutputText(payload),
       agent: agent.id,
       agentLabel: agent.label,
+      menuSource: catalog.source,
     });
   } catch (error) {
     console.error("[PISAO AI] Error inesperado", error);
