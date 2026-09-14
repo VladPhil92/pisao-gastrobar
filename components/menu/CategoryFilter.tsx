@@ -17,32 +17,38 @@ export function CategoryFilter({
   onChange: (slug: string | null) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <button
-        onClick={() => onChange(null)}
-        className={cn(
-          "rounded-full border px-4 py-1.5 text-sm transition-colors",
-          active === null
-            ? "border-pisao-gold bg-pisao-gold text-pisao-carbon"
-            : "border-pisao-gold/30 text-pisao-cream-muted hover:border-pisao-gold",
-        )}
-      >
-        Todos
-      </button>
-      {categories.map((c) => (
+    <div className="border-pisao-gold/10 bg-pisao-carbon/92 sticky top-16 z-20 -mx-4 border-y px-4 py-4 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:px-5">
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
-          key={c.slug}
-          onClick={() => onChange(c.slug)}
+          type="button"
+          aria-pressed={active === null}
+          onClick={() => onChange(null)}
           className={cn(
-            "rounded-full border px-4 py-1.5 text-sm transition-colors",
-            active === c.slug
-              ? "border-pisao-gold bg-pisao-gold text-pisao-carbon"
-              : "border-pisao-gold/30 text-pisao-cream-muted hover:border-pisao-gold",
+            "shrink-0 rounded-full border px-4 py-2 text-xs font-semibold tracking-wide transition-all",
+            active === null
+              ? "border-pisao-gold bg-pisao-gold text-pisao-carbon shadow-[0_10px_30px_rgba(199,154,58,.14)]"
+              : "border-pisao-gold/20 bg-pisao-noche/80 text-pisao-cream-muted hover:border-pisao-gold/60 hover:text-pisao-cream",
           )}
         >
-          {c.nombre}
+          Toda la carta
         </button>
-      ))}
+        {categories.map((c) => (
+          <button
+            type="button"
+            key={c.slug}
+            aria-pressed={active === c.slug}
+            onClick={() => onChange(c.slug)}
+            className={cn(
+              "shrink-0 rounded-full border px-4 py-2 text-xs font-semibold tracking-wide transition-all",
+              active === c.slug
+                ? "border-pisao-gold bg-pisao-gold text-pisao-carbon shadow-[0_10px_30px_rgba(199,154,58,.14)]"
+                : "border-pisao-gold/20 bg-pisao-noche/80 text-pisao-cream-muted hover:border-pisao-gold/60 hover:text-pisao-cream",
+            )}
+          >
+            {c.nombre}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -6,5 +6,6 @@ export interface CartItem {
   slug: string;
   precio: number;
   imagenUrl?: string | null;
+  categoriaSlug?: string;
   cantidad: number;
 }

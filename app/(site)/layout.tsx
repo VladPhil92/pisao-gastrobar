@@ -1,7 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { PisaoConcierge } from "@/components/ai/PisaoConcierge";
 
 export default function SiteLayout({
   children,
@@ -13,7 +13,7 @@ export default function SiteLayout({
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
-      <WhatsAppButton />
+      <PisaoConcierge />
       <CartDrawer />
     </div>
   );
