@@ -11,25 +11,30 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "cambiar-esta-clave";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
-  const admin = await prisma.usuario.upsert({
-    where: { email: "admin@pisaogastrobar.com" },
-    update: {},
-    create: {
-      nombre: "Administrador PISÁO",
-      email: "admin@pisaogastrobar.com",
-      passwordHash: await bcrypt.hash(adminPassword, 10),
-      rol: "ADMIN",
-    },
-  });
+  if (adminPassword) {
+    await prisma.usuario.upsert({
+      where: { email: "admin@pisaogastrobar.com" },
+      update: {},
+      create: {
+        nombre: "Administrador PISÁO",
+        email: "admin@pisaogastrobar.com",
+        passwordHash: await bcrypt.hash(adminPassword, 10),
+        rol: "ADMIN",
+      },
+    });
+    console.log("Bootstrap DB: usuario administrativo verificado.");
+  } else {
+    console.log("Bootstrap DB: SEED_ADMIN_PASSWORD no definido; no se crea usuario admin.");
+  }
 
-  // Carta real (ver lib/menu/placeholder-data.ts para la fuente y notas
-  // sobre qué fotos son coincidencias confirmadas vs. mejor aproximación).
+  // Bootstrap no destructivo: crea la carta base únicamente cuando faltan filas.
+  // Los cambios hechos después desde administración no se sobreescriben en deploys futuros.
   for (const [index, categoria] of categoriasPlaceholder.entries()) {
     await prisma.categoria.upsert({
       where: { slug: categoria.slug },
-      update: { nombre: categoria.nombre, orden: index },
+      update: {},
       create: {
         id: categoria.id,
         nombre: categoria.nombre,
@@ -50,14 +55,7 @@ async function main() {
 
     await prisma.producto.upsert({
       where: { slug: producto.slug },
-      update: {
-        nombre: producto.nombre,
-        descripcion: producto.descripcion || "",
-        precio: producto.precio,
-        imagenUrl: producto.imagenUrl,
-        disponible: producto.disponible,
-        categoriaId,
-      },
+      update: {},
       create: {
         id: producto.id,
         nombre: producto.nombre,
@@ -71,9 +69,8 @@ async function main() {
     });
   }
 
-  console.log(`Usuario admin listo: ${admin.email} / ${adminPassword}`);
   console.log(
-    `Carta cargada: ${categoriasDb.length} categorías, ${productosPlaceholder.length} productos.`,
+    `Bootstrap DB: ${categoriasPlaceholder.length} categorías y ${productosPlaceholder.length} productos base verificados.`,
   );
 }
 
