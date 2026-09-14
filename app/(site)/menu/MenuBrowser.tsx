@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Utensils } from "lucide-react";
+import { ArrowRight, Clock, Sparkles, Utensils } from "lucide-react";
 import { MenuCard, type MenuCardProduct } from "@/components/menu/MenuCard";
 import { PlanModeComposer } from "@/components/menu/PlanModeComposer";
 import { VisualTableDock } from "@/components/cart/VisualTableDock";
@@ -12,7 +12,9 @@ import {
   type Category,
 } from "@/components/menu/CategoryFilter";
 import { getMenuCategoryVisual } from "@/lib/menu/visual-language";
+import { rankAdaptiveMenu } from "@/lib/menu/adaptive-engine";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
+import { useCartStore } from "@/lib/cart/store";
 
 export function MenuBrowser({
   categories,
@@ -22,22 +24,39 @@ export function MenuBrowser({
   products: (MenuCardProduct & { categoriaSlug: string })[];
 }) {
   const [active, setActive] = useState<string | null>(null);
+  const [contextNow] = useState(() => new Date());
+  const cartItems = useCartStore((state) => state.items);
 
-  const filtered = useMemo(
-    () => (active ? products.filter((p) => p.categoriaSlug === active) : products),
+  const candidates = useMemo(
+    () => (active ? products.filter((product) => product.categoriaSlug === active) : products),
     [active, products],
+  );
+
+  const adaptive = useMemo(
+    () => rankAdaptiveMenu(candidates, cartItems, active, contextNow),
+    [active, candidates, cartItems, contextNow],
+  );
+
+  const rankedProducts = useMemo(
+    () => adaptive.ranked.map((entry) => entry.product),
+    [adaptive.ranked],
   );
 
   const visual = getMenuCategoryVisual(active);
   const heroProduct =
-    filtered.find((product) => product.imagenUrl) ??
+    rankedProducts.find((product) => product.imagenUrl && product.disponible) ??
+    rankedProducts.find((product) => product.imagenUrl) ??
     products.find((product) => product.imagenUrl);
+
   const visualRail = useMemo(
     () =>
-      products
-        .filter((product) => product.imagenUrl && product.disponible)
+      adaptive.ranked
+        .filter(
+          ({ product }) =>
+            Boolean(product.imagenUrl) && product.disponible,
+        )
         .slice(0, 8),
-    [products],
+    [adaptive.ranked],
   );
 
   const handleCategoryChange = (categorySlug: string | null) => {
@@ -89,22 +108,36 @@ export function MenuBrowser({
 
       {visualRail.length > 0 && (
         <section className="mb-9 overflow-hidden">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-pisao-gold text-[9px] font-semibold tracking-[.22em] uppercase">
-                Explora con los ojos
-              </p>
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-pisao-gold">
+                <Clock className="size-3.5" />
+                <p className="text-[9px] font-semibold tracking-[.22em] uppercase">
+                  Menú adaptativo · hora Cartagena
+                </p>
+              </div>
               <h2 className="font-display mt-1 text-2xl text-pisao-cream sm:text-3xl">
-                Antes de filtrar, deja que algo te antoje.
+                {adaptive.context.label}
               </h2>
+              <p className="text-pisao-cream-muted mt-2 text-xs leading-relaxed sm:text-sm">
+                {adaptive.context.description}
+              </p>
             </div>
-            <p className="text-pisao-cream-muted hidden text-[10px] font-semibold tracking-[.15em] uppercase sm:block">
-              Desliza →
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="border-pisao-gold/15 bg-pisao-noche/70 text-pisao-cream-muted rounded-full border px-3 py-1.5 text-[9px] font-semibold tracking-[.12em] uppercase">
+                Disponibilidad real
+              </span>
+              <span className="border-pisao-gold/15 bg-pisao-noche/70 text-pisao-cream-muted rounded-full border px-3 py-1.5 text-[9px] font-semibold tracking-[.12em] uppercase">
+                Precios sin cambios
+              </span>
+              <span className="text-pisao-cream-muted hidden text-[10px] font-semibold tracking-[.15em] uppercase lg:block">
+                Desliza →
+              </span>
+            </div>
           </div>
 
           <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
-            {visualRail.map((product, index) => (
+            {visualRail.map(({ product, reason }, index) => (
               <Link
                 key={product.id}
                 href={`/menu/${product.slug}`}
@@ -119,6 +152,11 @@ export function MenuBrowser({
                   className="object-cover transition duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/5 to-transparent" />
+                <div className="absolute inset-x-0 top-0 p-4">
+                  <span className="border-pisao-gold/25 bg-pisao-carbon/75 text-pisao-gold inline-flex rounded-full border px-3 py-1.5 text-[9px] font-semibold tracking-[.13em] uppercase backdrop-blur-xl">
+                    {reason}
+                  </span>
+                </div>
                 <div className="absolute inset-x-0 bottom-0 p-5">
                   <p className="font-display text-xl leading-tight text-pisao-cream">
                     {product.nombre}
@@ -159,29 +197,34 @@ export function MenuBrowser({
         <div className="relative grid min-h-[330px] items-end p-6 sm:p-8 lg:grid-cols-[.58fr_.42fr] lg:items-center lg:p-10">
           <div className="max-w-2xl">
             <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.22em] uppercase">
-              {visual.eyebrow}
+              {active ? visual.eyebrow : "Selección contextual PISÁO"}
             </p>
             <h2 className="font-display text-pisao-cream mt-2 text-4xl leading-[.98] sm:text-5xl">
-              {active ? visual.label : "Todo el sabor PISÁO"}
+              {active ? visual.label : adaptive.context.label}
             </h2>
             <p className="text-pisao-cream-muted mt-4 max-w-xl text-sm leading-relaxed sm:text-base">
               {active
                 ? visual.description
-                : "Explora patacones insignia, burgers, cayeye, bebidas y opciones para compartir. Si prefieres decidir rápido, usa Modo Plan y termina de ajustar la propuesta en Mesa Visual."}
+                : `${adaptive.context.description} El orden también responde a lo que ya tienes en Mesa Visual.`}
             </p>
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <span
                 aria-live="polite"
                 className="border-pisao-gold/20 bg-pisao-carbon/60 text-pisao-gold rounded-full border px-4 py-2 text-[10px] font-bold tracking-[.14em] uppercase backdrop-blur-xl"
               >
-                {filtered.length} {filtered.length === 1 ? "opción" : "opciones"}
+                {rankedProducts.length} {rankedProducts.length === 1 ? "opción" : "opciones"}
               </span>
+              {!active && cartItems.length > 0 && (
+                <span className="border-pisao-gold/15 bg-pisao-carbon/60 text-pisao-cream-muted rounded-full border px-4 py-2 text-[10px] font-semibold tracking-[.12em] uppercase backdrop-blur-xl">
+                  Orden ajustado a tu mesa
+                </span>
+              )}
               {heroProduct && (
                 <Link
                   href={`/menu/${heroProduct.slug}`}
                   className="text-pisao-cream inline-flex items-center gap-2 text-xs font-semibold"
                 >
-                  Abrir una sugerencia <ArrowRight className="size-3.5" />
+                  Abrir primera sugerencia <ArrowRight className="size-3.5" />
                 </Link>
               )}
             </div>
@@ -193,7 +236,7 @@ export function MenuBrowser({
         key={`grid-${active ?? "all"}`}
         className="pisao-grid-shift mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
       >
-        {filtered.map((product) => (
+        {rankedProducts.map((product) => (
           <MenuCard key={product.id} product={product} />
         ))}
       </div>
