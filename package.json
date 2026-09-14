@@ -8,7 +8,7 @@
     "build": "next build",
     "images:optimize": "node scripts/optimize-images.mjs",
     "postbuild": "node scripts/postbuild-standalone.mjs",
-    "start": "npm run db:deploy && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "start": "node scripts/start-production.mjs",
     "lint": "eslint",
     "format": "prettier --write .",
     "postinstall": "prisma generate",
