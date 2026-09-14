@@ -26,6 +26,7 @@ import {
   type PlanIntent,
 } from "@/lib/menu/plan-mode";
 import { formatCurrency } from "@/lib/utils";
+import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 const DRINK_OPTIONS: Array<{
   id: DrinkPreference;
@@ -73,6 +74,36 @@ export function PlanModeComposer({ products }: { products: SuggestibleProduct[] 
     [products, intent, diners, budgetPerPerson, drinkPreference],
   );
 
+  const openPlan = () => {
+    trackBehavior("plan_open", {
+      surface: "plan",
+      intent,
+      diners,
+      budgetTier: budgetPerPerson,
+    });
+    setOpen(true);
+  };
+
+  const changeIntent = (nextIntent: PlanIntent) => {
+    setIntent(nextIntent);
+    trackBehavior("plan_config_change", {
+      surface: "plan",
+      intent: nextIntent,
+      diners,
+      budgetTier: budgetPerPerson,
+    });
+  };
+
+  const changeBudget = (budget: number) => {
+    setBudgetPerPerson(budget);
+    trackBehavior("plan_config_change", {
+      surface: "plan",
+      intent,
+      diners,
+      budgetTier: budget,
+    });
+  };
+
   const addProposal = () => {
     if (proposal.items.length === 0) return;
 
@@ -89,6 +120,14 @@ export function PlanModeComposer({ products }: { products: SuggestibleProduct[] 
         cantidad: quantity,
       })),
     );
+
+    trackBehavior("plan_proposal_add", {
+      surface: "plan",
+      intent,
+      diners,
+      budgetTier: budgetPerPerson,
+      itemCount: proposal.items.reduce((sum, item) => sum + item.quantity, 0),
+    });
     setOpen(false);
   };
 
@@ -96,7 +135,7 @@ export function PlanModeComposer({ products }: { products: SuggestibleProduct[] 
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openPlan}
         className="bg-pisao-gold text-pisao-carbon hover:bg-pisao-gold-light inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-bold transition"
       >
         <Sparkles className="size-4" />
@@ -159,7 +198,7 @@ export function PlanModeComposer({ products }: { products: SuggestibleProduct[] 
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setIntent(option.id)}
+                          onClick={() => changeIntent(option.id)}
                           className={`rounded-2xl border p-4 text-left transition ${
                             selected
                               ? "border-pisao-gold/50 bg-pisao-gold/10"
@@ -240,7 +279,7 @@ export function PlanModeComposer({ products }: { products: SuggestibleProduct[] 
                       <button
                         key={budget}
                         type="button"
-                        onClick={() => setBudgetPerPerson(budget)}
+                        onClick={() => changeBudget(budget)}
                         className={`rounded-xl border px-3 py-3 text-xs font-semibold transition ${
                           budgetPerPerson === budget
                             ? "border-pisao-gold bg-pisao-gold text-pisao-carbon"
