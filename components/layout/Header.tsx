@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Menu, X, ShoppingBag } from "lucide-react";
+import { Menu, X, ShoppingBag, UserCircle } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/lib/site-config";
@@ -45,6 +45,14 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/micuenta"
+            aria-label="Mi cuenta PISÁO con CTG One"
+            className="text-pisao-cream hover:text-pisao-gold flex h-10 w-10 items-center justify-center rounded-full transition-colors"
+          >
+            <UserCircle className="h-5 w-5" aria-hidden="true" />
+          </Link>
+
           <button
             type="button"
             aria-label="Abrir carrito"
@@ -102,6 +110,13 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <Link
+              href="/micuenta"
+              onClick={() => setMenuOpen(false)}
+              className="text-pisao-cream-muted hover:bg-pisao-carbon-soft hover:text-pisao-gold rounded-md px-2 py-2.5 text-sm"
+            >
+              Mi cuenta · CTG One
+            </Link>
             <div className="mt-2 flex gap-2">
               <Button href="/reservas" variant="outline" className="flex-1">
                 Reservar
