@@ -106,10 +106,12 @@ h4,
 
 .pisao-reveal {
   opacity: 0;
-  transform: translate3d(0, 34px, 0) scale(.985);
+  transform: translate3d(0, 28px, 0) scale(.99);
+  transform-origin: center bottom;
+  backface-visibility: hidden;
   transition:
-    opacity 700ms cubic-bezier(.2,.75,.2,1),
-    transform 800ms cubic-bezier(.2,.75,.2,1);
+    opacity 620ms cubic-bezier(.2,.75,.2,1),
+    transform 720ms cubic-bezier(.2,.75,.2,1);
   will-change: opacity, transform;
 }
 
@@ -131,7 +133,8 @@ h4,
   animation: pisao-marquee 34s linear infinite;
 }
 
-.pisao-marquee-shell:hover .pisao-marquee-track {
+.pisao-marquee-shell:hover .pisao-marquee-track,
+.pisao-marquee-shell:focus-within .pisao-marquee-track {
   animation-play-state: paused;
 }
 
@@ -148,16 +151,20 @@ h4,
 }
 
 .pisao-image-lift {
-  transform: perspective(1100px) rotateX(0deg) rotateY(0deg) translateZ(0);
+  transform: perspective(1100px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0);
+  transform-origin: center;
+  backface-visibility: hidden;
   transition:
-    transform 650ms cubic-bezier(.2,.75,.2,1),
-    box-shadow 650ms cubic-bezier(.2,.75,.2,1),
-    border-color 400ms ease;
+    transform 620ms cubic-bezier(.2,.75,.2,1),
+    box-shadow 620ms cubic-bezier(.2,.75,.2,1),
+    border-color 360ms ease;
 }
 
-.pisao-image-lift:hover {
-  transform: perspective(1100px) rotateX(1.5deg) rotateY(-1.5deg) translateY(-8px) translateZ(16px);
-  box-shadow: 0 32px 70px rgba(0,0,0,.34);
+@media (hover: hover) and (pointer: fine) {
+  .pisao-image-lift:hover {
+    transform: perspective(1100px) rotateX(1deg) rotateY(-1deg) translate3d(0,-6px,14px);
+    box-shadow: 0 28px 64px rgba(0,0,0,.32);
+  }
 }
 
 .pisao-grain::after {
