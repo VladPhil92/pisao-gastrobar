@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reservaSchema } from "@/lib/reservas/schema";
 import {
+  calculateReservedForStart,
   getReservationConfig,
-  listAvailabilityForDate,
+  listBookableStartsForDate,
   validateReservationWindow,
 } from "@/lib/reservas/availability";
 import { notifyReservationCreated } from "@/lib/reservas/notifications";
@@ -70,8 +71,10 @@ export async function POST(request: Request) {
     const config = getReservationConfig();
 
     const reserva = await prisma.$transaction(async (tx) => {
-      // Serializa únicamente la misma fecha/franja para evitar sobreventa concurrente.
-      const lockKey = `${fecha}|${hora}`;
+      // Serializa las reservas del mismo día porque una mesa ocupa varias franjas.
+      // Así dos solicitudes concurrentes de 18:00 y 18:30 no pueden sobre-vender
+      // una capacidad que comparten durante la ventana de ocupación.
+      const lockKey = `reservation-day|${fecha}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
       const duplicate = await tx.reserva.findFirst({
@@ -94,16 +97,12 @@ export async function POST(request: Request) {
       const activeReservations = await tx.reserva.findMany({
         where: {
           fecha: fechaDb,
-          hora,
           estado: { in: ["PENDIENTE", "CONFIRMADA"] },
         },
-        select: { personas: true },
+        select: { hora: true, personas: true },
       });
 
-      const reserved = activeReservations.reduce(
-        (sum, item) => sum + item.personas,
-        0,
-      );
+      const reserved = calculateReservedForStart(activeReservations, hora);
 
       if (reserved + personas > config.maxDinersPerSlot) {
         throw new ReservationConflictError(
@@ -121,6 +120,7 @@ export async function POST(request: Request) {
           hora,
           personas,
           notas: notas || undefined,
+          estado: "CONFIRMADA",
         },
       });
     });
@@ -155,9 +155,12 @@ export async function POST(request: Request) {
 
         if (conflictInput) {
           try {
-            const slots = await listAvailabilityForDate(conflictInput.fecha);
+            const slots = await listBookableStartsForDate(
+              conflictInput.fecha,
+              conflictInput.personas,
+            );
             alternatives = slots
-              .filter((slot) => slot.remaining >= conflictInput!.personas)
+              .filter((slot) => slot.available)
               .slice(0, 4)
               .map((slot) => slot.hora);
           } catch {
