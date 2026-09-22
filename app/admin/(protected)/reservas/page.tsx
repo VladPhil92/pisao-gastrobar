@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import {
   bogotaDateString,
   getReservationConfig,
   listAvailabilityForDate,
 } from "@/lib/reservas/availability";
 import { ReservationActions } from "@/components/admin/ReservationActions";
+import { ReservableTableManager } from "@/components/admin/ReservableTableManager";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +32,7 @@ async function getReservationOperations() {
       bogotaDateString(new Date(), index),
     );
 
-    const [reservas, capacityDays] = await Promise.all([
+    const [reservas, capacityDays, tables] = await Promise.all([
       prisma.reserva.findMany({
         orderBy: [{ fecha: "asc" }, { hora: "asc" }],
         take: 150,
@@ -98,9 +100,12 @@ async function getReservationOperations() {
           };
         }),
       ),
+      prisma.mesaReservable.findMany({
+        orderBy: [{ prioridad: "asc" }, { codigo: "asc" }],
+      }),
     ]);
 
-    return { reservas, capacityDays };
+    return { reservas, capacityDays, tables };
   } catch (error) {
     console.error("[PISAO ADMIN] No se pudo cargar operación de reservas", error);
     return null;
@@ -133,11 +138,21 @@ function formatDay(fecha: string) {
 }
 
 export default async function AdminReservasPage() {
-  const data = await getReservationOperations();
+  const [data, session] = await Promise.all([
+    getReservationOperations(),
+    auth(),
+  ]);
   const config = getReservationConfig();
+  const canConfigure =
+    (session?.user as { rol?: string } | undefined)?.rol === "ADMIN";
   const today = bogotaDateString();
 
   const reservas = data?.reservas ?? null;
+  const activeTables = data?.tables.filter((table) => table.activa) ?? [];
+  const reservableSeats = activeTables.reduce(
+    (sum, table) => sum + table.capacidad,
+    0,
+  );
   const futureActive =
     reservas?.filter(
       (reservation) =>
@@ -183,8 +198,8 @@ export default async function AdminReservasPage() {
             {[
               {
                 label: "Mesas reservables",
-                value: config.reservableTableCount,
-                detail: "T1–T8 · inventario automático",
+                value: activeTables.length,
+                detail: "inventario activo en base de datos",
               },
               {
                 label: "Confirmadas futuras",
@@ -198,8 +213,8 @@ export default async function AdminReservasPage() {
               },
               {
                 label: "Capacidad reservable",
-                value: config.maxDinersPerSlot,
-                detail: `${config.seatsPerTable} personas-equivalentes por mesa`,
+                value: reservableSeats,
+                detail: "suma de capacidades activas",
               },
             ].map((metric) => (
               <div
@@ -219,6 +234,11 @@ export default async function AdminReservasPage() {
             ))}
           </section>
 
+          <ReservableTableManager
+            tables={data.tables}
+            canConfigure={canConfigure}
+          />
+
           <section className="border-pisao-gold/10 bg-pisao-noche mt-6 rounded-3xl border p-5 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -230,7 +250,7 @@ export default async function AdminReservasPage() {
                 </h2>
               </div>
               <p className="text-pisao-cream-muted max-w-md text-xs leading-relaxed">
-                La ocupación cruza las 8 mesas reservables, los comensales y ventanas de{" "}
+                La ocupación cruza el inventario activo de mesas, su capacidad real y ventanas de{" "}
                 {config.reservationDurationMinutes} minutos. Canceladas y completadas liberan inventario.
               </p>
             </div>
@@ -269,7 +289,7 @@ export default async function AdminReservasPage() {
 
                   <p className="text-pisao-cream-muted mt-2 text-[10px]">
                     {day.busiestHour
-                      ? `Mayor presión: ${day.busiestHour} · ${day.peakTablesReserved}/${config.reservableTableCount} mesas · ${day.peakReserved}/${config.maxDinersPerSlot} personas`
+                      ? `Mayor presión: ${day.busiestHour} · ${day.peakTablesReserved}/${activeTables.length} mesas · ${day.peakReserved}/${reservableSeats} personas`
                       : "Sin reservas activas todavía."}
                   </p>
 

@@ -19,6 +19,7 @@ type CalendarSlot = {
   tablesReserved: number;
   tablesRemaining: number;
   tablesNeeded: number;
+  recommendedTables: string[];
   available: boolean;
 };
 
@@ -38,7 +39,7 @@ type CalendarPayload = {
   durationMinutes: number;
   slotMinutes: number;
   reservableTableCount: number;
-  seatsPerTable: number;
+  totalReservableSeats: number;
   calendar: CalendarDay[];
   error?: string;
 };
@@ -224,12 +225,12 @@ export function AvailabilityCalendar({
             Disponibilidad en tiempo real
           </h4>
           <p className="text-pisao-cream-muted mt-1 max-w-xl text-xs leading-relaxed">
-            El motor cruza las {payload.reservableTableCount} mesas reservables, el tamaño del grupo y una ocupación de {payload.durationMinutes} minutos. El resto de la terraza permanece libre por llegada.
+            El motor cruza las {payload.reservableTableCount} mesas reservables, sus capacidades configuradas y una ocupación de {payload.durationMinutes} minutos. El resto de la terraza permanece libre por llegada.
           </p>
         </div>
         <div className="border-pisao-gold/15 text-pisao-cream-muted flex items-center gap-2 rounded-full border px-3 py-2 text-xs">
           <Users className="text-pisao-gold size-3.5" />
-          {normalizedPeople} {normalizedPeople === 1 ? "persona" : "personas"} · {Math.ceil(normalizedPeople / payload.seatsPerTable)} {Math.ceil(normalizedPeople / payload.seatsPerTable) === 1 ? "mesa" : "mesas"}
+          {normalizedPeople} {normalizedPeople === 1 ? "persona" : "personas"} · {payload.reservableTableCount} mesas reservables
         </div>
       </div>
 
@@ -341,8 +342,10 @@ export function AvailabilityCalendar({
                     }
                   >
                     {slot.available
-                      ? slot.tablesRemaining + " mesas libres · " + slot.remaining + " cupos"
-                      : "Sin mesas reservables suficientes"}
+                      ? slot.tablesRemaining +
+                        " mesas libres · asignación " +
+                        slot.recommendedTables.join(" + ")
+                      : "Sin combinación disponible"}
                   </span>
                 </button>
               ))}
