@@ -346,15 +346,20 @@ function occupiedTablesForWindow(
     .sort((a, b) => a.hora.localeCompare(b.hora));
   const occupied = new Set<string>();
 
+  // Primero respetamos asignaciones persistidas. Las reservas históricas sin
+  // mesa se acomodan después sobre el inventario restante, evitando que una
+  // estimación legacy "robe" una mesa que ya está asignada explícitamente.
+  for (const reservation of overlappingReservations) {
+    for (const code of reservation.mesas ?? []) {
+      if (validIds.has(code)) occupied.add(code);
+    }
+  }
+
   for (const reservation of overlappingReservations) {
     const assigned = (reservation.mesas ?? []).filter((code) =>
       validIds.has(code),
     );
-
-    if (assigned.length > 0) {
-      for (const code of assigned) occupied.add(code);
-      continue;
-    }
+    if (assigned.length > 0) continue;
 
     const free = validTables.filter((table) => !occupied.has(table.codigo));
     const fallback = bestTableCombination(free, reservation.personas);
