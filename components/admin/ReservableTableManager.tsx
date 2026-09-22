@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -50,10 +50,6 @@ export function ReservableTableManager({
   const [error, setError] = useState("");
   const maxColumn = Math.max(1, ...rows.map((table) => table.posX + 1));
   const maxRow = Math.max(1, ...rows.map((table) => table.posY + 1));
-
-  useEffect(() => {
-    setRows(initial);
-  }, [initial]);
 
   function updateRow(
     codigo: string,
