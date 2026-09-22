@@ -1,0 +1,2 @@
+ALTER TABLE "reservas"
+ADD COLUMN "mesas" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

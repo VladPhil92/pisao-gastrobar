@@ -64,6 +64,7 @@ export async function PATCH(
         hora: true,
         personas: true,
         notas: true,
+        mesas: true,
       },
     });
 
@@ -76,6 +77,7 @@ export async function PATCH(
       hora: reserva.hora,
       personas: reserva.personas,
       notas: reserva.notas,
+      mesas: reserva.mesas,
       estado: reserva.estado,
     });
 
@@ -87,6 +89,7 @@ export async function PATCH(
         fecha: reserva.fecha,
         hora: reserva.hora,
         personas: reserva.personas,
+        mesas: reserva.mesas,
       },
     });
   } catch (error) {

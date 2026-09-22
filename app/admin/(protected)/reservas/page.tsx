@@ -13,11 +13,14 @@ type CapacityDay = {
   activeDiners: number;
   peakReserved: number;
   peakPercent: number;
+  peakTablesReserved: number;
   busiestHour: string | null;
   occupiedSlots: Array<{
     hora: string;
     reserved: number;
     capacity: number;
+    tablesReserved: number;
+    tablesCapacity: number;
   }>;
 };
 
@@ -41,28 +44,46 @@ async function getReservationOperations() {
               hora: slot.hora,
               reserved: slot.reserved,
               capacity: slot.capacity,
+              tablesReserved: slot.tablesReserved,
+              tablesCapacity: slot.tablesCapacity,
             }));
 
           const busiest = slots.reduce<
-            { hora: string; reserved: number; capacity: number } | null
+            {
+              hora: string;
+              reserved: number;
+              capacity: number;
+              tablesReserved: number;
+              tablesCapacity: number;
+            } | null
           >((current, slot) => {
-            if (!current || slot.reserved > current.reserved) {
+            if (
+              !current ||
+              slot.tablesReserved > current.tablesReserved ||
+              (slot.tablesReserved === current.tablesReserved &&
+                slot.reserved > current.reserved)
+            ) {
               return {
                 hora: slot.hora,
                 reserved: slot.reserved,
                 capacity: slot.capacity,
+                tablesReserved: slot.tablesReserved,
+                tablesCapacity: slot.tablesCapacity,
               };
             }
             return current;
           }, null);
 
-          const activeDiners = slots.reduce(
-            (sum, slot) => sum + slot.reserved,
+          const activeDiners = Math.max(
             0,
+            ...slots.map((slot) => slot.reserved),
           );
           const peakReserved = busiest?.reserved ?? 0;
-          const peakPercent = busiest?.capacity
-            ? Math.round((peakReserved / busiest.capacity) * 100)
+          const peakTablesReserved = busiest?.tablesReserved ?? 0;
+          const peakPercent = busiest?.tablesCapacity
+            ? Math.round(
+                (peakTablesReserved / busiest.tablesCapacity) * 100,
+              )
             : 0;
 
           return {
@@ -70,7 +91,9 @@ async function getReservationOperations() {
             activeDiners,
             peakReserved,
             peakPercent,
-            busiestHour: peakReserved > 0 ? busiest?.hora ?? null : null,
+            peakTablesReserved,
+            busiestHour:
+              peakTablesReserved > 0 ? busiest?.hora ?? null : null,
             occupiedSlots,
           };
         }),
@@ -122,9 +145,6 @@ export default async function AdminReservasPage() {
         ["PENDIENTE", "CONFIRMADA"].includes(reservation.estado),
     ) ?? [];
 
-  const pending = futureActive.filter(
-    (reservation) => reservation.estado === "PENDIENTE",
-  ).length;
   const confirmed = futureActive.filter(
     (reservation) => reservation.estado === "CONFIRMADA",
   ).length;
@@ -142,7 +162,7 @@ export default async function AdminReservasPage() {
         </p>
         <h1 className="font-display text-pisao-cream mt-1 text-3xl">Reservas</h1>
         <p className="text-pisao-cream-muted mt-2 text-sm">
-          Controla solicitudes, confirmaciones y presión de capacidad por franja.
+          Ocho mesas reservables con asignación automática; el resto de la terraza permanece libre por llegada.
         </p>
       </div>
 
@@ -162,9 +182,9 @@ export default async function AdminReservasPage() {
           <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
-                label: "Pendientes futuras",
-                value: pending,
-                detail: "requieren gestión humana",
+                label: "Mesas reservables",
+                value: config.reservableTableCount,
+                detail: "T1–T8 · inventario automático",
               },
               {
                 label: "Confirmadas futuras",
@@ -177,9 +197,9 @@ export default async function AdminReservasPage() {
                 detail: "pendientes + confirmadas",
               },
               {
-                label: "Capacidad por franja",
+                label: "Capacidad reservable",
                 value: config.maxDinersPerSlot,
-                detail: `cada ${config.slotMinutes} min`,
+                detail: `${config.seatsPerTable} personas-equivalentes por mesa`,
               },
             ].map((metric) => (
               <div
@@ -210,7 +230,8 @@ export default async function AdminReservasPage() {
                 </h2>
               </div>
               <p className="text-pisao-cream-muted max-w-md text-xs leading-relaxed">
-                La ocupación usa solicitudes pendientes y reservas confirmadas. Canceladas y completadas no consumen cupo.
+                La ocupación cruza las 8 mesas reservables, los comensales y ventanas de{" "}
+                {config.reservationDurationMinutes} minutos. Canceladas y completadas liberan inventario.
               </p>
             </div>
 
@@ -248,7 +269,7 @@ export default async function AdminReservasPage() {
 
                   <p className="text-pisao-cream-muted mt-2 text-[10px]">
                     {day.busiestHour
-                      ? `Mayor presión: ${day.busiestHour} · ${day.peakReserved}/${config.maxDinersPerSlot}`
+                      ? `Mayor presión: ${day.busiestHour} · ${day.peakTablesReserved}/${config.reservableTableCount} mesas · ${day.peakReserved}/${config.maxDinersPerSlot} personas`
                       : "Sin reservas activas todavía."}
                   </p>
 
@@ -259,7 +280,7 @@ export default async function AdminReservasPage() {
                           key={slot.hora}
                           className="border-pisao-gold/15 text-pisao-cream-muted rounded-lg border px-2 py-1 text-[9px]"
                         >
-                          {slot.hora} · {slot.reserved}/{slot.capacity}
+                          {slot.hora} · {slot.tablesReserved}/{slot.tablesCapacity} mesas · {slot.reserved}/{slot.capacity}
                         </span>
                       ))}
                     </div>
@@ -277,6 +298,7 @@ export default async function AdminReservasPage() {
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Hora</th>
                   <th className="px-4 py-3">Personas</th>
+                  <th className="px-4 py-3">Mesa(s)</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Notas</th>
                   <th className="px-4 py-3">Acciones</th>
@@ -319,6 +341,24 @@ export default async function AdminReservasPage() {
                       {reservation.personas}
                     </td>
                     <td className="px-4 py-4">
+                      {reservation.mesas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {reservation.mesas.map((mesa) => (
+                            <span
+                              key={mesa}
+                              className="border-pisao-gold/20 bg-pisao-gold/5 text-pisao-gold rounded-md border px-2 py-1 text-[10px] font-semibold"
+                            >
+                              {mesa}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-pisao-cream-muted text-[10px]">
+                          Reserva histórica
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide ${badgeClass(
                           reservation.estado,
@@ -341,7 +381,7 @@ export default async function AdminReservasPage() {
                 {reservas!.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="text-pisao-cream-muted px-4 py-8 text-center"
                     >
                       Aún no hay reservas registradas.

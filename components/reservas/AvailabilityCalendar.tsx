@@ -15,6 +15,10 @@ type CalendarSlot = {
   capacity: number;
   reserved: number;
   remaining: number;
+  tablesCapacity: number;
+  tablesReserved: number;
+  tablesRemaining: number;
+  tablesNeeded: number;
   available: boolean;
 };
 
@@ -25,6 +29,7 @@ type CalendarDay = {
   totalSlots: number;
   bestTime: string | null;
   maxRemaining: number;
+  maxTablesRemaining: number;
   slots: CalendarSlot[];
 };
 
@@ -32,6 +37,8 @@ type CalendarPayload = {
   personas: number;
   durationMinutes: number;
   slotMinutes: number;
+  reservableTableCount: number;
+  seatsPerTable: number;
   calendar: CalendarDay[];
   error?: string;
 };
@@ -217,12 +224,12 @@ export function AvailabilityCalendar({
             Disponibilidad en tiempo real
           </h4>
           <p className="text-pisao-cream-muted mt-1 max-w-xl text-xs leading-relaxed">
-            El motor cruza horario, reservas activas y ocupación durante {payload.durationMinutes} minutos para evitar sobreventa.
+            El motor cruza las {payload.reservableTableCount} mesas reservables, el tamaño del grupo y una ocupación de {payload.durationMinutes} minutos. El resto de la terraza permanece libre por llegada.
           </p>
         </div>
         <div className="border-pisao-gold/15 text-pisao-cream-muted flex items-center gap-2 rounded-full border px-3 py-2 text-xs">
           <Users className="text-pisao-gold size-3.5" />
-          {normalizedPeople} {normalizedPeople === 1 ? "persona" : "personas"}
+          {normalizedPeople} {normalizedPeople === 1 ? "persona" : "personas"} · {Math.ceil(normalizedPeople / payload.seatsPerTable)} {Math.ceil(normalizedPeople / payload.seatsPerTable) === 1 ? "mesa" : "mesas"}
         </div>
       </div>
 
@@ -334,8 +341,8 @@ export function AvailabilityCalendar({
                     }
                   >
                     {slot.available
-                      ? slot.remaining + " cupos disponibles"
-                      : "Sin capacidad"}
+                      ? slot.tablesRemaining + " mesas libres · " + slot.remaining + " cupos"
+                      : "Sin mesas reservables suficientes"}
                   </span>
                 </button>
               ))}
@@ -350,7 +357,7 @@ export function AvailabilityCalendar({
         )}
 
         <p className="text-pisao-cream-muted/70 mt-4 text-[9px] leading-relaxed">
-          Cada confirmación vuelve a validar la capacidad dentro de una transacción antes de ocupar la franja.
+          Cada confirmación vuelve a validar y asignar mesas del inventario T1–T{payload.reservableTableCount} dentro de una transacción antes de bloquear la franja.
         </p>
       </div>
     </section>

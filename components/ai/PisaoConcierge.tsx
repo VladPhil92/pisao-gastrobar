@@ -188,7 +188,7 @@ export function PisaoConcierge() {
       });
 
       const payload = (await response.json()) as {
-        reserva?: { id: string; estado: string };
+        reserva?: { id: string; estado: string; mesas?: string[] };
         error?: string;
         alternatives?: string[];
       };
@@ -219,7 +219,7 @@ export function PisaoConcierge() {
         {
           role: "assistant",
           content:
-            `Reserva confirmada para ${draft.personas} persona${draft.personas === 1 ? "" : "s"} el ${draft.fecha} a las ${draft.hora}. El cupo ya fue descontado automáticamente del calendario de PISÁO. Código: ${payload.reserva!.id.slice(-8).toUpperCase()}.`,
+            `Reserva confirmada para ${draft.personas} persona${draft.personas === 1 ? "" : "s"} el ${draft.fecha} a las ${draft.hora}. ${payload.reserva!.mesas?.length ? `Mesa(s) asignada(s): ${payload.reserva!.mesas.join(", ")}. ` : ""}El cupo ya fue descontado automáticamente del calendario de PISÁO. Código: ${payload.reserva!.id.slice(-8).toUpperCase()}.`,
         },
       ]);
     } catch (error) {

@@ -7,6 +7,7 @@ type ReservationNotificationPayload = {
   hora: string;
   personas: number;
   notas?: string | null;
+  mesas?: string[];
 };
 
 type ReservationStatus = "PENDIENTE" | "CONFIRMADA" | "CANCELADA" | "COMPLETADA";
@@ -89,6 +90,9 @@ export async function notifyReservationCreated(
           `Fecha: ${reservation.fecha}`,
           `Hora: ${reservation.hora}`,
           `Personas: ${reservation.personas}`,
+          reservation.mesas?.length
+            ? `Mesa(s): ${reservation.mesas.join(", ")}`
+            : null,
           reservation.notas ? `Notas: ${reservation.notas}` : null,
           `ID: ${reservation.id}`,
         ]
@@ -110,9 +114,12 @@ export async function notifyReservationCreated(
           `Fecha: ${reservation.fecha}`,
           `Hora: ${reservation.hora}`,
           `Personas: ${reservation.personas}`,
+          reservation.mesas?.length
+            ? `Mesa(s) reservada(s): ${reservation.mesas.join(", ")}`
+            : null,
           "",
           "El cupo ya fue descontado del calendario. Te esperamos en la Terraza Panorámica de Mall Plaza Cartagena.",
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
       }),
     );
   }
