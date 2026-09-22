@@ -1,6 +1,7 @@
 export const RESERVABLE_TABLE_SEATS = 4;
 export const MAX_COMBINED_TABLES = 3;
 
+// Política física PISÁO: nunca se unen más de tres mesas.
 // Al unir mesas se pierden dos puestos por cada unión:
 // 1 mesa = 4, 2 mesas = 6, 3 mesas = 8.
 export const MAX_AUTOMATIC_RESERVATION_PEOPLE =
