@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Send, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Clock3, Send, TriangleAlert } from "lucide-react";
 import { reservaSchema, type ReservaFormValues } from "@/lib/reservas/schema";
 import { Button } from "@/components/ui/Button";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
@@ -13,13 +13,28 @@ const inputClass =
 const labelClass =
   "text-[10px] font-semibold tracking-[0.16em] text-pisao-cream-muted uppercase";
 
+type SubmitState =
+  | { kind: "idle" }
+  | { kind: "success"; code: string }
+  | { kind: "error"; message: string; alternatives: string[] };
+
+function bogotaToday() {
+  const shifted = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  return [
+    shifted.getUTCFullYear(),
+    String(shifted.getUTCMonth() + 1).padStart(2, "0"),
+    String(shifted.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 export function ReservaForm() {
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [status, setStatus] = useState<SubmitState>({ kind: "idle" });
   const startedRef = useRef(false);
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({ resolver: zodResolver(reservaSchema) });
 
@@ -30,22 +45,50 @@ export function ReservaForm() {
   };
 
   const onSubmit = async (values: ReservaFormValues) => {
-    setStatus("idle");
+    setStatus({ kind: "idle" });
+
     try {
       const res = await fetch("/api/reservas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!res.ok) throw new Error("Error al crear la reserva");
+
+      const payload = (await res.json()) as {
+        reserva?: { id: string };
+        error?: string;
+        alternatives?: string[];
+      };
+
+      if (!res.ok || !payload.reserva) {
+        setStatus({
+          kind: "error",
+          message:
+            payload.error ??
+            "No pudimos registrar la solicitud. Intenta nuevamente.",
+          alternatives: payload.alternatives ?? [],
+        });
+        return;
+      }
+
       trackBehavior("reservation_submit_success", {
         surface: "reservation",
         diners: values.personas,
       });
-      setStatus("success");
+
+      setStatus({
+        kind: "success",
+        code: payload.reserva.id.slice(-8).toUpperCase(),
+      });
       reset();
+      startedRef.current = false;
     } catch {
-      setStatus("error");
+      setStatus({
+        kind: "error",
+        message:
+          "El servicio de reservas no está disponible en este momento. Intenta nuevamente.",
+        alternatives: [],
+      });
     }
   };
 
@@ -100,23 +143,36 @@ export function ReservaForm() {
       <div className="grid gap-5 sm:grid-cols-3">
         <div>
           <label className={labelClass}>Fecha</label>
-          <input type="date" {...register("fecha")} className={inputClass} />
+          <input
+            type="date"
+            min={bogotaToday()}
+            {...register("fecha")}
+            className={inputClass}
+          />
           {errors.fecha && (
             <p className="mt-1.5 text-xs text-red-400">{errors.fecha.message}</p>
           )}
         </div>
+
         <div>
           <label className={labelClass}>Hora</label>
-          <input type="time" {...register("hora")} className={inputClass} />
+          <input
+            type="time"
+            step={1800}
+            {...register("hora")}
+            className={inputClass}
+          />
           {errors.hora && (
             <p className="mt-1.5 text-xs text-red-400">{errors.hora.message}</p>
           )}
         </div>
+
         <div>
           <label className={labelClass}>Personas</label>
           <input
             type="number"
             min={1}
+            max={30}
             placeholder="2"
             {...register("personas", { valueAsNumber: true })}
             className={inputClass}
@@ -132,9 +188,13 @@ export function ReservaForm() {
         <textarea
           {...register("notas")}
           rows={4}
+          maxLength={500}
           placeholder="Celebración, preferencia de ubicación, requerimiento especial..."
           className={`${inputClass} resize-none`}
         />
+        {errors.notas && (
+          <p className="mt-1.5 text-xs text-red-400">{errors.notas.message}</p>
+        )}
       </div>
 
       <div className="border-t border-pisao-gold/10 pt-5">
@@ -145,24 +205,54 @@ export function ReservaForm() {
           className="w-full sm:w-auto"
         >
           <Send className="size-4" />
-          {isSubmitting ? "Enviando solicitud..." : "Solicitar reserva"}
+          {isSubmitting ? "Verificando disponibilidad..." : "Solicitar reserva"}
         </Button>
         <p className="mt-3 text-xs leading-relaxed text-pisao-cream-muted">
-          Enviar esta solicitud no confirma disponibilidad inmediata. El equipo de PISÁO valida y confirma la reserva.
+          El sistema verifica capacidad antes de registrar la solicitud. La reserva queda pendiente hasta que el equipo de PISÁO la confirme.
         </p>
       </div>
 
       <div aria-live="polite">
-        {status === "success" && (
+        {status.kind === "success" && (
           <div className="flex gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-300">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
-            <p>Solicitud recibida. Nuestro equipo se pondrá en contacto para confirmar los detalles.</p>
+            <div>
+              <p className="font-semibold">Solicitud registrada correctamente.</p>
+              <p className="mt-1 text-xs text-emerald-200/80">
+                Código {status.code}. El equipo confirmará la reserva por tus datos de contacto.
+              </p>
+            </div>
           </div>
         )}
-        {status === "error" && (
-          <div className="flex gap-3 rounded-xl border border-red-400/20 bg-red-400/5 p-4 text-sm text-red-300">
-            <TriangleAlert className="mt-0.5 size-5 shrink-0" />
-            <p>No pudimos enviar la solicitud. Intenta nuevamente.</p>
+
+        {status.kind === "error" && (
+          <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4 text-sm text-red-300">
+            <div className="flex gap-3">
+              <TriangleAlert className="mt-0.5 size-5 shrink-0" />
+              <p>{status.message}</p>
+            </div>
+
+            {status.alternatives.length > 0 && (
+              <div className="mt-3 border-t border-red-300/10 pt-3">
+                <p className="text-xs text-red-200/80">Prueba una hora disponible:</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {status.alternatives.map((hora) => (
+                    <button
+                      key={hora}
+                      type="button"
+                      onClick={() => {
+                        setValue("hora", hora, { shouldValidate: true });
+                        setStatus({ kind: "idle" });
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/20 px-2.5 py-1.5 text-xs font-semibold hover:bg-red-300/10"
+                    >
+                      <Clock3 className="size-3.5" />
+                      {hora}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
