@@ -119,7 +119,7 @@ export function ReservableTableManager({
             T1–T8 configurables
           </h2>
           <p className="text-pisao-cream-muted mt-2 max-w-2xl text-xs leading-relaxed">
-            Cada mesa tiene 4 puestos. Al unir mesas se pierden 2 puestos por cada unión: 2 mesas = 6 personas, 3 = 8, 4 = 10. El asignador prioriza menor desperdicio, menor número de mesas y prioridad operativa.
+            Cada mesa tiene 4 puestos. Se pueden unir como máximo 3 mesas disponibles: 2 mesas = 6 personas y 3 = 8. El asignador nunca combinará 4 o más mesas para una sola reserva.
           </p>
         </div>
         {!canConfigure && (

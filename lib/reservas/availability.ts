@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  MAX_COMBINED_TABLES,
+  RESERVABLE_TABLE_SEATS,
+} from "@/lib/reservas/policy";
 
 const ACTIVE_RESERVATION_STATES = ["PENDIENTE", "CONFIRMADA"] as const;
 
@@ -107,7 +111,14 @@ export function getReservationConfig() {
     reservationDurationMinutes: envInt("RESERVATION_DURATION_MINUTES", 90),
     maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 32),
     reservableTableCount: envInt("RESERVATION_TABLE_COUNT", 8),
-    seatsPerTable: envInt("RESERVATION_SEATS_PER_TABLE", 4),
+    seatsPerTable: envInt(
+      "RESERVATION_SEATS_PER_TABLE",
+      RESERVABLE_TABLE_SEATS,
+    ),
+    maxCombinedTables: envInt(
+      "RESERVATION_MAX_COMBINED_TABLES",
+      MAX_COMBINED_TABLES,
+    ),
     minAdvanceMinutes: envInt("RESERVATION_MIN_ADVANCE_MINUTES", 60),
     maxAdvanceDays: envInt("RESERVATION_MAX_ADVANCE_DAYS", 60),
     calendarDays: Math.min(envInt("RESERVATION_CALENDAR_DAYS", 30), 60),
@@ -277,7 +288,7 @@ export function combinedTableCapacity(
   if (tables.length === 1) return tables[0].capacidad;
 
   // Cada unión elimina dos puestos: uno en cada cara que queda enfrentada.
-  // Con mesas de 4 puestos: 1=4, 2=6, 3=8, 4=10...
+  // Con mesas de 4 puestos: 1=4, 2=6, 3=8. La política limita a 3 mesas.
   const nominal = tables.reduce((sum, table) => sum + table.capacidad, 0);
   return Math.max(
     Math.max(...tables.map((table) => table.capacidad)),
@@ -300,8 +311,11 @@ function bestTableCombination(
       }
     | null = null;
 
+  const { maxCombinedTables } = getReservationConfig();
+
   for (let mask = 1; mask < 1 << candidates.length; mask += 1) {
     const subset = candidates.filter((_, index) => (mask & (1 << index)) !== 0);
+    if (subset.length > maxCombinedTables) continue;
     if (subset.length > 1) {
       if (subset.some((table) => !table.combinable)) continue;
       if (new Set(subset.map((table) => table.zona)).size > 1) continue;

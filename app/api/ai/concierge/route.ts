@@ -19,6 +19,7 @@ import {
 import { productosPlaceholder } from "@/lib/menu/placeholder-data";
 import { siteConfig } from "@/lib/site-config";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -195,11 +196,14 @@ export async function POST(request: Request) {
 
     let reservationAvailability: ReservationAvailability | null = null;
     let reservationAvailabilityError: string | null = null;
+    const oversizedGroup =
+      (reservationDraft?.personas ?? 0) > MAX_AUTOMATIC_RESERVATION_PEOPLE;
 
     if (
       reservationDraft?.fecha &&
       reservationDraft.hora &&
-      reservationDraft.personas
+      reservationDraft.personas &&
+      !oversizedGroup
     ) {
       try {
         reservationAvailability = await checkReservationAvailability({
@@ -228,7 +232,10 @@ export async function POST(request: Request) {
       reservationFallbackText(reservationDraft) ??
       deterministicCommerceReply(commerceAnalysis, proposal);
 
-    if (reservationAvailabilityError && reservationDraft?.ready) {
+    if (oversizedGroup && reservationDraft?.personas) {
+      fallbackText =
+        `Para ${reservationDraft.personas} personas necesitamos una distribución especial. La reserva automática une como máximo 3 mesas y admite hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas en una sola mesa grupal. Podemos coordinar el grupo por WhatsApp.`;
+    } else if (reservationAvailabilityError && reservationDraft?.ready) {
       fallbackText =
         "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
     } else if (
@@ -260,6 +267,7 @@ export async function POST(request: Request) {
           availability: reservationAvailability,
           availabilityError: reservationAvailabilityError,
           canSubmit:
+            !oversizedGroup &&
             reservationDraft.ready &&
             reservationAvailability?.available === true,
         }
@@ -306,6 +314,7 @@ REGLAS ADICIONALES
 - Nunca afirmes que una reserva fue registrada antes de que el usuario pulse el botón de confirmación y el backend responda exitosamente.
 - Cuando el backend responda exitosamente, la reserva queda CONFIRMADA automáticamente; no digas que requiere revisión humana.
 - Si la disponibilidad no pudo verificarse, dilo claramente y no prometas cupo.
+- La reserva automática admite como máximo ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas porque solo pueden unirse hasta 3 mesas. Para grupos mayores, indica que requieren coordinación especial por WhatsApp.
 - Si faltan datos, haz solo la pregunta mínima necesaria.
 - Para alergias, intolerancias o veganismo, deriva a validación humana.`,
         input: messages.map((message) => ({
