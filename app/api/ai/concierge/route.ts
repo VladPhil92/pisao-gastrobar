@@ -245,7 +245,7 @@ export async function POST(request: Request) {
       reservationDraft?.ready
     ) {
       fallbackText =
-        "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar solicitud” para registrarla. La mesa seguirá pendiente de confirmación del equipo.";
+        "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la ventana completa de ocupación y, si sigue disponible, la reserva quedará confirmada al instante.";
     }
 
     const hoursContext = [
@@ -303,7 +303,8 @@ ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
 
 REGLAS ADICIONALES
 - Si hay intención de reserva, prioriza completar la reserva antes de vender comida.
-- Nunca afirmes que una reserva fue registrada o confirmada antes de que el usuario pulse el botón de confirmación y el backend responda exitosamente.
+- Nunca afirmes que una reserva fue registrada antes de que el usuario pulse el botón de confirmación y el backend responda exitosamente.
+- Cuando el backend responda exitosamente, la reserva queda CONFIRMADA automáticamente; no digas que requiere revisión humana.
 - Si la disponibilidad no pudo verificarse, dilo claramente y no prometas cupo.
 - Si faltan datos, haz solo la pregunta mínima necesaria.
 - Para alergias, intolerancias o veganismo, deriva a validación humana.`,
