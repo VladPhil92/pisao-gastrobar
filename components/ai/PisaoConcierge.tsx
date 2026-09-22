@@ -122,6 +122,13 @@ export function PisaoConcierge() {
         });
       }
 
+      if (payload.reservation?.canSubmit && payload.reservation.draft.personas) {
+        trackBehavior("concierge_reservation_ready", {
+          surface: "concierge",
+          diners: payload.reservation.draft.personas,
+        });
+      }
+
       setMessages((current) => [
         ...current,
         {
@@ -199,6 +206,10 @@ export function PisaoConcierge() {
       }));
 
       trackBehavior("reservation_submit_success", {
+        surface: "concierge",
+        diners: draft.personas,
+      });
+      trackBehavior("concierge_reservation_submit_success", {
         surface: "concierge",
         diners: draft.personas,
       });
@@ -393,6 +404,14 @@ export function PisaoConcierge() {
                             )}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={() => {
+                              trackBehavior("whatsapp_intent", {
+                                surface: "concierge",
+                              });
+                              trackBehavior("concierge_handoff_whatsapp", {
+                                surface: "concierge",
+                              });
+                            }}
                             className="border-pisao-gold/25 text-pisao-gold flex w-full items-center justify-center rounded-xl border px-4 py-3 text-xs font-semibold"
                           >
                             Continuar por WhatsApp
@@ -529,6 +548,12 @@ export function PisaoConcierge() {
                 href={whatsappLink("Hola PISÁO, necesito ayuda con mi visita o pedido.")}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => {
+                  trackBehavior("whatsapp_intent", { surface: "concierge" });
+                  trackBehavior("concierge_handoff_whatsapp", {
+                    surface: "concierge",
+                  });
+                }}
                 className="border-pisao-gold/20 text-pisao-cream hover:bg-pisao-gold/10 rounded-lg border px-2 py-2 text-center"
               >
                 WhatsApp
