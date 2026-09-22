@@ -17,7 +17,7 @@ import {
   type ReservationAvailability,
 } from "@/lib/reservas/availability";
 import { productosPlaceholder } from "@/lib/menu/placeholder-data";
-import { siteConfig } from "@/lib/site-config";
+import { siteConfig } from "@/lib/site-config";\nimport { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 
 type ClientMessage = {
   role: "user" | "assistant";
