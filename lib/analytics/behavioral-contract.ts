@@ -17,10 +17,15 @@ export const BEHAVIOR_EVENT_NAMES = [
   "checkout_complete",
   "reservation_start",
   "reservation_submit_success",
+  "reservation_availability_check",
+  "reservation_availability_unavailable",
   "whatsapp_intent",
   "concierge_open",
   "concierge_proposal_view",
   "concierge_proposal_add",
+  "concierge_reservation_ready",
+  "concierge_reservation_submit_success",
+  "concierge_handoff_whatsapp",
 ] as const;
 
 export const BEHAVIOR_SURFACES = [
@@ -58,7 +63,7 @@ export const behaviorEventSchema = z
     paymentMethod: z.enum(["QR_TRANSFERENCIA", "CRIPTO", "TARJETA"]).optional(),
     deviceClass: z.enum(["mobile", "tablet", "desktop"]).optional(),
     budgetTier: z.number().int().min(0).max(500_000).optional(),
-    diners: z.number().int().min(1).max(20).optional(),
+    diners: z.number().int().min(1).max(30).optional(),
     itemCount: z.number().int().min(0).max(100).optional(),
   })
   .strict();
