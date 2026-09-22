@@ -6,7 +6,8 @@ import {
   listAvailabilityForDate,
   validateReservationWindow,
 } from "@/lib/reservas/availability";
-import { notifyReservationCreated } from "@/lib/reservas/notifications";\nimport { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { notifyReservationCreated } from "@/lib/reservas/notifications";
+import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 
 class ReservationConflictError extends Error {
   code: "DUPLICATE" | "NO_AVAILABILITY";
@@ -22,6 +23,25 @@ function normalizePhone(value: string) {
 }
 
 export async function POST(request: Request) {
+  const identity = requestIdentity(request);
+  const rate = checkRateLimit({
+    key: `reservation:${identity}`,
+    limit: 12,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados intentos de reserva. Intenta nuevamente más tarde." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      },
+    );
+  }
+
+  let conflictInput: { fecha: string; personas: number } | null = null;
+
   try {
     const body = await request.json();
     const parsed = reservaSchema.safeParse(body);
@@ -43,13 +63,16 @@ export async function POST(request: Request) {
       );
     }
 
-    conflictInput = { fecha, personas };\n    const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
+    conflictInput = { fecha, personas };
+
+    const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
     const cleanPhone = normalizePhone(telefono);
     const config = getReservationConfig();
 
     const reserva = await prisma.$transaction(async (tx) => {
       // Serializa únicamente la misma fecha/franja para evitar sobreventa concurrente.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${fecha}|${hora}`}))`;
+      const lockKey = `${fecha}|${hora}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
       const duplicate = await tx.reserva.findFirst({
         where: {
@@ -129,6 +152,7 @@ export async function POST(request: Request) {
     if (error instanceof ReservationConflictError) {
       if (error.code === "NO_AVAILABILITY") {
         let alternatives: string[] = [];
+
         if (conflictInput) {
           try {
             const slots = await listAvailabilityForDate(conflictInput.fecha);
