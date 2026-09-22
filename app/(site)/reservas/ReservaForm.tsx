@@ -13,6 +13,7 @@ import { reservaSchema, type ReservaFormValues } from "@/lib/reservas/schema";
 import { Button } from "@/components/ui/Button";
 import { AvailabilityCalendar } from "@/components/reservas/AvailabilityCalendar";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
+import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-pisao-gold/15 bg-pisao-carbon px-4 py-3 text-sm text-pisao-cream outline-none transition placeholder:text-pisao-cream-muted/45 focus:border-pisao-gold/70 focus:ring-2 focus:ring-pisao-gold/10";
@@ -153,7 +154,7 @@ export function ReservaForm() {
           <input
             type="number"
             min={1}
-            max={30}
+            max={MAX_AUTOMATIC_RESERVATION_PEOPLE}
             placeholder="2"
             {...register("personas", { valueAsNumber: true })}
             className={inputClass}
@@ -161,6 +162,11 @@ export function ReservaForm() {
           {errors.personas && (
             <p className="mt-1.5 text-xs text-red-400">{errors.personas.message}</p>
           )}
+          <p className="text-pisao-cream-muted mt-1.5 text-[10px] leading-relaxed">
+            Reserva automática hasta {MAX_AUTOMATIC_RESERVATION_PEOPLE} personas:
+            máximo 3 mesas unidas. Para grupos mayores, contáctanos para coordinar
+            una distribución especial.
+          </p>
         </div>
       </div>
 
