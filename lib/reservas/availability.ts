@@ -105,9 +105,9 @@ export function getReservationConfig() {
   return {
     slotMinutes: envInt("RESERVATION_SLOT_MINUTES", 30),
     reservationDurationMinutes: envInt("RESERVATION_DURATION_MINUTES", 90),
-    maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 40),
+    maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 32),
     reservableTableCount: envInt("RESERVATION_TABLE_COUNT", 8),
-    seatsPerTable: envInt("RESERVATION_SEATS_PER_TABLE", 5),
+    seatsPerTable: envInt("RESERVATION_SEATS_PER_TABLE", 4),
     minAdvanceMinutes: envInt("RESERVATION_MIN_ADVANCE_MINUTES", 60),
     maxAdvanceDays: envInt("RESERVATION_MAX_ADVANCE_DAYS", 60),
     calendarDays: Math.min(envInt("RESERVATION_CALENDAR_DAYS", 30), 60),
@@ -270,6 +270,21 @@ function prismaDate(fecha: string) {
   return new Date(`${fecha}T00:00:00.000Z`);
 }
 
+export function combinedTableCapacity(
+  tables: ReservableTableDefinition[],
+) {
+  if (tables.length === 0) return 0;
+  if (tables.length === 1) return tables[0].capacidad;
+
+  // Cada unión elimina dos puestos: uno en cada cara que queda enfrentada.
+  // Con mesas de 4 puestos: 1=4, 2=6, 3=8, 4=10...
+  const nominal = tables.reduce((sum, table) => sum + table.capacidad, 0);
+  return Math.max(
+    Math.max(...tables.map((table) => table.capacidad)),
+    nominal - 2 * (tables.length - 1),
+  );
+}
+
 function bestTableCombination(
   tables: ReservableTableDefinition[],
   personas: number,
@@ -292,7 +307,7 @@ function bestTableCombination(
       if (new Set(subset.map((table) => table.zona)).size > 1) continue;
     }
 
-    const totalSeats = subset.reduce((sum, table) => sum + table.capacidad, 0);
+    const totalSeats = combinedTableCapacity(subset);
     if (totalSeats < personas) continue;
 
     const unusedSeats = totalSeats - personas;
