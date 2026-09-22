@@ -56,6 +56,8 @@ export async function GET(request: Request) {
         personas,
         durationMinutes: config.reservationDurationMinutes,
         slotMinutes: config.slotMinutes,
+        reservableTableCount: config.reservableTableCount,
+        seatsPerTable: config.seatsPerTable,
         calendar,
       },
       { headers: { "Cache-Control": "no-store" } },
