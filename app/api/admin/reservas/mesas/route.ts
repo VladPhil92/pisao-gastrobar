@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { RESERVABLE_TABLE_SEATS } from "@/lib/reservas/policy";
 
 function isStringArray(value: unknown): value is string[] {
   return (
@@ -27,7 +28,6 @@ export async function PATCH(request: Request) {
     const zona = typeof body.zona === "string" ? body.zona.trim() : "";
     const capacidad = Number(body.capacidad);
     const prioridad = Number(body.prioridad);
-    const combinable = body.combinable;
     const activa = body.activa;
     const atributos = body.atributos;
     const posX = Number(body.posX);
@@ -49,8 +49,7 @@ export async function PATCH(request: Request) {
 
     if (
       !Number.isInteger(capacidad) ||
-      capacidad < 1 ||
-      capacidad > 20 ||
+      capacidad !== RESERVABLE_TABLE_SEATS ||
       !Number.isInteger(prioridad) ||
       prioridad < 0 ||
       prioridad > 1000 ||
@@ -62,13 +61,12 @@ export async function PATCH(request: Request) {
       posY > 20
     ) {
       return NextResponse.json(
-        { error: "Capacidad, prioridad o posición fuera de rango." },
+        { error: `Cada mesa reservable de PISÁO debe conservar ${RESERVABLE_TABLE_SEATS} puestos.` },
         { status: 400 },
       );
     }
 
     if (
-      typeof combinable !== "boolean" ||
       typeof activa !== "boolean" ||
       !isStringArray(atributos)
     ) {
@@ -85,7 +83,7 @@ export async function PATCH(request: Request) {
         capacidad,
         zona,
         prioridad,
-        combinable,
+        combinable: true,
         activa,
         atributos: atributos
           .map((item) => item.trim())

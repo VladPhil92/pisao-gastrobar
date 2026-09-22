@@ -286,11 +286,13 @@ export async function POST(request: Request) {
       });
     }
 
+    const clientRequestId = crypto.randomUUID();
     const upstream = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "X-Client-Request-Id": clientRequestId,
       },
       body: JSON.stringify({
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
@@ -322,12 +324,18 @@ REGLAS ADICIONALES
           content: message.content,
         })),
       }),
+      signal: AbortSignal.timeout(15_000),
     });
 
     const payload = (await upstream.json()) as OpenAIResponse;
 
     if (!upstream.ok) {
-      console.error("[PISAO AI] OpenAI error", upstream.status, payload.error);
+      console.error(
+        "[PISAO AI] OpenAI error",
+        upstream.status,
+        payload.error,
+        { clientRequestId },
+      );
       return Response.json({
         text: fallbackText,
         proposal,

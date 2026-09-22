@@ -119,7 +119,7 @@ export function ReservableTableManager({
             T1–T8 configurables
           </h2>
           <p className="text-pisao-cream-muted mt-2 max-w-2xl text-xs leading-relaxed">
-            Cada mesa tiene 4 puestos. Se pueden unir como máximo 3 mesas disponibles: 2 mesas = 6 personas y 3 = 8. El asignador nunca combinará 4 o más mesas para una sola reserva.
+            Cada mesa tiene 4 puestos y todas las mesas reservables disponibles pueden moverse y agruparse. Máximo 3 por reserva: 2 mesas = 6 personas y 3 = 8. Capacidad y agrupabilidad son reglas físicas bloqueadas.
           </p>
         </div>
         {!canConfigure && (
@@ -219,15 +219,9 @@ export function ReservableTableManager({
                   <Users className="text-pisao-gold size-3.5" />
                   <input
                     type="number"
-                    min={1}
-                    max={20}
-                    disabled={!canConfigure}
                     value={table.capacidad}
-                    onChange={(event) =>
-                      updateRow(table.codigo, {
-                        capacidad: Math.max(1, Number(event.target.value) || 1),
-                      })
-                    }
+                    disabled
+                    readOnly
                     className="text-pisao-cream w-full bg-transparent text-xs outline-none"
                   />
                 </span>
@@ -324,16 +318,12 @@ export function ReservableTableManager({
               <label className="flex items-center gap-2 text-[10px] text-pisao-cream-muted">
                 <input
                   type="checkbox"
-                  checked={table.combinable}
-                  disabled={!canConfigure}
-                  onChange={(event) =>
-                    updateRow(table.codigo, {
-                      combinable: event.target.checked,
-                    })
-                  }
+                  checked
+                  disabled
+                  readOnly
                   className="accent-pisao-gold"
                 />
-                Se puede unir
+                Agrupable · regla fija
               </label>
 
               {canConfigure && (

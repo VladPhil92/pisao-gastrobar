@@ -5,6 +5,7 @@ import {
   validateReservationWindow,
 } from "@/lib/reservas/availability";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
 
 export async function handleReservationAvailabilityRequest(request: Request) {
   const identity = requestIdentity(request);
@@ -32,9 +33,17 @@ export async function handleReservationAvailabilityRequest(request: Request) {
   const hora = url.searchParams.get("hora")?.trim() || null;
   const personas = Number(url.searchParams.get("personas") ?? "2");
 
-  if (!fecha || !Number.isInteger(personas) || personas < 1 || personas > 30) {
+  if (
+    !fecha ||
+    !Number.isInteger(personas) ||
+    personas < 1 ||
+    personas > MAX_AUTOMATIC_RESERVATION_PEOPLE
+  ) {
     return NextResponse.json(
-      { error: "Debes indicar fecha y personas válidas." },
+      {
+        error: `Las reservas automáticas admiten entre 1 y ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas.`,
+        code: "GROUP_TOO_LARGE",
+      },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

@@ -42,5 +42,8 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Reservation engine tests
+        run: npm run test:reservations
+
       - name: Production build
         run: npm run build

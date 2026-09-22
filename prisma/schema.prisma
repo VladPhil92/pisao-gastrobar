@@ -231,7 +231,7 @@ model MesaReservable {
   id         String   @id @default(cuid())
   codigo     String   @unique
   nombre     String
-  capacidad  Int      @default(5)
+  capacidad  Int      @default(4)
   zona       String   @default("Terraza reservable")
   prioridad  Int      @default(100)
   combinable Boolean  @default(true)
