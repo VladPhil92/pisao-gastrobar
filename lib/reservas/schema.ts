@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
 
 export const reservaSchema = z.object({
   nombre: z
@@ -25,7 +26,14 @@ export const reservaSchema = z.object({
   hora: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Selecciona una hora válida"),
-  personas: z.number().int().min(1).max(30),
+  personas: z
+    .number()
+    .int()
+    .min(1)
+    .max(
+      MAX_AUTOMATIC_RESERVATION_PEOPLE,
+      `Las reservas automáticas admiten hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas`,
+    ),
   notas: z
     .string()
     .trim()
