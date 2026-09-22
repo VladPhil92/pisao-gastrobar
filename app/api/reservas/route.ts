@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { reservaSchema } from "@/lib/reservas/schema";
 import {
+  allocateReservableTables,
   calculateReservedForStart,
   getReservationConfig,
   listBookableStartsForDate,
@@ -99,15 +100,23 @@ export async function POST(request: Request) {
           fecha: fechaDb,
           estado: { in: ["PENDIENTE", "CONFIRMADA"] },
         },
-        select: { hora: true, personas: true },
+        select: { hora: true, personas: true, mesas: true },
       });
 
       const reserved = calculateReservedForStart(activeReservations, hora);
+      const allocation = allocateReservableTables(
+        activeReservations,
+        hora,
+        personas,
+      );
 
-      if (reserved + personas > config.maxDinersPerSlot) {
+      if (
+        reserved + personas > config.maxDinersPerSlot ||
+        !allocation.available
+      ) {
         throw new ReservationConflictError(
           "NO_AVAILABILITY",
-          "La franja seleccionada ya no tiene capacidad suficiente.",
+          "La franja seleccionada ya no tiene mesas reservables suficientes para ese grupo.",
         );
       }
 
@@ -120,6 +129,7 @@ export async function POST(request: Request) {
           hora,
           personas,
           notas: notas || undefined,
+          mesas: allocation.assignedTables,
           estado: "CONFIRMADA",
         },
       });
@@ -134,6 +144,7 @@ export async function POST(request: Request) {
       hora: reserva.hora,
       personas: reserva.personas,
       notas: reserva.notas,
+      mesas: reserva.mesas,
     });
 
     return NextResponse.json(
@@ -144,6 +155,7 @@ export async function POST(request: Request) {
           fecha,
           hora: reserva.hora,
           personas: reserva.personas,
+          mesas: reserva.mesas,
         },
       },
       { status: 201 },
