@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -49,6 +49,10 @@ export function ReservableTableManager({
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    setRows(initial);
+  }, [initial]);
+
   function updateRow(
     codigo: string,
     patch: Partial<EditableTable>,
@@ -83,6 +87,8 @@ export function ReservableTableManager({
             .split(",")
             .map((value) => value.trim())
             .filter(Boolean),
+          posX: row.posX,
+          posY: row.posY,
         }),
       });
 
@@ -231,6 +237,41 @@ export function ReservableTableManager({
                 className="mt-1.5 w-full rounded-lg border border-pisao-gold/10 bg-pisao-noche px-2.5 py-2 text-xs normal-case tracking-normal text-pisao-cream outline-none"
               />
             </label>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="text-[9px] font-semibold tracking-wide text-pisao-cream-muted uppercase">
+                Columna
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  disabled={!canConfigure}
+                  value={table.posX}
+                  onChange={(event) =>
+                    updateRow(table.codigo, {
+                      posX: Math.max(0, Number(event.target.value) || 0),
+                    })
+                  }
+                  className="mt-1.5 w-full rounded-lg border border-pisao-gold/10 bg-pisao-noche px-2.5 py-2 text-xs text-pisao-cream outline-none"
+                />
+              </label>
+              <label className="text-[9px] font-semibold tracking-wide text-pisao-cream-muted uppercase">
+                Fila
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  disabled={!canConfigure}
+                  value={table.posY}
+                  onChange={(event) =>
+                    updateRow(table.codigo, {
+                      posY: Math.max(0, Number(event.target.value) || 0),
+                    })
+                  }
+                  className="mt-1.5 w-full rounded-lg border border-pisao-gold/10 bg-pisao-noche px-2.5 py-2 text-xs text-pisao-cream outline-none"
+                />
+              </label>
+            </div>
 
             <div className="mt-3 flex items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-[10px] text-pisao-cream-muted">
