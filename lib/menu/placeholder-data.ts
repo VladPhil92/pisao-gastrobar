@@ -247,6 +247,16 @@ export const productosPlaceholder: (MenuCardProduct & {
     disponible: true,
     categoriaSlug: "menu-infantil",
   },
+  {
+    id: "prod-maduritos",
+    nombre: "Maduritos",
+    slug: "maduritos",
+    descripcion: "Tajadas de plátano maduro con queso costeño rayado.",
+    precio: 25000,
+    imagenUrl: "/gallery/maduritos.png",
+    disponible: true,
+    categoriaSlug: "menu-infantil",
+  },
 
   // Postre
   {
@@ -423,29 +433,41 @@ export const productosPlaceholder: (MenuCardProduct & {
     slug: "ctg-craft-beer-golden-ale",
     descripcion: "",
     precio: 18000,
-    imagenUrl: "/gallery/terraza-cervezas.jpg",
+    imagenUrl: "/gallery/ctg-craft-beer-golden.png",
     disponible: true,
     categoriaSlug: "cervezas",
   },
 
-  // Cócteles
+  // Cócteles de autor aprobados
   {
-    id: "prod-mojito-pisao",
-    nombre: "Mojito PISÁO",
-    slug: "mojito-pisao",
-    descripcion: "",
-    precio: 30000,
-    imagenUrl: null,
+    id: "prod-coctel-pisao",
+    nombre: "Cóctel PISÁO",
+    slug: "coctel-pisao",
+    descripcion: "Vodka, jugo de sandía, almíbar, menta y soda.",
+    precio: 35000,
+    imagenUrl: "/gallery/coctel-pisao.png",
     disponible: true,
     categoriaSlug: "cocteles",
   },
   {
-    id: "prod-margarita-pisao",
-    nombre: "Margarita PISÁO",
-    slug: "margarita-pisao",
-    descripcion: "",
-    precio: 30000,
-    imagenUrl: null,
+    id: "prod-coctel-blanco-negro",
+    nombre: "Blanco y Negro",
+    slug: "blanco-y-negro",
+    descripcion:
+      "Tequila reposado, toronja, limón y jarabe de canela caramelizada.",
+    precio: 35000,
+    imagenUrl: "/gallery/coctel-blanco-negro.png",
+    disponible: true,
+    categoriaSlug: "cocteles",
+  },
+  {
+    id: "prod-coctel-terraza",
+    nombre: "Terraza",
+    slug: "coctel-terraza",
+    descripcion:
+      "Ginebra, pepino, lima, soda tónica, sal marina y albahaca.",
+    precio: 35000,
+    imagenUrl: "/gallery/coctel-terraza.png",
     disponible: true,
     categoriaSlug: "cocteles",
   },
