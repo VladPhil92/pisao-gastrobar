@@ -103,11 +103,16 @@ export async function POST(request: Request) {
         select: { hora: true, personas: true, mesas: true },
       });
 
+      const tables = await tx.mesaReservable.findMany({
+        orderBy: [{ prioridad: "asc" }, { codigo: "asc" }],
+      });
+
       const reserved = calculateReservedForStart(activeReservations, hora);
       const allocation = allocateReservableTables(
         activeReservations,
         hora,
         personas,
+        tables,
       );
 
       if (
