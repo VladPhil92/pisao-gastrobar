@@ -1,40 +1,13 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 
-function run(command, args, label) {
-  const result = spawnSync(command, args, {
-    stdio: "inherit",
-    env: process.env,
-    shell: process.platform === "win32",
-  });
-
-  if (result.error) {
-    console.warn(`[startup] ${label} no pudo ejecutarse: ${result.error.name}`);
-    return false;
-  }
-
-  if (result.status !== 0) {
-    console.warn(
-      `[startup] ${label} terminó con código ${result.status}. La web continuará en modo degradado y reintentará en el próximo deploy.`,
-    );
-    return false;
-  }
-
-  return true;
-}
-
-const databaseUrl = process.env.DATABASE_URL;
-
-if (databaseUrl) {
-  const migrated = run("npm", ["run", "db:deploy"], "migración de base de datos");
-  if (migrated) {
-    run("npm", ["run", "db:seed"], "bootstrap no destructivo de base de datos");
-  }
-} else {
+if (!process.env.DATABASE_URL) {
   console.warn(
-    "[startup] DATABASE_URL no está definida. La web inicia sin persistencia; pedidos, reservas y Behavioral Intelligence usarán sus estados de error/fallback.",
+    "[startup] DATABASE_URL no está definida. La web iniciará, pero reservas, pedidos y panel administrativo operarán en modo degradado.",
   );
 }
 
+// Las migraciones se ejecutan en el pre-deploy de Render. El proceso de runtime
+// debe iniciar Next.js inmediatamente y no bloquear cada cold start contra Postgres.
 const child = spawn("node", [".next/standalone/server.js"], {
   stdio: "inherit",
   env: {
