@@ -21,7 +21,7 @@ const labelClass =
 
 type SubmitState =
   | { kind: "idle" }
-  | { kind: "success"; code: string }
+  | { kind: "success"; code: string; mesas: string[] }
   | { kind: "error"; message: string; alternatives: string[] };
 
 export function ReservaForm() {
@@ -61,7 +61,7 @@ export function ReservaForm() {
       });
 
       const payload = (await res.json()) as {
-        reserva?: { id: string; estado?: string };
+        reserva?: { id: string; estado?: string; mesas?: string[] };
         error?: string;
         alternatives?: string[];
       };
@@ -85,6 +85,7 @@ export function ReservaForm() {
       setStatus({
         kind: "success",
         code: payload.reserva.id.slice(-8).toUpperCase(),
+        mesas: payload.reserva.mesas ?? [],
       });
       reset({ personas: 2 });
       setStarted(false);
@@ -242,7 +243,10 @@ export function ReservaForm() {
             <div>
               <p className="font-semibold">Reserva confirmada automáticamente.</p>
               <p className="mt-1 text-xs text-emerald-200/80">
-                Código {status.code}. El cupo ya quedó descontado del calendario de PISÁO.
+                Código {status.code}.
+                {status.mesas.length > 0
+                  ? ` Mesa(s) asignada(s): ${status.mesas.join(", ")}.`
+                  : ""} El cupo ya quedó descontado del calendario de PISÁO.
               </p>
             </div>
           </div>
