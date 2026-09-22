@@ -145,9 +145,6 @@ export default async function AdminReservasPage() {
         ["PENDIENTE", "CONFIRMADA"].includes(reservation.estado),
     ) ?? [];
 
-  const pending = futureActive.filter(
-    (reservation) => reservation.estado === "PENDIENTE",
-  ).length;
   const confirmed = futureActive.filter(
     (reservation) => reservation.estado === "CONFIRMADA",
   ).length;
@@ -233,7 +230,8 @@ export default async function AdminReservasPage() {
                 </h2>
               </div>
               <p className="text-pisao-cream-muted max-w-md text-xs leading-relaxed">
-                La ocupación cruza las 8 mesas reservables, los comensales y ventanas de ${config.reservationDurationMinutes} minutos. Canceladas y completadas liberan inventario.
+                La ocupación cruza las 8 mesas reservables, los comensales y ventanas de{" "}
+                {config.reservationDurationMinutes} minutos. Canceladas y completadas liberan inventario.
               </p>
             </div>
 
