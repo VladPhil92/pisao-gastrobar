@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
  * finales nunca crean cuenta.
  */
 export const authConfig: NextAuthConfig = {
-  // PISÁO se ejecuta detrás de proxies administrados (Vercel/Render/Cloudflare).
+  // PISÁO se ejecuta en producción detrás del proxy administrado de Render.
   // Auth.js necesita confiar en el host reenviado para construir correctamente
   // las URLs internas de sesión en producción. No amplía quién puede iniciar sesión:
   // el acceso sigue limitado al proveedor Credentials y a Usuario activo en Prisma.

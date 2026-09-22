@@ -11,7 +11,33 @@ y panel administrativo.
 - **Base de datos:** PostgreSQL vía Prisma ORM
 - **Autenticación admin:** NextAuth (Auth.js v5), roles `ADMIN` / `CAJERO` / `COCINA`
 - **Estado del carrito:** Zustand con persistencia local
-- **Hosting objetivo:** Vercel (frontend) + Postgres gestionado (Supabase / Neon / Railway)
+- **Producción canónica:** Render (Next.js + API routes) + Render PostgreSQL
+
+## Producción canónica
+
+PISÁO mantiene una sola ruta de producción:
+
+```text
+GitHub: VladPhil92/pisao-gastrobar (main)
+        |
+        v
+Render Web Service: pisao-gastrobar
+        |
+        +--> https://pisaogastrobar.com
+        +--> https://www.pisaogastrobar.com
+        |
+        v
+Render PostgreSQL: pisao-gastrobar-db
+```
+
+El repositorio `VladPhil92/pisao-gastrobar` es la única fuente de verdad para producción.
+No se debe crear ni mantener un segundo deployment productivo de este repositorio en Vercel
+u otro proveedor salvo una migración deliberada. El repositorio histórico `PISAO-WEB`
+quedó sustituido por este repositorio y no debe recibir nuevo desarrollo.
+
+Antes de un cambio de infraestructura se debe validar `/api/health?strict=1`, reservas,
+panel administrativo, Concierge, menú y assets públicos desde el dominio canónico.
+
 
 ## Estructura del proyecto
 
@@ -127,7 +153,7 @@ Resumen por categoría:
 | Pasarela de tarjeta  | `PAYMENT_GATEWAY_PROVIDER`, `WOMPI_*`, `PAYU_*`, `EPAYCO_*`                                                                        |
 | Gateway cripto       | `CRYPTO_GATEWAY_PROVIDER`, `CRYPTO_GATEWAY_API_KEY`, `CRYPTO_GATEWAY_WEBHOOK_SECRET`, `CRYPTO_DISCOUNT_PERCENTAGE`                 |
 | QR / transferencia   | `BANK_TRANSFER_*`                                                                                                                  |
-| Comprobantes de pago | `UPLOADS_*` (bucket externo; el filesystem de Vercel es efímero)                                                                   |
+| Comprobantes de pago | `UPLOADS_*` (bucket externo; no usar el filesystem efímero del runtime como almacenamiento persistente)                                                                   |
 | Integraciones        | `NEXT_PUBLIC_WHATSAPP_NUMBER`, `NEXT_PUBLIC_GOOGLE_MAPS_EMBED_URL`, `NEXT_PUBLIC_INSTAGRAM_TOKEN`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` |
 
 No se usan claves ni credenciales reales en este repositorio: todos los
