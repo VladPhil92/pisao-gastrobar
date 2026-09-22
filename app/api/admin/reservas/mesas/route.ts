@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { RESERVABLE_TABLE_SEATS } from "@/lib/reservas/policy";
 
 function isStringArray(value: unknown): value is string[] {
   return (
@@ -49,8 +50,7 @@ export async function PATCH(request: Request) {
 
     if (
       !Number.isInteger(capacidad) ||
-      capacidad < 1 ||
-      capacidad > 20 ||
+      capacidad !== RESERVABLE_TABLE_SEATS ||
       !Number.isInteger(prioridad) ||
       prioridad < 0 ||
       prioridad > 1000 ||
@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
       posY > 20
     ) {
       return NextResponse.json(
-        { error: "Capacidad, prioridad o posición fuera de rango." },
+        { error: `Cada mesa reservable de PISÁO debe conservar ${RESERVABLE_TABLE_SEATS} puestos.` },
         { status: 400 },
       );
     }
