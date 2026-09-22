@@ -30,6 +30,8 @@ export async function PATCH(request: Request) {
     const combinable = body.combinable;
     const activa = body.activa;
     const atributos = body.atributos;
+    const posX = Number(body.posX);
+    const posY = Number(body.posY);
 
     if (!/^T[1-8]$/.test(codigo)) {
       return NextResponse.json(
@@ -51,10 +53,16 @@ export async function PATCH(request: Request) {
       capacidad > 20 ||
       !Number.isInteger(prioridad) ||
       prioridad < 0 ||
-      prioridad > 1000
+      prioridad > 1000 ||
+      !Number.isInteger(posX) ||
+      posX < 0 ||
+      posX > 20 ||
+      !Number.isInteger(posY) ||
+      posY < 0 ||
+      posY > 20
     ) {
       return NextResponse.json(
-        { error: "Capacidad o prioridad fuera de rango." },
+        { error: "Capacidad, prioridad o posición fuera de rango." },
         { status: 400 },
       );
     }
@@ -83,6 +91,8 @@ export async function PATCH(request: Request) {
           .map((item) => item.trim())
           .filter(Boolean)
           .slice(0, 10),
+        posX,
+        posY,
       },
     });
 
