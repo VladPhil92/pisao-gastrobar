@@ -1,24 +1,60 @@
 import { prisma } from "@/lib/prisma";
+import {
+  MAX_AUTOMATIC_RESERVATION_PEOPLE,
+  MAX_COMBINED_TABLES,
+  RESERVABLE_TABLE_SEATS,
+} from "@/lib/reservas/policy";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const strict = new URL(request.url).searchParams.get("strict") === "1";
+const EXPECTED_TABLE_CODES = Array.from({ length: 8 }, (_, index) => `T${index + 1}`);
 
+export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    return Response.json(
-      {
-        status: "ok",
-        app: "pisao-gastrobar",
-        database: "available",
-        timestamp: new Date().toISOString(),
+    const tables = await prisma.mesaReservable.findMany({
+      select: {
+        codigo: true,
+        capacidad: true,
+        activa: true,
       },
-      {
-        headers: { "Cache-Control": "no-store" },
+      orderBy: { codigo: "asc" },
+    });
+
+    const inventoryReady =
+      tables.length === EXPECTED_TABLE_CODES.length &&
+      EXPECTED_TABLE_CODES.every((code) =>
+        tables.some(
+          (table) =>
+            table.codigo === code &&
+            table.capacidad === RESERVABLE_TABLE_SEATS,
+        ),
+      );
+
+    const payload = {
+      status: inventoryReady ? "ok" : "degraded",
+      app: "pisao-gastrobar",
+      database: "available",
+      reservations: {
+        inventory: inventoryReady ? "ready" : "invalid",
+        tables: tables.length,
+        activeTables: tables.filter((table) => table.activa).length,
+        seatsPerTable: RESERVABLE_TABLE_SEATS,
+        maxCombinedTables: MAX_COMBINED_TABLES,
+        maxAutomaticGroup: MAX_AUTOMATIC_RESERVATION_PEOPLE,
       },
-    );
+      ai: {
+        mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
+        model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return Response.json(payload, {
+      status: inventoryReady ? 200 : 503,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("[PISAO HEALTH] Database unavailable", error);
 
@@ -27,10 +63,15 @@ export async function GET(request: Request) {
         status: "degraded",
         app: "pisao-gastrobar",
         database: "unavailable",
+        reservations: { inventory: "unknown" },
+        ai: {
+          mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
+          model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+        },
         timestamp: new Date().toISOString(),
       },
       {
-        status: strict ? 503 : 200,
+        status: 503,
         headers: { "Cache-Control": "no-store" },
       },
     );
