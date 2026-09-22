@@ -18,7 +18,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
