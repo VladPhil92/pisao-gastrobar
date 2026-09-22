@@ -28,7 +28,6 @@ export async function PATCH(request: Request) {
     const zona = typeof body.zona === "string" ? body.zona.trim() : "";
     const capacidad = Number(body.capacidad);
     const prioridad = Number(body.prioridad);
-    const combinable = body.combinable;
     const activa = body.activa;
     const atributos = body.atributos;
     const posX = Number(body.posX);
@@ -68,7 +67,6 @@ export async function PATCH(request: Request) {
     }
 
     if (
-      typeof combinable !== "boolean" ||
       typeof activa !== "boolean" ||
       !isStringArray(atributos)
     ) {
@@ -85,7 +83,7 @@ export async function PATCH(request: Request) {
         capacidad,
         zona,
         prioridad,
-        combinable,
+        combinable: true,
         activa,
         atributos: atributos
           .map((item) => item.trim())
