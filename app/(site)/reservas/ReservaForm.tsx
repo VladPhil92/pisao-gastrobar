@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Clock3, Send, TriangleAlert } from "lucide-react";
@@ -29,7 +29,7 @@ function bogotaToday() {
 
 export function ReservaForm() {
   const [status, setStatus] = useState<SubmitState>({ kind: "idle" });
-  const startedRef = useRef(false);
+  const [started, setStarted] = useState(false);
   const {
     register,
     handleSubmit,
@@ -39,8 +39,8 @@ export function ReservaForm() {
   } = useForm<ReservaFormValues>({ resolver: zodResolver(reservaSchema) });
 
   const markStarted = () => {
-    if (startedRef.current) return;
-    startedRef.current = true;
+    if (started) return;
+    setStarted(true);
     trackBehavior("reservation_start", { surface: "reservation" });
   };
 
@@ -81,7 +81,7 @@ export function ReservaForm() {
         code: payload.reserva.id.slice(-8).toUpperCase(),
       });
       reset();
-      startedRef.current = false;
+      setStarted(false);
     } catch {
       setStatus({
         kind: "error",
