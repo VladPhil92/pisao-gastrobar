@@ -108,6 +108,7 @@ export function getReservationConfig() {
     maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 32),
     reservableTableCount: envInt("RESERVATION_TABLE_COUNT", 8),
     seatsPerTable: envInt("RESERVATION_SEATS_PER_TABLE", 4),
+    maxCombinedTables: envInt("RESERVATION_MAX_COMBINED_TABLES", 3),
     minAdvanceMinutes: envInt("RESERVATION_MIN_ADVANCE_MINUTES", 60),
     maxAdvanceDays: envInt("RESERVATION_MAX_ADVANCE_DAYS", 60),
     calendarDays: Math.min(envInt("RESERVATION_CALENDAR_DAYS", 30), 60),
@@ -300,8 +301,11 @@ function bestTableCombination(
       }
     | null = null;
 
+  const { maxCombinedTables } = getReservationConfig();
+
   for (let mask = 1; mask < 1 << candidates.length; mask += 1) {
     const subset = candidates.filter((_, index) => (mask & (1 << index)) !== 0);
+    if (subset.length > maxCombinedTables) continue;
     if (subset.length > 1) {
       if (subset.some((table) => !table.combinable)) continue;
       if (new Set(subset.map((table) => table.zona)).size > 1) continue;
