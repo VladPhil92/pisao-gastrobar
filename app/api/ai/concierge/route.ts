@@ -17,7 +17,8 @@ import {
   type ReservationAvailability,
 } from "@/lib/reservas/availability";
 import { productosPlaceholder } from "@/lib/menu/placeholder-data";
-import { siteConfig } from "@/lib/site-config";\nimport { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { siteConfig } from "@/lib/site-config";
+import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -131,6 +132,7 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
     const products: CommerceProduct[] = productosPlaceholder.map((product) => ({
       ...product,
     }));
+
     return {
       products,
       context: menuContextFromProducts(products),
@@ -144,7 +146,9 @@ function availabilityContext(
   error: string | null,
 ) {
   if (error) return `Disponibilidad: no verificable. Motivo: ${error}`;
-  if (!availability) return "Disponibilidad: pendiente de contar con fecha, hora y personas.";
+  if (!availability) {
+    return "Disponibilidad: pendiente de contar con fecha, hora y personas.";
+  }
 
   return availability.available
     ? `Disponibilidad: hay capacidad para ${availability.personas} personas a las ${availability.hora}. Capacidad restante calculada: ${availability.remaining}.`
@@ -152,6 +156,23 @@ function availabilityContext(
 }
 
 export async function POST(request: Request) {
+  const identity = requestIdentity(request);
+  const rate = checkRateLimit({
+    key: `concierge:${identity}`,
+    limit: 40,
+    windowMs: 10 * 60 * 1000,
+  });
+
+  if (!rate.allowed) {
+    return Response.json(
+      { error: "Has enviado demasiados mensajes. Intenta nuevamente en unos minutos." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      },
+    );
+  }
+
   try {
     const body = (await request.json()) as { messages?: unknown };
     const messages = sanitizeMessages(body.messages);
