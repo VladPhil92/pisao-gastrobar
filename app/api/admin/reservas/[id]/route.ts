@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyReservationStatusChanged } from "@/lib/reservas/notifications";
 
 const STATES = ["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"] as const;
 type ReservationState = (typeof STATES)[number];
@@ -57,13 +58,37 @@ export async function PATCH(
         id: true,
         estado: true,
         nombre: true,
+        telefono: true,
+        email: true,
         fecha: true,
         hora: true,
         personas: true,
+        notas: true,
       },
     });
 
-    return NextResponse.json({ reserva });
+    await notifyReservationStatusChanged({
+      id: reserva.id,
+      nombre: reserva.nombre,
+      telefono: reserva.telefono,
+      email: reserva.email,
+      fecha: reserva.fecha.toISOString().slice(0, 10),
+      hora: reserva.hora,
+      personas: reserva.personas,
+      notas: reserva.notas,
+      estado: reserva.estado,
+    });
+
+    return NextResponse.json({
+      reserva: {
+        id: reserva.id,
+        estado: reserva.estado,
+        nombre: reserva.nombre,
+        fecha: reserva.fecha,
+        hora: reserva.hora,
+        personas: reserva.personas,
+      },
+    });
   } catch (error) {
     console.error("[PISAO ADMIN] Error actualizando reserva", error);
     return NextResponse.json(
