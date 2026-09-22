@@ -281,6 +281,7 @@ function bestTableCombination(
         totalSeats: number;
         unusedSeats: number;
         priority: number;
+        spread: number;
       }
     | null = null;
 
@@ -296,16 +297,26 @@ function bestTableCombination(
 
     const unusedSeats = totalSeats - personas;
     const priority = subset.reduce((sum, table) => sum + table.prioridad, 0);
+    const xs = subset.map((table) => table.posX);
+    const ys = subset.map((table) => table.posY);
+    const spread =
+      subset.length <= 1
+        ? 0
+        : Math.max(...xs) -
+          Math.min(...xs) +
+          Math.max(...ys) -
+          Math.min(...ys);
     const codes = subset.map((table) => table.codigo).sort();
     const score = [
       unusedSeats,
       subset.length,
       priority,
+      spread,
       codes.join("|"),
     ] as const;
 
     if (!best) {
-      best = { codes, totalSeats, unusedSeats, priority };
+      best = { codes, totalSeats, unusedSeats, priority, spread };
       continue;
     }
 
@@ -313,6 +324,7 @@ function bestTableCombination(
       best.unusedSeats,
       best.codes.length,
       best.priority,
+      best.spread,
       best.codes.join("|"),
     ] as const;
 
@@ -325,9 +337,14 @@ function bestTableCombination(
       (score[0] === currentScore[0] &&
         score[1] === currentScore[1] &&
         score[2] === currentScore[2] &&
-        score[3] < currentScore[3])
+        score[3] < currentScore[3]) ||
+      (score[0] === currentScore[0] &&
+        score[1] === currentScore[1] &&
+        score[2] === currentScore[2] &&
+        score[3] === currentScore[3] &&
+        score[4] < currentScore[4])
     ) {
-      best = { codes, totalSeats, unusedSeats, priority };
+      best = { codes, totalSeats, unusedSeats, priority, spread };
     }
   }
 
