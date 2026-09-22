@@ -357,7 +357,7 @@ export function AvailabilityCalendar({
         )}
 
         <p className="text-pisao-cream-muted/70 mt-4 text-[9px] leading-relaxed">
-          Cada confirmación vuelve a validar y asignar T1–T${payload.reservableTableCount} dentro de una transacción antes de bloquear la franja.
+          Cada confirmación vuelve a validar y asignar mesas del inventario T1–T{payload.reservableTableCount} dentro de una transacción antes de bloquear la franja.
         </p>
       </div>
     </section>
