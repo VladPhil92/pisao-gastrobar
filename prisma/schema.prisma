@@ -217,6 +217,7 @@ model Reserva {
   personas Int
 
   notas  String?
+  mesas  String[]      @default([])
   estado EstadoReserva @default(PENDIENTE)
 
   createdAt DateTime @default(now())
