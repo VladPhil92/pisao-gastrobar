@@ -1,4 +1,4 @@
-import { MAX_COMBINED_TABLES } from "@/lib/reservas/policy";
+import { MAX_COMBINED_TABLES } from "./policy";
 
 export type ReservableTableDefinition = {
   codigo: string;
