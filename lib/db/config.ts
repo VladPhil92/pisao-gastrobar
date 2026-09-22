@@ -7,9 +7,30 @@ export function requireDatabaseUrl() {
   const value = process.env.DATABASE_URL?.trim();
 
   if (!value) {
+    if (process.env.CI === "true" && !process.env.VERCEL_ENV) {
+      return "postgresql://ci:ci@127.0.0.1:1/ci";
+    }
+
     throw new Error(
       "DATABASE_URL is not configured. Production must use an external PostgreSQL endpoint; localhost fallback is disabled.",
     );
+  }
+
+  if (process.env.VERCEL_ENV === "production") {
+    try {
+      const host = new URL(value).hostname.toLowerCase();
+      if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        throw new Error(
+          "DATABASE_URL points to localhost in Vercel Production. Configure the external PostgreSQL pooler endpoint before deploying.",
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("localhost")) {
+        throw error;
+      }
+
+      throw new Error("DATABASE_URL is not a valid PostgreSQL URL.");
+    }
   }
 
   return value;
