@@ -6,7 +6,7 @@ import {
   listAvailabilityForDate,
   validateReservationWindow,
 } from "@/lib/reservas/availability";
-import { notifyReservationCreated } from "@/lib/reservas/notifications";
+import { notifyReservationCreated } from "@/lib/reservas/notifications";\nimport { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 
 class ReservationConflictError extends Error {
   code: "DUPLICATE" | "NO_AVAILABILITY";
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
+    conflictInput = { fecha, personas };\n    const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
     const cleanPhone = normalizePhone(telefono);
     const config = getReservationConfig();
 
@@ -128,16 +128,12 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ReservationConflictError) {
       if (error.code === "NO_AVAILABILITY") {
-        const body = (await request.clone().json().catch(() => null)) as
-          | { fecha?: string; personas?: number }
-          | null;
-
         let alternatives: string[] = [];
-        if (body?.fecha && body?.personas) {
+        if (conflictInput) {
           try {
-            const slots = await listAvailabilityForDate(body.fecha);
+            const slots = await listAvailabilityForDate(conflictInput.fecha);
             alternatives = slots
-              .filter((slot) => slot.remaining >= Number(body.personas))
+              .filter((slot) => slot.remaining >= conflictInput!.personas)
               .slice(0, 4)
               .map((slot) => slot.hora);
           } catch {
