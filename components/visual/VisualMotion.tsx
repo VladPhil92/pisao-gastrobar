@@ -37,7 +37,7 @@ export function Reveal({
   return (
     <div
       ref={ref}
-      className={cn("pisao-reveal", visible && "is-visible", className)}
+      className={cn("pisao-reveal min-w-0", visible && "is-visible", className)}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}

@@ -152,7 +152,7 @@ export default function HomePage() {
         <Container>
           <Reveal className="max-w-3xl">
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">¿Qué plan tienes?</p>
-            <h2 className="font-display text-pisao-cream mt-3 text-4xl leading-[.98] sm:text-6xl">
+            <h2 className="font-display text-pisao-cream mt-3 max-w-[18ch] text-4xl leading-[1.02] text-balance sm:text-5xl lg:text-6xl">
               No empieces por leer.
               <span className="block text-pisao-gold">Empieza por sentir hambre.</span>
             </h2>
@@ -161,31 +161,31 @@ export default function HomePage() {
             </p>
           </Reveal>
 
-          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          <div className="mt-12 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
             {experiences.map((item, index) => {
               const Icon = item.icon;
               const content = (
                 <>
                   <Image src={item.image} alt="" fill sizes="(min-width:1024px) 33vw, 100vw" className="object-cover transition duration-700 group-hover:scale-[1.06]" />
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.16)_35%,rgba(8,8,8,.94)_100%)]" />
-                  <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7">
+                  <div className="absolute inset-x-0 bottom-0 z-10 p-6 sm:p-7 lg:p-6 xl:p-7">
                     <div className="bg-pisao-gold/15 text-pisao-gold mb-5 flex size-11 items-center justify-center rounded-2xl border border-pisao-gold/20 backdrop-blur-xl">
                       <Icon className="size-5" />
                     </div>
                     <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">{item.eyebrow}</p>
-                    <h3 className="font-display text-pisao-cream mt-2 text-3xl">{item.title}</h3>
-                    <p className="text-pisao-cream-muted mt-3 text-sm leading-relaxed">{item.body}</p>
-                    <span className="text-pisao-gold mt-6 inline-flex items-center gap-2 text-sm font-semibold">
+                    <h3 className="font-display text-pisao-cream mt-2 max-w-[15ch] text-3xl leading-[1.02] text-balance xl:text-4xl">{item.title}</h3>
+                    <p className="text-pisao-cream-muted mt-3 max-w-[34rem] text-sm leading-6 text-pretty">{item.body}</p>
+                    <span className="text-pisao-gold mt-5 inline-flex items-center gap-2 text-sm font-semibold">
                       {item.cta} <ArrowRight className="size-4" />
                     </span>
                   </div>
                 </>
               );
 
-              const classes = "pisao-image-lift group relative min-h-[470px] overflow-hidden rounded-[2rem] border border-pisao-gold/15 bg-pisao-noche";
+              const classes = "pisao-image-lift group relative block h-full min-h-[420px] w-full min-w-0 overflow-hidden rounded-[2rem] border border-pisao-gold/15 bg-pisao-noche sm:min-h-[460px] xl:min-h-[500px]";
 
               return (
-                <Reveal key={item.title} delay={index * 100}>
+                <Reveal key={item.title} delay={index * 100} className="h-full min-w-0">
                   {item.external ? (
                     <a href={item.href} target="_blank" rel="noreferrer" className={classes}>{content}</a>
                   ) : (
