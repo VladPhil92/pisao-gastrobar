@@ -3,6 +3,14 @@ import {
   MAX_COMBINED_TABLES,
   RESERVABLE_TABLE_SEATS,
 } from "@/lib/reservas/policy";
+import {
+  activeTables,
+  bestTableCombination,
+  type ReservableTableDefinition,
+} from "@/lib/reservas/table-allocation";
+
+export { combinedTableCapacity } from "@/lib/reservas/table-allocation";
+export type { ReservableTableDefinition } from "@/lib/reservas/table-allocation";
 
 const ACTIVE_RESERVATION_STATES = ["PENDIENTE", "CONFIRMADA"] as const;
 
@@ -12,18 +20,6 @@ export type ReservationLoad = {
   mesas?: string[];
 };
 
-export type ReservableTableDefinition = {
-  codigo: string;
-  nombre: string;
-  capacidad: number;
-  zona: string;
-  prioridad: number;
-  combinable: boolean;
-  activa: boolean;
-  atributos: string[];
-  posX: number;
-  posY: number;
-};
 
 export type ReservationSlot = {
   hora: string;
@@ -111,14 +107,8 @@ export function getReservationConfig() {
     reservationDurationMinutes: envInt("RESERVATION_DURATION_MINUTES", 90),
     maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 32),
     reservableTableCount: envInt("RESERVATION_TABLE_COUNT", 8),
-    seatsPerTable: envInt(
-      "RESERVATION_SEATS_PER_TABLE",
-      RESERVABLE_TABLE_SEATS,
-    ),
-    maxCombinedTables: envInt(
-      "RESERVATION_MAX_COMBINED_TABLES",
-      MAX_COMBINED_TABLES,
-    ),
+    seatsPerTable: RESERVABLE_TABLE_SEATS,
+    maxCombinedTables: MAX_COMBINED_TABLES,
     minAdvanceMinutes: envInt("RESERVATION_MIN_ADVANCE_MINUTES", 60),
     maxAdvanceDays: envInt("RESERVATION_MAX_ADVANCE_DAYS", 60),
     calendarDays: Math.min(envInt("RESERVATION_CALENDAR_DAYS", 30), 60),
@@ -132,10 +122,6 @@ export async function listReservableTables(): Promise<
     orderBy: [{ prioridad: "asc" }, { codigo: "asc" }],
   });
   return tables;
-}
-
-function activeTables(tables: ReservableTableDefinition[]) {
-  return tables.filter((table) => table.activa && table.capacidad > 0);
 }
 
 function parseDate(fecha: string) {
@@ -279,105 +265,6 @@ export function validateReservationWindow(
 
 function prismaDate(fecha: string) {
   return new Date(`${fecha}T00:00:00.000Z`);
-}
-
-export function combinedTableCapacity(
-  tables: ReservableTableDefinition[],
-) {
-  if (tables.length === 0) return 0;
-  if (tables.length === 1) return tables[0].capacidad;
-
-  // Cada unión elimina dos puestos: uno en cada cara que queda enfrentada.
-  // Con mesas de 4 puestos: 1=4, 2=6, 3=8. La política limita a 3 mesas.
-  const nominal = tables.reduce((sum, table) => sum + table.capacidad, 0);
-  return Math.max(
-    Math.max(...tables.map((table) => table.capacidad)),
-    nominal - 2 * (tables.length - 1),
-  );
-}
-
-function bestTableCombination(
-  tables: ReservableTableDefinition[],
-  personas: number,
-) {
-  const candidates = activeTables(tables);
-  let best:
-    | {
-        codes: string[];
-        totalSeats: number;
-        unusedSeats: number;
-        priority: number;
-        spread: number;
-      }
-    | null = null;
-
-  const { maxCombinedTables } = getReservationConfig();
-
-  for (let mask = 1; mask < 1 << candidates.length; mask += 1) {
-    const subset = candidates.filter((_, index) => (mask & (1 << index)) !== 0);
-    if (subset.length > maxCombinedTables) continue;
-    if (subset.length > 1) {
-      if (subset.some((table) => !table.combinable)) continue;
-      if (new Set(subset.map((table) => table.zona)).size > 1) continue;
-    }
-
-    const totalSeats = combinedTableCapacity(subset);
-    if (totalSeats < personas) continue;
-
-    const unusedSeats = totalSeats - personas;
-    const priority = subset.reduce((sum, table) => sum + table.prioridad, 0);
-    const xs = subset.map((table) => table.posX);
-    const ys = subset.map((table) => table.posY);
-    const spread =
-      subset.length <= 1
-        ? 0
-        : Math.max(...xs) -
-          Math.min(...xs) +
-          Math.max(...ys) -
-          Math.min(...ys);
-    const codes = subset.map((table) => table.codigo).sort();
-    const score = [
-      unusedSeats,
-      subset.length,
-      priority,
-      spread,
-      codes.join("|"),
-    ] as const;
-
-    if (!best) {
-      best = { codes, totalSeats, unusedSeats, priority, spread };
-      continue;
-    }
-
-    const currentScore = [
-      best.unusedSeats,
-      best.codes.length,
-      best.priority,
-      best.spread,
-      best.codes.join("|"),
-    ] as const;
-
-    if (
-      score[0] < currentScore[0] ||
-      (score[0] === currentScore[0] && score[1] < currentScore[1]) ||
-      (score[0] === currentScore[0] &&
-        score[1] === currentScore[1] &&
-        score[2] < currentScore[2]) ||
-      (score[0] === currentScore[0] &&
-        score[1] === currentScore[1] &&
-        score[2] === currentScore[2] &&
-        score[3] < currentScore[3]) ||
-      (score[0] === currentScore[0] &&
-        score[1] === currentScore[1] &&
-        score[2] === currentScore[2] &&
-        score[3] === currentScore[3] &&
-        score[4] < currentScore[4])
-    ) {
-      best = { codes, totalSeats, unusedSeats, priority, spread };
-    }
-  }
-
-  return best;
 }
 
 function occupiedTablesForWindow(
