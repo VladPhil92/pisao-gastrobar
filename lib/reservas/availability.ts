@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 const ACTIVE_RESERVATION_STATES = ["PENDIENTE", "CONFIRMADA"] as const;
 
-type ReservationLoad = {
+export type ReservationLoad = {
   hora: string;
   personas: number;
+  mesas?: string[];
 };
 
 export type ReservationSlot = {
@@ -12,10 +13,14 @@ export type ReservationSlot = {
   capacity: number;
   reserved: number;
   remaining: number;
+  tablesCapacity: number;
+  tablesReserved: number;
+  tablesRemaining: number;
 };
 
 export type ReservationStartSlot = ReservationSlot & {
   available: boolean;
+  tablesNeeded: number;
 };
 
 export type ReservationAvailability = {
@@ -26,6 +31,10 @@ export type ReservationAvailability = {
   capacity: number;
   reserved: number;
   remaining: number;
+  tablesCapacity: number;
+  tablesReserved: number;
+  tablesRemaining: number;
+  tablesNeeded: number;
   alternatives: string[];
 };
 
@@ -36,7 +45,15 @@ export type ReservationCalendarDay = {
   totalSlots: number;
   bestTime: string | null;
   maxRemaining: number;
+  maxTablesRemaining: number;
   slots: ReservationStartSlot[];
+};
+
+export type ReservationTableAllocation = {
+  available: boolean;
+  tablesNeeded: number;
+  tablesRemaining: number;
+  assignedTables: string[];
 };
 
 export type ReservationWindowValidation =
@@ -68,14 +85,36 @@ function closedDates() {
 }
 
 export function getReservationConfig() {
+  const maxDinersPerSlot = envInt("RESERVATION_MAX_DINERS_PER_SLOT", 40);
+  const reservableTableCount = envInt("RESERVATION_TABLE_COUNT", 8);
+  const seatsPerTable = envInt(
+    "RESERVATION_SEATS_PER_TABLE",
+    Math.max(1, Math.ceil(maxDinersPerSlot / reservableTableCount)),
+  );
+
   return {
     slotMinutes: envInt("RESERVATION_SLOT_MINUTES", 30),
     reservationDurationMinutes: envInt("RESERVATION_DURATION_MINUTES", 90),
-    maxDinersPerSlot: envInt("RESERVATION_MAX_DINERS_PER_SLOT", 40),
+    maxDinersPerSlot,
+    reservableTableCount,
+    seatsPerTable,
     minAdvanceMinutes: envInt("RESERVATION_MIN_ADVANCE_MINUTES", 60),
     maxAdvanceDays: envInt("RESERVATION_MAX_ADVANCE_DAYS", 60),
     calendarDays: Math.min(envInt("RESERVATION_CALENDAR_DAYS", 30), 60),
   };
+}
+
+export function reservableTableIds() {
+  const { reservableTableCount } = getReservationConfig();
+  return Array.from({ length: reservableTableCount }, (_, index) => `T${index + 1}`);
+}
+
+export function tablesNeededForParty(personas: number) {
+  const { seatsPerTable, reservableTableCount } = getReservationConfig();
+  return Math.min(
+    reservableTableCount + 1,
+    Math.max(1, Math.ceil(personas / seatsPerTable)),
+  );
 }
 
 function parseDate(fecha: string) {
@@ -131,6 +170,14 @@ function addDays(fecha: string, amount: number) {
     String(date.getUTCMonth() + 1).padStart(2, "0"),
     String(date.getUTCDate()).padStart(2, "0"),
   ].join("-");
+}
+
+function overlaps(horaA: string, horaB: string) {
+  const { reservationDurationMinutes } = getReservationConfig();
+  const a = toMinutes(horaA);
+  const b = toMinutes(horaB);
+  if (a === null || b === null) return false;
+  return a < b + reservationDurationMinutes && b < a + reservationDurationMinutes;
 }
 
 export function bogotaDateString(date = new Date(), addDaysAmount = 0) {
@@ -229,19 +276,33 @@ function buildOccupancySlots(
     minute += config.slotMinutes
   ) {
     const slotEnd = minute + config.slotMinutes;
-    const reserved = reservations.reduce((sum, reservation) => {
+    const overlapping = reservations.filter((reservation) => {
       const starts = toMinutes(reservation.hora);
-      if (starts === null) return sum;
+      if (starts === null) return false;
       const ends = starts + config.reservationDurationMinutes;
-      const overlaps = starts < slotEnd && ends > minute;
-      return overlaps ? sum + reservation.personas : sum;
-    }, 0);
+      return starts < slotEnd && ends > minute;
+    });
+
+    const reserved = overlapping.reduce(
+      (sum, reservation) => sum + reservation.personas,
+      0,
+    );
+    const tablesReserved = Math.min(
+      config.reservableTableCount,
+      overlapping.reduce(
+        (sum, reservation) => sum + tablesNeededForParty(reservation.personas),
+        0,
+      ),
+    );
 
     slots.push({
       hora: formatMinutes(minute),
       capacity: config.maxDinersPerSlot,
       reserved,
       remaining: Math.max(0, config.maxDinersPerSlot - reserved),
+      tablesCapacity: config.reservableTableCount,
+      tablesReserved,
+      tablesRemaining: Math.max(0, config.reservableTableCount - tablesReserved),
     });
   }
 
@@ -272,14 +333,14 @@ function capacityForStart(
 
   if (!affected.length) return null;
 
-  const remaining = Math.min(...affected.map((slot) => slot.remaining));
-  const reserved = Math.max(...affected.map((slot) => slot.reserved));
-
   return {
     hora,
     capacity: config.maxDinersPerSlot,
-    reserved,
-    remaining,
+    reserved: Math.max(...affected.map((slot) => slot.reserved)),
+    remaining: Math.min(...affected.map((slot) => slot.remaining)),
+    tablesCapacity: config.reservableTableCount,
+    tablesReserved: Math.max(...affected.map((slot) => slot.tablesReserved)),
+    tablesRemaining: Math.min(...affected.map((slot) => slot.tablesRemaining)),
   };
 }
 
@@ -289,6 +350,8 @@ function startSlotsFromOccupancy(
   personas: number,
   now = new Date(),
 ): ReservationStartSlot[] {
+  const tablesNeeded = tablesNeededForParty(personas);
+
   return occupancy
     .map((slot) => capacityForStart(fecha, slot.hora, occupancy, now))
     .filter(
@@ -299,11 +362,16 @@ function startSlotsFromOccupancy(
         capacity: number;
         reserved: number;
         remaining: number;
+        tablesCapacity: number;
+        tablesReserved: number;
+        tablesRemaining: number;
       } => Boolean(slot),
     )
     .map((slot) => ({
       ...slot,
-      available: slot.remaining >= personas,
+      tablesNeeded,
+      available:
+        slot.remaining >= personas && slot.tablesRemaining >= tablesNeeded,
     }));
 }
 
@@ -315,15 +383,60 @@ function alternativesFor(
   const target = toMinutes(hora) ?? 0;
 
   return slots
-    .filter((entry) => entry.available && entry.remaining >= personas && entry.hora !== hora)
+    .filter(
+      (entry) =>
+        entry.available &&
+        entry.remaining >= personas &&
+        entry.hora !== hora,
+    )
     .sort((a, b) => {
       const aDistance = Math.abs((toMinutes(a.hora) ?? 0) - target);
       const bDistance = Math.abs((toMinutes(b.hora) ?? 0) - target);
       if (aDistance !== bDistance) return aDistance - bDistance;
+      if (b.tablesRemaining !== a.tablesRemaining) {
+        return b.tablesRemaining - a.tablesRemaining;
+      }
       return b.remaining - a.remaining;
     })
     .slice(0, 4)
     .map((entry) => entry.hora);
+}
+
+export function allocateReservableTables(
+  reservations: ReservationLoad[],
+  hora: string,
+  personas: number,
+): ReservationTableAllocation {
+  const tableIds = reservableTableIds();
+  const valid = new Set(tableIds);
+  const occupied = new Set<string>();
+
+  for (const reservation of reservations.filter((item) =>
+    overlaps(item.hora, hora),
+  )) {
+    const assigned = (reservation.mesas ?? []).filter((table) => valid.has(table));
+
+    if (assigned.length > 0) {
+      for (const table of assigned) occupied.add(table);
+      continue;
+    }
+
+    // Reservas históricas anteriores a la asignación de mesas:
+    // se les reserva un número equivalente de unidades para no sobre-vender.
+    const legacyNeed = tablesNeededForParty(reservation.personas);
+    const fallback = tableIds.filter((table) => !occupied.has(table)).slice(0, legacyNeed);
+    for (const table of fallback) occupied.add(table);
+  }
+
+  const free = tableIds.filter((table) => !occupied.has(table));
+  const tablesNeeded = tablesNeededForParty(personas);
+
+  return {
+    available: free.length >= tablesNeeded,
+    tablesNeeded,
+    tablesRemaining: free.length,
+    assignedTables: free.slice(0, tablesNeeded),
+  };
 }
 
 export async function listAvailabilityForDate(fecha: string, excludeId?: string) {
@@ -335,7 +448,7 @@ export async function listAvailabilityForDate(fecha: string, excludeId?: string)
       estado: { in: [...ACTIVE_RESERVATION_STATES] },
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
-    select: { hora: true, personas: true },
+    select: { hora: true, personas: true, mesas: true },
   });
 
   return buildOccupancySlots(fecha, reservations);
@@ -378,6 +491,10 @@ export async function checkReservationAvailability(params: {
     capacity: slot.capacity,
     reserved: slot.reserved,
     remaining: slot.remaining,
+    tablesCapacity: slot.tablesCapacity,
+    tablesReserved: slot.tablesReserved,
+    tablesRemaining: slot.tablesRemaining,
+    tablesNeeded: slot.tablesNeeded,
     alternatives: alternativesFor(hora, slots, personas),
   };
 }
@@ -390,8 +507,12 @@ export async function listReservationCalendar(params: {
 }): Promise<ReservationCalendarDay[]> {
   const now = params.now ?? new Date();
   const config = getReservationConfig();
-  const start = params.start && parseDate(params.start) ? params.start : bogotaDateString(now);
-  const days = Math.min(Math.max(params.days ?? config.calendarDays, 1), config.calendarDays);
+  const start =
+    params.start && parseDate(params.start) ? params.start : bogotaDateString(now);
+  const days = Math.min(
+    Math.max(params.days ?? config.calendarDays, 1),
+    config.calendarDays,
+  );
   const endExclusive = addDays(start, days);
 
   const reservations = await prisma.reserva.findMany({
@@ -402,7 +523,7 @@ export async function listReservationCalendar(params: {
       },
       estado: { in: [...ACTIVE_RESERVATION_STATES] },
     },
-    select: { fecha: true, hora: true, personas: true },
+    select: { fecha: true, hora: true, personas: true, mesas: true },
     orderBy: [{ fecha: "asc" }, { hora: "asc" }],
   });
 
@@ -410,7 +531,11 @@ export async function listReservationCalendar(params: {
   for (const reservation of reservations) {
     const fecha = reservation.fecha.toISOString().slice(0, 10);
     const current = grouped.get(fecha) ?? [];
-    current.push({ hora: reservation.hora, personas: reservation.personas });
+    current.push({
+      hora: reservation.hora,
+      personas: reservation.personas,
+      mesas: reservation.mesas,
+    });
     grouped.set(fecha, current);
   }
 
@@ -422,7 +547,13 @@ export async function listReservationCalendar(params: {
     const maxRemaining = available.length
       ? Math.max(...available.map((slot) => slot.remaining))
       : 0;
+    const maxTablesRemaining = available.length
+      ? Math.max(...available.map((slot) => slot.tablesRemaining))
+      : 0;
     const best = [...available].sort((a, b) => {
+      if (b.tablesRemaining !== a.tablesRemaining) {
+        return b.tablesRemaining - a.tablesRemaining;
+      }
       if (b.remaining !== a.remaining) return b.remaining - a.remaining;
       return (toMinutes(a.hora) ?? 0) - (toMinutes(b.hora) ?? 0);
     })[0];
@@ -430,10 +561,7 @@ export async function listReservationCalendar(params: {
     let status: ReservationCalendarDay["status"] = "available";
     if (!operatingWindow(fecha)) status = "closed";
     else if (!available.length) status = "full";
-    else if (
-      available.length <= 3 ||
-      maxRemaining < Math.ceil(config.maxDinersPerSlot * 0.35)
-    ) {
+    else if (available.length <= 3 || maxTablesRemaining <= 1) {
       status = "limited";
     }
 
@@ -444,6 +572,7 @@ export async function listReservationCalendar(params: {
       totalSlots: slots.length,
       bestTime: best?.hora ?? null,
       maxRemaining,
+      maxTablesRemaining,
       slots,
     };
   });
@@ -462,7 +591,7 @@ export function calculateReservedForStart(
     const existingStart = toMinutes(reservation.hora);
     if (existingStart === null) return sum;
     const existingEnd = existingStart + config.reservationDurationMinutes;
-    const overlaps = existingStart < end && existingEnd > start;
-    return overlaps ? sum + reservation.personas : sum;
+    const overlapping = existingStart < end && existingEnd > start;
+    return overlapping ? sum + reservation.personas : sum;
   }, 0);
 }
