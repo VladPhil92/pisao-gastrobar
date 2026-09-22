@@ -227,6 +227,26 @@ model Reserva {
   @@map("reservas")
 }
 
+model MesaReservable {
+  id         String   @id @default(cuid())
+  codigo     String   @unique
+  nombre     String
+  capacidad  Int      @default(5)
+  zona       String   @default("Terraza reservable")
+  prioridad  Int      @default(100)
+  combinable Boolean  @default(true)
+  activa     Boolean  @default(true)
+  atributos  String[] @default([])
+  posX       Int      @default(0)
+  posY       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([activa, prioridad])
+  @@map("mesas_reservables")
+}
+
 model Evento {
   id String @id @default(cuid())
 
