@@ -48,6 +48,8 @@ export function ReservableTableManager({
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const maxColumn = Math.max(1, ...rows.map((table) => table.posX + 1));
+  const maxRow = Math.max(1, ...rows.map((table) => table.posY + 1));
 
   useEffect(() => {
     setRows(initial);
@@ -129,6 +131,55 @@ export function ReservableTableManager({
             Solo ADMIN puede modificar
           </span>
         )}
+      </div>
+
+      <div className="border-pisao-gold/10 bg-pisao-carbon mt-5 rounded-2xl border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-pisao-cream text-xs font-semibold">Plano lógico</p>
+            <p className="text-pisao-cream-muted mt-0.5 text-[10px]">
+              La cercanía de estas coordenadas participa en el desempate del asignador.
+            </p>
+          </div>
+          <span className="text-pisao-cream-muted text-[9px]">
+            {maxColumn} columnas · {maxRow} filas
+          </span>
+        </div>
+        <div
+          className="mt-4 grid gap-2 overflow-x-auto"
+          style={{
+            gridTemplateColumns: `repeat(${maxColumn}, minmax(88px, 1fr))`,
+            gridTemplateRows: `repeat(${maxRow}, minmax(72px, auto))`,
+          }}
+        >
+          {rows.map((table) => (
+            <div
+              key={"map-" + table.codigo}
+              style={{
+                gridColumnStart: table.posX + 1,
+                gridRowStart: table.posY + 1,
+              }}
+              className={
+                "rounded-xl border px-3 py-3 " +
+                (table.activa
+                  ? "border-pisao-gold/25 bg-pisao-gold/5"
+                  : "border-white/5 bg-black/20 opacity-40")
+              }
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-display text-pisao-gold text-lg">
+                  {table.codigo}
+                </span>
+                <span className="text-pisao-cream-muted text-[9px]">
+                  {table.capacidad} pax
+                </span>
+              </div>
+              <p className="text-pisao-cream-muted mt-1 truncate text-[9px]">
+                {table.zona}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
