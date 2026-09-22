@@ -2,13 +2,16 @@
   "name": "pisao-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "prebuild": "node scripts/optimize-images.mjs",
     "build": "next build",
     "images:optimize": "node scripts/optimize-images.mjs",
     "postbuild": "node scripts/postbuild-standalone.mjs",
-    "start": "node scripts/start-production.mjs",
+    "start": "node scripts/render-bootstrap.mjs",
     "lint": "eslint",
     "format": "prettier --write .",
     "postinstall": "prisma generate",
