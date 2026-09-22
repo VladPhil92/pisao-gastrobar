@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -100,6 +100,11 @@ export function AvailabilityCalendar({
   const [payload, setPayload] = useState<CalendarPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const selectionRef = useRef({ fecha, hora, onSelectDate, onSelectTime });
+
+  useEffect(() => {
+    selectionRef.current = { fecha, hora, onSelectDate, onSelectTime };
+  }, [fecha, hora, onSelectDate, onSelectTime]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -127,17 +132,23 @@ export function AvailabilityCalendar({
 
         setPayload(data);
 
+        const currentSelection = selectionRef.current;
         const selectedStillAvailable = data.calendar.find(
           (day) =>
-            day.fecha === fecha &&
-            day.slots.some((slot) => slot.hora === hora && slot.available),
+            day.fecha === currentSelection.fecha &&
+            day.slots.some(
+              (slot) =>
+                slot.hora === currentSelection.hora && slot.available,
+            ),
         );
 
         if (!selectedStillAvailable) {
           const firstDay = data.calendar.find((day) => day.availableSlots > 0);
           if (firstDay) {
-            onSelectDate(firstDay.fecha);
-            if (firstDay.bestTime) onSelectTime(firstDay.bestTime);
+            currentSelection.onSelectDate(firstDay.fecha);
+            if (firstDay.bestTime) {
+              currentSelection.onSelectTime(firstDay.bestTime);
+            }
           }
         }
       } catch (cause) {
