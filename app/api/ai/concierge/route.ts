@@ -151,8 +151,8 @@ function availabilityContext(
   }
 
   return availability.available
-    ? `Disponibilidad: hay capacidad para ${availability.personas} personas a las ${availability.hora}. Capacidad restante calculada: ${availability.remaining}.`
-    : `Disponibilidad: no hay capacidad suficiente a las ${availability.hora}. Alternativas: ${availability.alternatives.join(", ") || "sin alternativas calculadas"}.`;
+    ? `Disponibilidad: hay capacidad para ${availability.personas} personas a las ${availability.hora}. Se requieren ${availability.tablesNeeded} mesa(s); quedan ${availability.tablesRemaining} mesa(s) reservables libres y ${availability.remaining} cupos de comensales en la ventana.`
+    : `Disponibilidad: no hay suficientes mesas reservables para ${availability.personas} personas a las ${availability.hora}. Se requieren ${availability.tablesNeeded} mesa(s) y quedan ${availability.tablesRemaining}. Alternativas: ${availability.alternatives.join(", ") || "sin alternativas calculadas"}.`;
 }
 
 export async function POST(request: Request) {
