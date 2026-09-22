@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getReservationConfig,
+  listReservableTables,
   listReservationCalendar,
 } from "@/lib/reservas/availability";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
@@ -45,19 +46,27 @@ export async function GET(request: Request) {
       : config.calendarDays;
 
   try {
-    const calendar = await listReservationCalendar({
-      start,
-      days,
-      personas,
-    });
+    const [calendar, tables] = await Promise.all([
+      listReservationCalendar({
+        start,
+        days,
+        personas,
+      }),
+      listReservableTables(),
+    ]);
+
+    const activeTables = tables.filter((table) => table.activa);
 
     return NextResponse.json(
       {
         personas,
         durationMinutes: config.reservationDurationMinutes,
         slotMinutes: config.slotMinutes,
-        reservableTableCount: config.reservableTableCount,
-        seatsPerTable: config.seatsPerTable,
+        reservableTableCount: activeTables.length,
+        totalReservableSeats: activeTables.reduce(
+          (sum, table) => sum + table.capacidad,
+          0,
+        ),
         calendar,
       },
       { headers: { "Cache-Control": "no-store" } },
