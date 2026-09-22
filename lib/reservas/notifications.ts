@@ -74,16 +74,16 @@ export async function notifyReservationCreated(
   const notifyEmail = process.env.RESERVATION_NOTIFY_EMAIL;
 
   const tasks: Promise<unknown>[] = [
-    postWebhook("reservation.created", { reservation }),
+    postWebhook("reservation.created", { reservation, autoConfirmed: true }),
   ];
 
   if (notifyEmail) {
     tasks.push(
       sendEmail({
         to: notifyEmail,
-        subject: `Nueva reserva PISÁO · ${reservation.fecha} ${reservation.hora}`,
+        subject: `Nueva reserva confirmada PISÁO · ${reservation.fecha} ${reservation.hora}`,
         text: [
-          "Nueva solicitud de reserva",
+          "Nueva reserva confirmada automáticamente",
           `Nombre: ${reservation.nombre}`,
           `Teléfono: ${reservation.telefono}`,
           `Fecha: ${reservation.fecha}`,
@@ -102,16 +102,16 @@ export async function notifyReservationCreated(
     tasks.push(
       sendEmail({
         to: reservation.email,
-        subject: "Recibimos tu solicitud de reserva en PISÁO",
+        subject: "Tu reserva en PISÁO está confirmada",
         text: [
           `Hola ${reservation.nombre},`,
           "",
-          "Recibimos tu solicitud de reserva en PISÁO Gastrobar.",
+          "Tu reserva en PISÁO Gastrobar quedó confirmada automáticamente.",
           `Fecha: ${reservation.fecha}`,
           `Hora: ${reservation.hora}`,
           `Personas: ${reservation.personas}`,
           "",
-          "La solicitud está pendiente de confirmación por nuestro equipo.",
+          "El cupo ya fue descontado del calendario. Te esperamos en la Terraza Panorámica de Mall Plaza Cartagena.",
         ].join("\n"),
       }),
     );

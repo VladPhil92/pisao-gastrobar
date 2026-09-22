@@ -219,7 +219,7 @@ export function PisaoConcierge() {
         {
           role: "assistant",
           content:
-            `Solicitud registrada correctamente para ${draft.personas} persona${draft.personas === 1 ? "" : "s"} el ${draft.fecha} a las ${draft.hora}. Está PENDIENTE de confirmación por el equipo de PISÁO. Código: ${payload.reserva!.id.slice(-8).toUpperCase()}.`,
+            `Reserva confirmada para ${draft.personas} persona${draft.personas === 1 ? "" : "s"} el ${draft.fecha} a las ${draft.hora}. El cupo ya fue descontado automáticamente del calendario de PISÁO. Código: ${payload.reserva!.id.slice(-8).toUpperCase()}.`,
         },
       ]);
     } catch (error) {
@@ -324,7 +324,7 @@ export function PisaoConcierge() {
                     <div className="border-pisao-gold/20 bg-pisao-noche mt-2 overflow-hidden rounded-2xl border">
                       <div className="border-pisao-gold/10 border-b px-4 py-3">
                         <p className="text-pisao-gold text-[9px] font-bold tracking-[.18em] uppercase">
-                          Solicitud de reserva
+                          Reserva
                         </p>
                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                           <p className="text-pisao-cream flex items-center gap-1.5">
@@ -394,8 +394,8 @@ export function PisaoConcierge() {
                             {createdReservations[
                               reservationKey(message.reservation.draft)
                             ]
-                              ? "Solicitud registrada"
-                              : "Confirmar solicitud"}
+                              ? "Reserva confirmada"
+                              : "Confirmar reserva"}
                           </button>
                         ) : (
                           <a
@@ -418,7 +418,7 @@ export function PisaoConcierge() {
                           </a>
                         )}
                         <p className="text-pisao-cream-muted/70 mt-2 text-center text-[9px]">
-                          Registrar la solicitud no equivale a confirmación final del restaurante.
+                          El sistema vuelve a validar capacidad y confirma automáticamente si el cupo sigue disponible.
                         </p>
                       </div>
                     </div>

@@ -193,7 +193,7 @@ export function reservationFallbackText(draft: ReservationDraft | null) {
   if (!draft) return null;
 
   if (draft.ready) {
-    return "Ya tengo los datos necesarios. Revisa la tarjeta de reserva que aparece debajo y pulsa “Confirmar solicitud” para registrarla. No consideraré la mesa confirmada hasta que el sistema la guarde.";
+    return "Ya tengo los datos necesarios. Revisa la tarjeta de reserva que aparece debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la capacidad y, si sigue disponible, quedará confirmada al instante.";
   }
 
   const next = draft.missing.slice(0, 2).map((field) => labels[field]);
@@ -219,7 +219,7 @@ export function reservationContextForModel(draft: ReservationDraft | null) {
       ? `Falta: ${draft.missing.map((field) => labels[field]).join(", ")}`
       : "Datos mínimos completos.",
     draft.ready
-      ? "La interfaz mostrará un botón de confirmación. No digas que la reserva ya fue creada ni confirmada."
+      ? "La interfaz mostrará un botón de confirmación. No digas que la reserva ya fue creada hasta que el backend responda exitosamente; si responde exitosamente, queda CONFIRMADA automáticamente."
       : "Haz solo la pregunta mínima para obtener los datos faltantes.",
   ].join("\n");
 }
