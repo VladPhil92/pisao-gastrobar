@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckCircle2,
   Clock3,
-  LoaderCircle,
   Send,
   TriangleAlert,
-  Users,
 } from "lucide-react";
 import { reservaSchema, type ReservaFormValues } from "@/lib/reservas/schema";
 import { Button } from "@/components/ui/Button";
+import { AvailabilityCalendar } from "@/components/reservas/AvailabilityCalendar";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
 
 const inputClass =
@@ -25,44 +24,8 @@ type SubmitState =
   | { kind: "success"; code: string }
   | { kind: "error"; message: string; alternatives: string[] };
 
-type AvailabilityState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | {
-      kind: "available";
-      remaining: number;
-      alternatives: string[];
-    }
-  | {
-      kind: "unavailable";
-      remaining: number;
-      alternatives: string[];
-    }
-  | { kind: "error"; message: string };
-
-type AvailabilityPayload = {
-  availability?: {
-    available: boolean;
-    remaining: number;
-    alternatives: string[];
-  };
-  error?: string;
-};
-
-function bogotaToday() {
-  const shifted = new Date(Date.now() - 5 * 60 * 60 * 1000);
-  return [
-    shifted.getUTCFullYear(),
-    String(shifted.getUTCMonth() + 1).padStart(2, "0"),
-    String(shifted.getUTCDate()).padStart(2, "0"),
-  ].join("-");
-}
-
 export function ReservaForm() {
   const [status, setStatus] = useState<SubmitState>({ kind: "idle" });
-  const [availability, setAvailability] = useState<AvailabilityState>({
-    kind: "idle",
-  });
   const [started, setStarted] = useState(false);
 
   const {
@@ -72,99 +35,14 @@ export function ReservaForm() {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<ReservaFormValues>({ resolver: zodResolver(reservaSchema) });
+  } = useForm<ReservaFormValues>({
+    resolver: zodResolver(reservaSchema),
+    defaultValues: { personas: 2 },
+  });
 
   const fecha = watch("fecha");
   const hora = watch("hora");
   const personas = watch("personas");
-
-  useEffect(() => {
-    if (
-      !fecha ||
-      !hora ||
-      !Number.isInteger(personas) ||
-      personas < 1 ||
-      personas > 30
-    ) {
-      setAvailability({ kind: "idle" });
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setAvailability({ kind: "loading" });
-
-      try {
-        const params = new URLSearchParams({
-          fecha,
-          hora,
-          personas: String(personas),
-        });
-        const response = await fetch(
-          `/api/reservas/disponibilidad?${params.toString()}`,
-          {
-            signal: controller.signal,
-            cache: "no-store",
-          },
-        );
-        const payload = (await response.json()) as AvailabilityPayload;
-
-        if (!response.ok || !payload.availability) {
-          if (response.status === 400) {
-            setAvailability({
-              kind: "error",
-              message:
-                payload.error ??
-                "La fecha u hora seleccionada no pertenece a una franja válida.",
-            });
-            return;
-          }
-
-          throw new Error(
-            payload.error ?? "No fue posible consultar disponibilidad.",
-          );
-        }
-
-        trackBehavior("reservation_availability_check", {
-          surface: "reservation",
-          diners: personas,
-        });
-
-        if (payload.availability.available) {
-          setAvailability({
-            kind: "available",
-            remaining: payload.availability.remaining,
-            alternatives: payload.availability.alternatives,
-          });
-          return;
-        }
-
-        trackBehavior("reservation_availability_unavailable", {
-          surface: "reservation",
-          diners: personas,
-        });
-        setAvailability({
-          kind: "unavailable",
-          remaining: payload.availability.remaining,
-          alternatives: payload.availability.alternatives,
-        });
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setAvailability({
-          kind: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "No fue posible consultar disponibilidad.",
-        });
-      }
-    }, 350);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [fecha, hora, personas]);
 
   const markStarted = () => {
     if (started) return;
@@ -183,7 +61,7 @@ export function ReservaForm() {
       });
 
       const payload = (await res.json()) as {
-        reserva?: { id: string };
+        reserva?: { id: string; estado?: string };
         error?: string;
         alternatives?: string[];
       };
@@ -193,7 +71,7 @@ export function ReservaForm() {
           kind: "error",
           message:
             payload.error ??
-            "No pudimos registrar la solicitud. Intenta nuevamente.",
+            "No pudimos registrar la reserva. Intenta nuevamente.",
           alternatives: payload.alternatives ?? [],
         });
         return;
@@ -208,8 +86,7 @@ export function ReservaForm() {
         kind: "success",
         code: payload.reserva.id.slice(-8).toUpperCase(),
       });
-      setAvailability({ kind: "idle" });
-      reset();
+      reset({ personas: 2 });
       setStarted(false);
     } catch {
       setStatus({
@@ -255,44 +132,18 @@ export function ReservaForm() {
         </div>
       </div>
 
-      <div>
-        <label className={labelClass}>Correo · opcional</label>
-        <input
-          {...register("email")}
-          type="email"
-          placeholder="correo@ejemplo.com"
-          autoComplete="email"
-          className={inputClass}
-        />
-        {errors.email && (
-          <p className="mt-1.5 text-xs text-red-400">{errors.email.message}</p>
-        )}
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-[1fr_180px]">
         <div>
-          <label className={labelClass}>Fecha</label>
+          <label className={labelClass}>Correo · opcional</label>
           <input
-            type="date"
-            min={bogotaToday()}
-            {...register("fecha")}
+            {...register("email")}
+            type="email"
+            placeholder="correo@ejemplo.com"
+            autoComplete="email"
             className={inputClass}
           />
-          {errors.fecha && (
-            <p className="mt-1.5 text-xs text-red-400">{errors.fecha.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label className={labelClass}>Hora</label>
-          <input
-            type="time"
-            step={1800}
-            {...register("hora")}
-            className={inputClass}
-          />
-          {errors.hora && (
-            <p className="mt-1.5 text-xs text-red-400">{errors.hora.message}</p>
+          {errors.email && (
+            <p className="mt-1.5 text-xs text-red-400">{errors.email.message}</p>
           )}
         </div>
 
@@ -312,64 +163,48 @@ export function ReservaForm() {
         </div>
       </div>
 
-      <div aria-live="polite">
-        {availability.kind === "loading" && (
-          <div className="border-pisao-gold/15 bg-pisao-gold/5 text-pisao-cream-muted flex items-center gap-2 rounded-xl border px-4 py-3 text-xs">
-            <LoaderCircle className="text-pisao-gold size-4 animate-spin" />
-            Verificando cupo para esa franja…
-          </div>
-        )}
+      <input type="hidden" {...register("fecha")} />
+      <input type="hidden" {...register("hora")} />
 
-        {availability.kind === "available" && (
-          <div className="flex gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-300">
-            <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="font-semibold">La franja tiene capacidad.</p>
-              <p className="mt-1 text-xs text-emerald-200/80">
-                Quedan {availability.remaining} cupos calculados antes de registrar tu solicitud.
-              </p>
-            </div>
-          </div>
-        )}
+      <AvailabilityCalendar
+        personas={personas}
+        fecha={fecha}
+        hora={hora}
+        onSelectDate={(nextDate) => {
+          setValue("fecha", nextDate, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+          setStatus({ kind: "idle" });
+        }}
+        onSelectTime={(nextTime) => {
+          setValue("hora", nextTime, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+          setStatus({ kind: "idle" });
+        }}
+      />
 
-        {availability.kind === "unavailable" && (
-          <div className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm text-amber-200">
-            <div className="flex gap-3">
-              <Users className="mt-0.5 size-5 shrink-0" />
-              <div>
-                <p className="font-semibold">Esa franja ya no tiene capacidad suficiente.</p>
-                <p className="mt-1 text-xs text-amber-100/75">
-                  Selecciona otra hora antes de enviar la solicitud.
-                </p>
-              </div>
-            </div>
-            {availability.alternatives.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-amber-200/10 pt-3">
-                {availability.alternatives.map((alternative) => (
-                  <button
-                    key={alternative}
-                    type="button"
-                    onClick={() =>
-                      setValue("hora", alternative, { shouldValidate: true })
-                    }
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200/20 px-2.5 py-1.5 text-xs font-semibold hover:bg-amber-200/10"
-                  >
-                    <Clock3 className="size-3.5" />
-                    {alternative}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      {(errors.fecha || errors.hora) && (
+        <div className="border-red-400/20 bg-red-400/5 rounded-xl border p-3 text-xs text-red-300">
+          {errors.fecha?.message || errors.hora?.message}
+        </div>
+      )}
 
-        {availability.kind === "error" && (
-          <div className="border-pisao-gold/15 bg-pisao-carbon text-pisao-cream-muted flex gap-3 rounded-xl border p-4 text-xs">
-            <TriangleAlert className="text-pisao-gold mt-0.5 size-4 shrink-0" />
-            <p>{availability.message}</p>
-          </div>
-        )}
-      </div>
+      {fecha && hora && (
+        <div className="border-pisao-gold/15 bg-pisao-gold/5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3 text-xs">
+          <span className="text-pisao-cream flex items-center gap-1.5 font-semibold">
+            <CheckCircle2 className="text-emerald-400 size-4" />
+            Franja seleccionada
+          </span>
+          <span className="text-pisao-cream-muted">{fecha}</span>
+          <span className="text-pisao-cream-muted flex items-center gap-1.5">
+            <Clock3 className="size-3.5" />
+            {hora}
+          </span>
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Cuéntanos algo más · opcional</label>
@@ -378,7 +213,7 @@ export function ReservaForm() {
           rows={4}
           maxLength={500}
           placeholder="Celebración, preferencia de ubicación, requerimiento especial..."
-          className={`${inputClass} resize-none`}
+          className={inputClass + " resize-none"}
         />
         {errors.notas && (
           <p className="mt-1.5 text-xs text-red-400">{errors.notas.message}</p>
@@ -389,18 +224,14 @@ export function ReservaForm() {
         <Button
           type="submit"
           variant="primary"
-          disabled={
-            isSubmitting ||
-            availability.kind === "loading" ||
-            availability.kind === "unavailable"
-          }
+          disabled={isSubmitting || !fecha || !hora}
           className="w-full sm:w-auto"
         >
           <Send className="size-4" />
-          {isSubmitting ? "Registrando solicitud..." : "Solicitar reserva"}
+          {isSubmitting ? "Confirmando reserva..." : "Confirmar reserva"}
         </Button>
-        <p className="mt-3 text-xs leading-relaxed text-pisao-cream-muted">
-          El cupo mostrado es una fotografía del momento. El backend vuelve a verificar capacidad al registrar la solicitud para evitar sobreventa.
+        <p className="mt-3 max-w-2xl text-xs leading-relaxed text-pisao-cream-muted">
+          PISÁO vuelve a validar toda la ventana de ocupación en el instante de confirmar. Si otro cliente toma el último cupo antes que tú, el sistema propondrá automáticamente las horas más cercanas.
         </p>
       </div>
 
@@ -409,9 +240,9 @@ export function ReservaForm() {
           <div className="flex gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-300">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
             <div>
-              <p className="font-semibold">Solicitud registrada correctamente.</p>
+              <p className="font-semibold">Reserva confirmada automáticamente.</p>
               <p className="mt-1 text-xs text-emerald-200/80">
-                Código {status.code}. El equipo confirmará la reserva por tus datos de contacto.
+                Código {status.code}. El cupo ya quedó descontado del calendario de PISÁO.
               </p>
             </div>
           </div>
@@ -426,14 +257,19 @@ export function ReservaForm() {
 
             {status.alternatives.length > 0 && (
               <div className="mt-3 border-t border-red-300/10 pt-3">
-                <p className="text-xs text-red-200/80">Prueba una hora disponible:</p>
+                <p className="text-xs text-red-200/80">
+                  El motor encontró estas horas cercanas:
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {status.alternatives.map((alternative) => (
                     <button
                       key={alternative}
                       type="button"
                       onClick={() => {
-                        setValue("hora", alternative, { shouldValidate: true });
+                        setValue("hora", alternative, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        });
                         setStatus({ kind: "idle" });
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/20 px-2.5 py-1.5 text-xs font-semibold hover:bg-red-300/10"
