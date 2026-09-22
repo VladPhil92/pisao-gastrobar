@@ -7,6 +7,15 @@ import {
   proposalContextForModel,
   type CommerceProduct,
 } from "@/lib/ai/conversational-commerce";
+import {
+  analyzeReservationConversation,
+  reservationContextForModel,
+  reservationFallbackText,
+} from "@/lib/reservas/conversation";
+import {
+  checkReservationAvailability,
+  type ReservationAvailability,
+} from "@/lib/reservas/availability";
 import { productosPlaceholder } from "@/lib/menu/placeholder-data";
 import { siteConfig } from "@/lib/site-config";
 
@@ -54,7 +63,7 @@ function sanitizeMessages(value: unknown): ClientMessage[] {
         candidate.content.trim().length > 0
       );
     })
-    .slice(-10)
+    .slice(-12)
     .map((message) => ({
       role: message.role,
       content: message.content.trim().slice(0, 1600),
@@ -130,6 +139,18 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
   }
 }
 
+function availabilityContext(
+  availability: ReservationAvailability | null,
+  error: string | null,
+) {
+  if (error) return `Disponibilidad: no verificable. Motivo: ${error}`;
+  if (!availability) return "Disponibilidad: pendiente de contar con fecha, hora y personas.";
+
+  return availability.available
+    ? `Disponibilidad: hay capacidad para ${availability.personas} personas a las ${availability.hora}. Capacidad restante calculada: ${availability.remaining}.`
+    : `Disponibilidad: no hay capacidad suficiente a las ${availability.hora}. Alternativas: ${availability.alternatives.join(", ") || "sin alternativas calculadas"}.`;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { messages?: unknown };
@@ -142,30 +163,93 @@ export async function POST(request: Request) {
       return Response.json({ error: "Mensaje inválido." }, { status: 400 });
     }
 
-    const agent = routePisaoAgent(latestUserMessage.content);
-    const catalog = await getMenuCatalog();
-    const transcript = messages
+    const userTranscript = messages
       .filter((message) => message.role === "user")
       .map((message) => message.content)
       .join("\n");
-    const commerceAnalysis = analyzeCommerceRequest(transcript);
+
+    // Se enruta con todo el contexto del usuario, no solo con el último turno.
+    const agent = routePisaoAgent(userTranscript);
+    const reservationDraft = analyzeReservationConversation(messages);
+
+    let reservationAvailability: ReservationAvailability | null = null;
+    let reservationAvailabilityError: string | null = null;
+
+    if (
+      reservationDraft?.fecha &&
+      reservationDraft.hora &&
+      reservationDraft.personas
+    ) {
+      try {
+        reservationAvailability = await checkReservationAvailability({
+          fecha: reservationDraft.fecha,
+          hora: reservationDraft.hora,
+          personas: reservationDraft.personas,
+        });
+      } catch (error) {
+        reservationAvailabilityError =
+          error instanceof Error
+            ? error.message
+            : "No fue posible consultar disponibilidad.";
+      }
+    }
+
+    const catalog = await getMenuCatalog();
+    const commerceAnalysis = analyzeCommerceRequest(userTranscript);
     const proposal =
-      agent.id === "ventas" || (agent.id === "anfitrion" && commerceAnalysis.foodIntent)
+      !reservationDraft &&
+      (agent.id === "ventas" ||
+        (agent.id === "anfitrion" && commerceAnalysis.foodIntent))
         ? buildConversationalProposal(catalog.products, commerceAnalysis)
         : null;
 
-    const fallbackText = deterministicCommerceReply(commerceAnalysis, proposal);
+    let fallbackText =
+      reservationFallbackText(reservationDraft) ??
+      deterministicCommerceReply(commerceAnalysis, proposal);
+
+    if (reservationAvailabilityError && reservationDraft?.ready) {
+      fallbackText =
+        "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
+    } else if (
+      reservationAvailability &&
+      !reservationAvailability.available &&
+      reservationDraft
+    ) {
+      const alternatives = reservationAvailability.alternatives.length
+        ? ` Puedo revisar estas horas cercanas: ${reservationAvailability.alternatives.join(", ")}.`
+        : "";
+      fallbackText = `La franja de ${reservationDraft.hora} no tiene capacidad suficiente para ${reservationDraft.personas} personas.${alternatives}`;
+    } else if (
+      reservationAvailability?.available &&
+      reservationDraft?.ready
+    ) {
+      fallbackText =
+        "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar solicitud” para registrarla. La mesa seguirá pendiente de confirmación del equipo.";
+    }
+
     const hoursContext = [
       `${siteConfig.location.label}. ${siteConfig.location.address}`,
       ...siteConfig.hours.map(({ dia, horario }) => `${dia}: ${horario}`),
       `WhatsApp: ${siteConfig.contact.phone}`,
     ].join("\n");
 
+    const reservationPayload = reservationDraft
+      ? {
+          draft: reservationDraft,
+          availability: reservationAvailability,
+          availabilityError: reservationAvailabilityError,
+          canSubmit:
+            reservationDraft.ready &&
+            reservationAvailability?.available === true,
+        }
+      : null;
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return Response.json({
         text: fallbackText,
         proposal,
+        reservation: reservationPayload,
         fallback: true,
         agent: agent.id,
         agentLabel: agent.label,
@@ -187,7 +271,21 @@ export async function POST(request: Request) {
           agent,
           menuContext: catalog.context,
           hoursContext,
-        })}\n\nCOMERCIO CONVERSACIONAL\n${proposalContextForModel(proposal)}\n\nSi no hay propuesta calculada, haz solo la pregunta mínima necesaria para poder construirla. Para alergias, intolerancias o veganismo, no generes una mesa automática: deriva a validación humana.`,
+        })}
+
+COMERCIO CONVERSACIONAL
+${proposalContextForModel(proposal)}
+
+RESERVAS TRANSACCIONALES
+${reservationContextForModel(reservationDraft)}
+${availabilityContext(reservationAvailability, reservationAvailabilityError)}
+
+REGLAS ADICIONALES
+- Si hay intención de reserva, prioriza completar la reserva antes de vender comida.
+- Nunca afirmes que una reserva fue registrada o confirmada antes de que el usuario pulse el botón de confirmación y el backend responda exitosamente.
+- Si la disponibilidad no pudo verificarse, dilo claramente y no prometas cupo.
+- Si faltan datos, haz solo la pregunta mínima necesaria.
+- Para alergias, intolerancias o veganismo, deriva a validación humana.`,
         input: messages.map((message) => ({
           role: message.role,
           content: message.content,
@@ -202,6 +300,7 @@ export async function POST(request: Request) {
       return Response.json({
         text: fallbackText,
         proposal,
+        reservation: reservationPayload,
         fallback: true,
         agent: agent.id,
         agentLabel: agent.label,
@@ -209,12 +308,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const text = extractOutputText(payload) || fallbackText;
+    const modelText = extractOutputText(payload);
+    const text = modelText || fallbackText;
 
     return Response.json({
       text,
       proposal,
-      fallback: !extractOutputText(payload),
+      reservation: reservationPayload,
+      fallback: !modelText,
       agent: agent.id,
       agentLabel: agent.label,
       menuSource: catalog.source,
