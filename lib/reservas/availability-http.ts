@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   checkReservationAvailability,
-  listAvailabilityForDate,
+  listBookableStartsForDate,
   validateReservationWindow,
 } from "@/lib/reservas/availability";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
@@ -41,15 +41,12 @@ export async function handleReservationAvailabilityRequest(request: Request) {
 
   try {
     if (!hora) {
-      const slots = await listAvailabilityForDate(fecha);
+      const slots = await listBookableStartsForDate(fecha, personas);
       return NextResponse.json(
         {
           fecha,
           personas,
-          slots: slots.map((slot) => ({
-            ...slot,
-            available: slot.remaining >= personas,
-          })),
+          slots,
         },
         { headers: { "Cache-Control": "no-store" } },
       );
