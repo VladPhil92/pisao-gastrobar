@@ -3,6 +3,7 @@ import { calcularTotalesPedido } from "./calculations";
 import type { CrearPedidoInput } from "./types";
 import { getCardPaymentProvider } from "@/lib/payments/providers";
 import { crearCargoCripto } from "@/lib/payments/crypto";
+import { createCryptoPaymentIntent } from "@/lib/payments/crypto-intent";
 import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 import type { CartItem } from "@/lib/cart/types";
 import { issueOrderTrackingAccess } from "@/lib/orders/tracking-access";
@@ -171,6 +172,13 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       webhookUrl: `${baseUrl}/api/pagos/cripto/webhook`,
     });
 
+    const paymentIntent = createCryptoPaymentIntent({
+      pedidoId: pedido.id,
+      numeroPedido: pedido.numero,
+      totalCop: total,
+      options: cargo.opciones,
+    });
+
     await prisma.pago.create({
       data: {
         pedidoId: pedido.id,
@@ -178,29 +186,19 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         estado: "PENDIENTE",
         monto: total,
         descuentoAplicadoPct: descuento > 0 ? (descuento / subtotal) * 100 : 0,
-        referenciaProveedor: cargo.referencia,
+        referenciaProveedor: paymentIntent.intentId,
         payloadProveedor: {
-          settlement: "PISAO_CRYPTO_QUOTE_V1",
+          settlement: paymentIntent.version,
           quoteAvailable: cargo.quoteAvailable,
+          paymentIntent,
           quotedAt:
             cargo.opciones.find((option) => option.quote)?.quote?.quotedAt ?? null,
-          quotes: Object.fromEntries(
-            cargo.opciones.map((option) => [
-              option.moneda,
-              option.quote
-                ? {
-                    copPerUnit: option.quote.copPerUnit,
-                    amount: option.quote.amount,
-                    provider: option.quote.provider,
-                    quotedAt: option.quote.quotedAt,
-                  }
-                : null,
-            ]),
-          ),
+          quotes: paymentIntent.quotes,
         },
       },
     });
 
+    return { pedido, cripto: { ...cargo, paymentIntent } };
     return { pedido, cripto: cargo, seguimiento };
   }
 
