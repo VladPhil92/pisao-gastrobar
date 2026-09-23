@@ -169,6 +169,25 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         monto: total,
         descuentoAplicadoPct: descuento > 0 ? (descuento / subtotal) * 100 : 0,
         referenciaProveedor: cargo.referencia,
+        payloadProveedor: {
+          settlement: "PISAO_CRYPTO_QUOTE_V1",
+          quoteAvailable: cargo.quoteAvailable,
+          quotedAt:
+            cargo.opciones.find((option) => option.quote)?.quote?.quotedAt ?? null,
+          quotes: Object.fromEntries(
+            cargo.opciones.map((option) => [
+              option.moneda,
+              option.quote
+                ? {
+                    copPerUnit: option.quote.copPerUnit,
+                    amount: option.quote.amount,
+                    provider: option.quote.provider,
+                    quotedAt: option.quote.quotedAt,
+                  }
+                : null,
+            ]),
+          ),
+        },
       },
     });
 
