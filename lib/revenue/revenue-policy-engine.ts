@@ -129,6 +129,7 @@ export async function getAdaptiveRevenuePolicyCenter() {
       pausedAt: true,
       rolledBackAt: true,
       rollbackReason: true,
+      operationalPauseReason: true,
       lastMeasuredAt: true,
       lastGuardrailCheckAt: true,
       outcome: true,
@@ -199,6 +200,15 @@ export async function activateAdaptiveRevenuePolicy(id: string, userId: string) 
       products.length !== 2 ||
       products.some((product) => !product.disponible || product.inventarioBajo)
     ) {
+      void emitKevGovernanceEvent("pisao.revenue.policy_inventory_blocked", {
+        source: "profit_aware_revenue_v5",
+        policy_ref: policy.key,
+        reason:
+          products.length !== 2 ||
+          products.some((product) => !product.disponible)
+            ? "inventory_unavailable"
+            : "inventory_low",
+      });
       throw new Error("POLICY_PRODUCT_UNAVAILABLE_OR_LOW");
     }
 
@@ -217,6 +227,7 @@ export async function activateAdaptiveRevenuePolicy(id: string, userId: string) 
         activatedById: policy.activatedById ?? userId,
         pausedAt: null,
         rollbackReason: null,
+        operationalPauseReason: null,
       },
     });
   });
@@ -228,6 +239,7 @@ export async function pauseAdaptiveRevenuePolicy(id: string) {
     data: {
       status: "PAUSED",
       pausedAt: new Date(),
+      operationalPauseReason: "manual_admin_pause",
     },
   });
 
@@ -538,9 +550,49 @@ export async function getAdaptiveRevenueContext(params: {
       })
     : [];
   const productById = new Map(products.map((product) => [product.id, product]));
+  const inventoryBlockedPolicies = new Set<string>();
+
+  for (const policy of policies) {
+    const productAId = jsonString(policy.action.payload, "productAId");
+    const productBId = jsonString(policy.action.payload, "productBId");
+    const productA = productAId ? productById.get(productAId) : null;
+    const productB = productBId ? productById.get(productBId) : null;
+
+    const reason =
+      !productA ||
+      !productB ||
+      !productA.disponible ||
+      !productB.disponible
+        ? "inventory_unavailable"
+        : productA.inventarioBajo || productB.inventarioBajo
+          ? "inventory_low"
+          : null;
+
+    if (!reason) continue;
+
+    const paused = await prisma.revenuePolicy.updateMany({
+      where: { id: policy.id, status: "ACTIVE" },
+      data: {
+        status: "PAUSED",
+        pausedAt: new Date(),
+        operationalPauseReason: reason,
+      },
+    });
+
+    if (paused.count === 1) {
+      inventoryBlockedPolicies.add(policy.id);
+      void emitKevGovernanceEvent("pisao.revenue.policy_inventory_blocked", {
+        source: "profit_aware_revenue_v5",
+        policy_ref: policy.key,
+        reason,
+      });
+    }
+  }
 
   const candidates = policies
     .map((policy) => {
+      if (inventoryBlockedPolicies.has(policy.id)) return null;
+
       const productAId = jsonString(policy.action.payload, "productAId");
       const productBId = jsonString(policy.action.payload, "productBId");
       const productAName = jsonString(policy.action.payload, "productAName");
