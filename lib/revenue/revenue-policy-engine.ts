@@ -195,11 +195,12 @@ export async function activateAdaptiveRevenuePolicy(id: string, userId: string) 
         id: true,
         disponible: true,
         inventarioBajo: true,
+        inventarioBajoReceta: true,
       },
     });
     if (
       products.length !== 2 ||
-      products.some((product) => !product.disponible || product.inventarioBajo)
+      products.some((product) => !product.disponible || (product.inventarioBajo || product.inventarioBajoReceta))
     ) {
       void emitKevGovernanceEvent("pisao.revenue.policy_inventory_blocked", {
         source: "profit_aware_revenue_v5",
@@ -547,6 +548,7 @@ export async function getAdaptiveRevenueContext(params: {
           costoUnitario: true,
           disponible: true,
           inventarioBajo: true,
+        inventarioBajoReceta: true,
         },
       })
     : [];
@@ -565,7 +567,10 @@ export async function getAdaptiveRevenueContext(params: {
       !productA.disponible ||
       !productB.disponible
         ? "inventory_unavailable"
-        : productA.inventarioBajo || productB.inventarioBajo
+        : productA.inventarioBajo ||
+          productA.inventarioBajoReceta ||
+          productB.inventarioBajo ||
+          productB.inventarioBajoReceta
           ? "inventory_low"
           : null;
 
@@ -614,7 +619,8 @@ export async function getAdaptiveRevenueContext(params: {
               ? null
               : Number(productA.costoUnitario),
           available: productA.disponible,
-          lowInventory: productA.inventarioBajo,
+          lowInventory:
+            productA.inventarioBajo || productA.inventarioBajoReceta,
         },
         {
           price: Number(productB.precio),
@@ -623,7 +629,8 @@ export async function getAdaptiveRevenueContext(params: {
               ? null
               : Number(productB.costoUnitario),
           available: productB.disponible,
-          lowInventory: productB.inventarioBajo,
+          lowInventory:
+            productB.inventarioBajo || productB.inventarioBajoReceta,
         },
       );
 

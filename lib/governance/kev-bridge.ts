@@ -39,7 +39,11 @@ export type PisaoGovernanceEventType =
   | "pisao.revenue.policies_measured"
   | "pisao.revenue.policy_assigned"
   | "pisao.catalog.economics_updated"
-  | "pisao.revenue.policy_inventory_blocked";
+  | "pisao.revenue.policy_inventory_blocked"
+  | "pisao.inventory.ingredient_created"
+  | "pisao.inventory.ingredient_updated"
+  | "pisao.inventory.stock_changed"
+  | "pisao.inventory.recipe_updated";
 
 type GovernanceScalar = string | number | boolean | null;
 type GovernancePayload = Record<

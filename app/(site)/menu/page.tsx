@@ -38,7 +38,8 @@ async function loadPublicMenu() {
         precio: Number(product.precio),
         imagenUrl: product.imagenUrl,
         disponible: product.disponible,
-        inventarioBajo: product.inventarioBajo,
+        inventarioBajo:
+          product.inventarioBajo || product.inventarioBajoReceta,
         categoriaSlug: category.slug,
       })),
     );

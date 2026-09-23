@@ -86,12 +86,16 @@ export async function POST(
 
   const updated = await prisma.pedido.update({
     where: { id },
-    data: { estado: body.estado as OrderOperationalStatus },
+    data: {
+      estado: body.estado as OrderOperationalStatus,
+      entregadoAt: body.estado === "ENTREGADO" ? new Date() : null,
+    },
     select: {
       id: true,
       numero: true,
       estado: true,
       tipoEntrega: true,
+      entregadoAt: true,
       updatedAt: true,
     },
   });
