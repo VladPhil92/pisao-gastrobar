@@ -372,8 +372,12 @@ model RevenueExperimentAssignment {
   experiment   RevenueExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   sessionId    String   @db.VarChar(64)
   arm          String   @db.VarChar(16)
-  assignedAt   DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
+  assignedAt       DateTime @default(now())
+  lastSeenAt       DateTime @default(now())
+  eligibleAt       DateTime?
+  eligibilityCount Int      @default(0)
+  exposedAt        DateTime?
+  exposureCount    Int      @default(0)
 
   @@unique([experimentId, sessionId])
   @@index([experimentId, arm, assignedAt])
