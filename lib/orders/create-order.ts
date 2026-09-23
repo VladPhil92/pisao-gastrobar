@@ -87,8 +87,8 @@ async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<C
  * - QR_TRANSFERENCIA: el pedido queda PENDIENTE_VERIFICACION, a la
  *   espera de que el cliente suba el comprobante (ver
  *   /api/pagos/qr/comprobante) y un admin/cajero lo valide.
- * - CRIPTO: se solicita un cargo al gateway configurado y se aplica el
- *   descuento automático; la confirmación llega luego por webhook.
+ * - CRIPTO: se prepara el pago manual con las wallets públicas y se aplica el
+ *   descuento automático; el cliente adjunta comprobante para validación.
  * - TARJETA: se genera un link de pago con el proveedor activo
  *   (Wompi/PayU/ePayco, según PAYMENT_GATEWAY_PROVIDER).
  */
@@ -167,8 +167,6 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         metodo: "CRIPTO",
         estado: "PENDIENTE",
         monto: total,
-        criptoMoneda: cargo.criptoMoneda,
-        walletDireccion: cargo.direccionPago,
         descuentoAplicadoPct: descuento > 0 ? (descuento / subtotal) * 100 : 0,
         referenciaProveedor: cargo.referencia,
       },
