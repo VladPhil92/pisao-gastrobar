@@ -105,6 +105,14 @@ export async function GET() {
               ? "scheduled_onchain_monitoring"
               : "awaiting_scheduler_secret",
         cryptoHumanApproval: "required",
+        cryptoOperations: {
+          mode: "approved_receipt_ledger",
+          engineVersion: "crypto_operations_v13",
+          stablecoinFirst: "USDT_BEP20",
+          approvalSnapshot: true,
+          walletBalanceTracking: false,
+          smartContracts: false,
+        },
         cryptoGatewayWebhook: "disabled",
         adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
           process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
@@ -239,6 +247,14 @@ export async function GET() {
                 ? "scheduled_onchain_monitoring"
                 : "awaiting_scheduler_secret",
           cryptoHumanApproval: "required",
+          cryptoOperations: {
+            mode: "approved_receipt_ledger",
+            engineVersion: "crypto_operations_v13",
+            stablecoinFirst: "USDT_BEP20",
+            approvalSnapshot: true,
+            walletBalanceTracking: false,
+            smartContracts: false,
+          },
           cryptoGatewayWebhook: "disabled",
           adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
             process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
