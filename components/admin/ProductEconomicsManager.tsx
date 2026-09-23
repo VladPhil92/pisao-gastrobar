@@ -252,10 +252,7 @@ export function ProductEconomicsManager({
                     </p>
                     {margin !== null && (
                       <p className="text-xs text-pisao-cream-muted">
-                        {money(
-                          product.precio -
-                            (effectiveCost ?? 0),
-                        )}{" "}
+                        {money(product.precio - (effectiveCost ?? 0))}{" "}
                         por unidad
                       </p>
                     )}

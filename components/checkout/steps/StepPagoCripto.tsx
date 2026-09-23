@@ -254,8 +254,12 @@ export function StepPagoCripto({
       </div>
 
       <div>
-        <p className="mb-3 text-sm font-medium text-pisao-cream">
+        <p className="mb-1 text-sm font-medium text-pisao-cream">
           1. Elige la criptomoneda
+        </p>
+        <p className="mb-3 text-xs leading-relaxed text-pisao-cream-muted">
+          USDT se muestra primero para simplificar el valor de pago. BNB, ETH y
+          BTC siguen disponibles con verificación on-chain.
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {cargo.opciones.map((opcion) => (
@@ -277,9 +281,16 @@ export function StepPagoCripto({
                   : "border-pisao-cream-muted/20 hover:border-pisao-gold/40",
               )}
             >
-              <span className="font-display text-lg text-pisao-cream">
-                {opcion.moneda}
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-display text-lg text-pisao-cream">
+                  {opcion.moneda}
+                </span>
+                {opcion.recommended && (
+                  <span className="rounded-full bg-pisao-gold/15 px-2 py-0.5 text-[9px] font-semibold text-pisao-gold">
+                    Recomendado
+                  </span>
+                )}
+              </div>
               <span className="mt-1 block text-[10px] leading-snug text-pisao-cream-muted">
                 {opcion.red}
               </span>
@@ -308,7 +319,8 @@ export function StepPagoCripto({
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-pisao-cream-muted">
                   Cotización fijada al crear el pedido. El sistema comparará el
-                  valor recibido on-chain con este monto antes de permitir la
+                  valor recibido on-chain con este monto y conservará la
+                  equivalencia COP como evidencia operativa antes de permitir la
                   aprobación administrativa.
                 </p>
               </div>
@@ -480,7 +492,7 @@ export function StepPagoCripto({
           {subiendo && (
             <p className="flex items-center gap-2 text-xs text-pisao-cream-muted">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Guardando comprobante y notificando al administrador...
+              Guardando comprobante y vinculando la evidencia al pedido...
             </p>
           )}
 
