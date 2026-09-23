@@ -1,5 +1,3 @@
-import "server-only";
-
 import { timingSafeEqual } from "node:crypto";
 
 const DEFAULT_CANONICAL_HOSTS = [
