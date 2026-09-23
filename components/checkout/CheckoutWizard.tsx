@@ -245,6 +245,8 @@ export function CheckoutWizard() {
             state.metodoPago === "CRIPTO" && (
               <StepPagoCripto
                 cargo={pedidoData.cripto}
+                pedidoId={pedidoData.pedido.id}
+                pedidoNumero={pedidoData.pedido.numero}
                 total={Number(pedidoData.pedido.total)}
                 descuento={Math.max(0, subtotal - Number(pedidoData.pedido.total))}
                 onContinuar={() => {
