@@ -16,7 +16,7 @@ function createSessionId() {
   return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
 }
 
-function getSessionId() {
+export function getBehaviorSessionId() {
   if (typeof window === "undefined") return null;
 
   try {
@@ -57,7 +57,7 @@ export function trackBehavior(
 ) {
   if (typeof window === "undefined") return;
 
-  const sessionId = getSessionId();
+  const sessionId = getBehaviorSessionId();
   if (!sessionId) return;
 
   const payload = {

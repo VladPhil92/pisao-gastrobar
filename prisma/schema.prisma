@@ -141,7 +141,8 @@ model Pedido {
 
   estado EstadoPedido @default(PENDIENTE_PAGO)
 
-  pago Pago?
+  pago        Pago?
+  attribution RevenueAttribution?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -277,6 +278,30 @@ model Evento {
 
 /// Telemetría first-party sin PII. sessionId es efímero por pestaña y no
 /// identifica a una persona entre sesiones. No se admiten campos de texto libre.
+/// Atribución first-party de la sesión que originó un pedido.
+/// Se resuelve exclusivamente en servidor a partir de EventoAnalitico; el
+/// navegador solo aporta el sessionId efímero. "assists" describe señales
+/// observadas y no implica causalidad comercial.
+model RevenueAttribution {
+  id         String   @id @default(cuid())
+  pedidoId   String   @unique
+  sessionId  String   @db.VarChar(64)
+  assists    String[] @default([])
+  lastAssist String?  @db.VarChar(32)
+  touchCount Int      @default(0)
+
+  observedFrom DateTime?
+  observedTo   DateTime?
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([lastAssist, createdAt])
+  @@map("revenue_attributions")
+}
+
 model EventoAnalitico {
   id            String   @id @default(cuid())
   tipo          String   @db.VarChar(48)

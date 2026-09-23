@@ -22,4 +22,10 @@ export const crearPedidoSchema = z.object({
     )
     .min(1, "El carrito está vacío"),
   metodoPago: z.enum(["QR_TRANSFERENCIA", "CRIPTO", "TARJETA"]),
+  attributionSessionId: z
+    .string()
+    .min(8)
+    .max(64)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
 });

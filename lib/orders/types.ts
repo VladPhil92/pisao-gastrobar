@@ -12,4 +12,5 @@ export interface CrearPedidoInput {
   notas?: string;
   items: CartItem[];
   metodoPago: MetodoPago;
+  attributionSessionId?: string;
 }
