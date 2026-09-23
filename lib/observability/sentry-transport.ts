@@ -72,6 +72,10 @@ export async function captureServerError(
     dsn: config.dsn,
   };
   const itemHeader = { type: "event" };
+  const safeTags = Object.fromEntries(
+    Object.entries(context).map(([key, value]) => [key, String(value)]),
+  );
+
   const event = {
     event_id: eventId,
     timestamp: new Date().toISOString(),
@@ -91,7 +95,7 @@ export async function captureServerError(
     tags: {
       app: "pisao-gastrobar",
       runtime: "render-nextjs",
-      ...context,
+      ...safeTags,
     },
   };
 
