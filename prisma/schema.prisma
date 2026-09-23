@@ -77,7 +77,8 @@ model Usuario {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  pagosVerificados Pago[] @relation("PagoVerificadoPor")
+  pagosVerificados       Pago[]          @relation("PagoVerificadoPor")
+  revenueActionsApproved RevenueAction[] @relation("RevenueActionApprovedBy")
 
   @@map("usuarios")
 }
@@ -282,6 +283,46 @@ model Evento {
 /// Se resuelve exclusivamente en servidor a partir de EventoAnalitico; el
 /// navegador solo aporta el sessionId efímero. "assists" describe señales
 /// observadas y no implica causalidad comercial.
+/// Acción comercial propuesta por Revenue Action Engine.
+/// Toda acción sensible requiere aprobación humana. Algunas acciones LOW_RISK
+/// pueden ejecutarse por el sistema solo después de esa aprobación.
+model RevenueAction {
+  id              String   @id @default(cuid())
+  fingerprint     String   @unique @db.VarChar(64)
+  engineVersion   String   @default("revenue_action_engine_v2") @db.VarChar(48)
+  type            String   @db.VarChar(48)
+  status          String   @default("PENDING") @db.VarChar(24)
+  riskLevel       String   @db.VarChar(16)
+  executionMode   String   @db.VarChar(24)
+  priorityScore   Int      @default(50)
+
+  title             String @db.VarChar(180)
+  rationale         String
+  recommendedAction String
+  objectiveMetric   String @db.VarChar(96)
+
+  evidence Json
+  payload  Json?
+
+  approvedById String?
+  approvedBy   Usuario? @relation("RevenueActionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  executedAt   DateTime?
+
+  measurementStartedAt DateTime?
+  measurementWindowDays Int      @default(7)
+  measuredAt            DateTime?
+  outcome               Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, priorityScore, createdAt])
+  @@index([type, createdAt])
+  @@map("revenue_actions")
+}
+
 model RevenueAttribution {
   id         String   @id @default(cuid())
   pedidoId   String   @unique
