@@ -4,7 +4,9 @@ import { checkRateLimit, requestIdentity } from "./rate-limit";
 
 test("prioriza CF-Connecting-IP solo cuando el proxy Cloudflare es confiable", () => {
   const previous = process.env.CLOUDFLARE_TRUST_PROXY;
+  const previousCanonical = process.env.PISAO_ENFORCE_CANONICAL_HOST;
   process.env.CLOUDFLARE_TRUST_PROXY = "true";
+  process.env.PISAO_ENFORCE_CANONICAL_HOST = "true";
 
   try {
     const request = new Request("https://pisaogastrobar.com/api/health", {
@@ -19,6 +21,10 @@ test("prioriza CF-Connecting-IP solo cuando el proxy Cloudflare es confiable", (
   } finally {
     if (previous === undefined) delete process.env.CLOUDFLARE_TRUST_PROXY;
     else process.env.CLOUDFLARE_TRUST_PROXY = previous;
+
+    if (previousCanonical === undefined)
+      delete process.env.PISAO_ENFORCE_CANONICAL_HOST;
+    else process.env.PISAO_ENFORCE_CANONICAL_HOST = previousCanonical;
   }
 });
 
