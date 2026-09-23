@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
+import { cryptoAmountSufficiency } from "@/lib/payments/crypto-quote";
 import {
   OnchainVerificationError,
   normalizeCryptoTransactionHash,
@@ -133,6 +134,56 @@ export async function POST(request: Request) {
       wallet: destination.direccion,
     });
 
+    const existingPayload =
+      pedido.pago.payloadProveedor &&
+      typeof pedido.pago.payloadProveedor === "object" &&
+      !Array.isArray(pedido.pago.payloadProveedor)
+        ? (pedido.pago.payloadProveedor as Record<string, unknown>)
+        : {};
+
+    const quotes =
+      existingPayload.quotes &&
+      typeof existingPayload.quotes === "object" &&
+      !Array.isArray(existingPayload.quotes)
+        ? (existingPayload.quotes as Record<string, unknown>)
+        : {};
+    const selectedQuote =
+      quotes[destination.moneda] &&
+      typeof quotes[destination.moneda] === "object" &&
+      !Array.isArray(quotes[destination.moneda])
+        ? (quotes[destination.moneda] as Record<string, unknown>)
+        : null;
+    const expectedAmount =
+      typeof selectedQuote?.amount === "string" ? selectedQuote.amount : null;
+    const sufficiency = cryptoAmountSufficiency({
+      expectedAmount,
+      receivedAmount: verification.amount,
+    });
+
+    const checkedAt = new Date().toISOString();
+    const settlementPayload = {
+      ...existingPayload,
+      verifier: "PISAO_ONCHAIN_V2",
+      checkedAt,
+      network: verification.red,
+      recipient: verification.recipient,
+      amount: verification.amount,
+      confirmations: verification.confirmations,
+      requiredConfirmations: verification.requiredConfirmations,
+      status: verification.status,
+      explorerUrl: verification.explorerUrl,
+      blockNumber: verification.blockNumber,
+      settlement: {
+        quoteAvailable: sufficiency.available,
+        expectedAmount: sufficiency.expectedAmount,
+        receivedAmount: sufficiency.receivedAmount,
+        minimumAcceptedAmount: sufficiency.minimumAcceptedAmount,
+        tolerancePercent: sufficiency.tolerancePercent,
+        variancePercent: sufficiency.variancePercent,
+        sufficient: sufficiency.sufficient,
+      },
+    };
+
     await prisma.pago.update({
       where: { pedidoId: body.pedidoId },
       data: {
@@ -140,20 +191,34 @@ export async function POST(request: Request) {
         walletDireccion: destination.direccion,
         txHash: verification.txHash,
         confirmacionesOnchain: verification.confirmations,
-        payloadProveedor: {
-          verifier: "PISAO_ONCHAIN_V1",
-          checkedAt: new Date().toISOString(),
-          network: verification.red,
-          recipient: verification.recipient,
-          amount: verification.amount,
-          confirmations: verification.confirmations,
-          requiredConfirmations: verification.requiredConfirmations,
-          status: verification.status,
-          explorerUrl: verification.explorerUrl,
-          blockNumber: verification.blockNumber,
-        },
+        payloadProveedor: settlementPayload,
       },
     });
+
+    if (sufficiency.available && sufficiency.sufficient === false) {
+      return NextResponse.json(
+        {
+          error:
+            "La transacción llegó a la wallet correcta, pero el monto recibido es inferior al mínimo esperado para este pedido.",
+          code: "CRYPTO_UNDERPAID",
+          retryable: false,
+          transaction: {
+            status: verification.status,
+            moneda: verification.moneda,
+            red: verification.red,
+            txHash: verification.txHash,
+            amount: verification.amount,
+            expectedAmount: sufficiency.expectedAmount,
+            minimumAcceptedAmount: sufficiency.minimumAcceptedAmount,
+            amountSufficient: false,
+            confirmations: verification.confirmations,
+            requiredConfirmations: verification.requiredConfirmations,
+            explorerUrl: verification.explorerUrl,
+          },
+        },
+        { status: 422 },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
@@ -163,6 +228,10 @@ export async function POST(request: Request) {
         red: verification.red,
         txHash: verification.txHash,
         amount: verification.amount,
+        expectedAmount: sufficiency.expectedAmount,
+        minimumAcceptedAmount: sufficiency.minimumAcceptedAmount,
+        amountSufficient: sufficiency.sufficient,
+        quoteAvailable: sufficiency.available,
         confirmations: verification.confirmations,
         requiredConfirmations: verification.requiredConfirmations,
         explorerUrl: verification.explorerUrl,
