@@ -7,6 +7,7 @@ export interface SuggestibleProduct {
   precio: number;
   imagenUrl?: string | null;
   disponible: boolean;
+  inventarioBajo?: boolean;
   categoriaSlug?: string;
 }
 
@@ -60,6 +61,7 @@ function firstAvailable(
   return products.find(
     (product) =>
       product.disponible &&
+      product.inventarioBajo !== true &&
       !excludedIds.has(product.id) &&
       !!product.categoriaSlug &&
       categories.has(product.categoriaSlug),

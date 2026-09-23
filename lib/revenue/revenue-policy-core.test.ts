@@ -115,3 +115,60 @@ test("guardrail remains collecting before holdout minimum", () => {
 
   assert.equal(result.guardrail, "COLLECTING");
 });
+
+
+test("profitability is only a bounded secondary signal", () => {
+  const selected = selectAdaptivePairingCandidate(
+    "¿Qué bebida me recomiendas para acompañar?",
+    [
+      {
+        id: "higher-margin",
+        priorityScore: 60,
+        observedLiftPctPoints: 4,
+        productAName: "Patacón Callejero",
+        productBName: "Golden Pale Ale",
+        profitabilityAdjustment: 10,
+      },
+      {
+        id: "lower-margin",
+        priorityScore: 60,
+        observedLiftPctPoints: 4,
+        productAName: "Hamburguesa Caribe",
+        productBName: "Irish Red Ale",
+        profitabilityAdjustment: -10,
+      },
+    ],
+  );
+
+  assert.equal(selected?.candidate.id, "higher-margin");
+});
+
+test("policy health reports contribution only for orders with known cost", () => {
+  const result = calculateRevenuePolicyHealth({
+    assignments: [
+      { sessionId: "serve_1", arm: "SERVE" },
+      { sessionId: "holdout_1", arm: "HOLDOUT" },
+    ],
+    paidOrders: [
+      {
+        sessionId: "serve_1",
+        total: 50000,
+        contribution: 30000,
+      },
+      {
+        sessionId: "holdout_1",
+        total: 40000,
+        contribution: null,
+      },
+    ],
+    minServeAssignments: 1,
+    minHoldoutAssignments: 1,
+    rollbackMarginPctPoints: 2,
+  });
+
+  assert.equal(result.serve.marginKnownOrders, 1);
+  assert.equal(result.serve.contribution, 30000);
+  assert.equal(result.serve.contributionMarginPct, 60);
+  assert.equal(result.holdout.marginKnownOrders, 0);
+  assert.equal(result.holdout.contributionMarginPct, null);
+});

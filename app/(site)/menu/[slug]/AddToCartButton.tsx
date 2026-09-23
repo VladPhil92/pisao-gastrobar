@@ -13,6 +13,8 @@ export function AddToCartButton({ producto }: { producto: MenuCardProduct }) {
   );
 
   const handleAdd = () => {
+    if (!producto.disponible) return;
+
     addItem({
       productoId: producto.id,
       nombre: producto.nombre,
@@ -35,9 +37,14 @@ export function AddToCartButton({ producto }: { producto: MenuCardProduct }) {
         variant="primary"
         className="w-full sm:w-auto"
         onClick={handleAdd}
+        disabled={!producto.disponible}
       >
         {quantity > 0 ? <Check className="size-4" /> : <Plus className="size-4" />}
-        {quantity > 0 ? `En tu mesa · ${quantity}` : "Agregar a mi mesa"}
+        {!producto.disponible
+          ? "No disponible"
+          : quantity > 0
+            ? `En tu mesa · ${quantity}`
+            : "Agregar a mi mesa"}
       </Button>
       {quantity > 0 && (
         <p className="text-pisao-cream-muted mt-2 text-xs">

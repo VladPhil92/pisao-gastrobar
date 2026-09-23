@@ -19,14 +19,30 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const tables = await prisma.mesaReservable.findMany({
-      select: {
-        codigo: true,
-        capacidad: true,
-        activa: true,
-      },
-      orderBy: { codigo: "asc" },
-    });
+    const [tables, products] = await Promise.all([
+      prisma.mesaReservable.findMany({
+        select: {
+          codigo: true,
+          capacidad: true,
+          activa: true,
+        },
+        orderBy: { codigo: "asc" },
+      }),
+      prisma.producto.findMany({
+        select: {
+          costoUnitario: true,
+          disponible: true,
+          inventarioBajo: true,
+        },
+      }),
+    ]);
+
+    const costConfiguredProducts = products.filter(
+      (product) => product.costoUnitario !== null,
+    ).length;
+    const costCoveragePct = products.length
+      ? Math.round((costConfiguredProducts / products.length) * 100)
+      : 0;
 
     const inventoryReady =
       tables.length === EXPECTED_TABLE_CODES.length &&
@@ -116,6 +132,21 @@ export async function GET() {
           maxConcurrentPolicies: 3,
           guardrailIntervalMinutes: 15,
           autoRollback: true,
+          sensitiveMutationAuthority: false,
+        },
+        profitAwareRevenue: {
+          mode: "contribution_margin_with_inventory_guardrails",
+          engineVersion: "profit_aware_revenue_v5",
+          costCoveragePct,
+          costConfiguredProducts,
+          totalProducts: products.length,
+          unavailableProducts: products.filter((product) => !product.disponible)
+            .length,
+          lowInventoryProducts: products.filter(
+            (product) => product.inventarioBajo,
+          ).length,
+          historicalCostSnapshot: true,
+          proactiveLowInventoryPromotion: false,
           sensitiveMutationAuthority: false,
         },
       },
@@ -224,6 +255,18 @@ export async function GET() {
             maxConcurrentPolicies: 3,
             guardrailIntervalMinutes: 15,
             autoRollback: true,
+            sensitiveMutationAuthority: false,
+          },
+          profitAwareRevenue: {
+            mode: "contribution_margin_with_inventory_guardrails",
+            engineVersion: "profit_aware_revenue_v5",
+            costCoveragePct: null,
+            costConfiguredProducts: null,
+            totalProducts: null,
+            unavailableProducts: null,
+            lowInventoryProducts: null,
+            historicalCostSnapshot: true,
+            proactiveLowInventoryPromotion: false,
             sensitiveMutationAuthority: false,
           },
         },

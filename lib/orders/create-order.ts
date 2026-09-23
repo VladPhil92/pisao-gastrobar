@@ -6,6 +6,10 @@ import { crearCargoCripto } from "@/lib/payments/crypto";
 import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 import type { CartItem } from "@/lib/cart/types";
 
+type ValidatedOrderItem = CartItem & {
+  costoUnitario: number | null;
+};
+
 export class OrderCatalogValidationError extends Error {
   constructor(
     public readonly code:
@@ -19,7 +23,9 @@ export class OrderCatalogValidationError extends Error {
   }
 }
 
-async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<CartItem[]> {
+async function validateCatalogItems(
+  items: CrearPedidoInput["items"],
+): Promise<ValidatedOrderItem[]> {
   const quantities = new Map<string, number>();
   for (const item of items) {
     quantities.set(
@@ -36,6 +42,7 @@ async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<C
       nombre: true,
       slug: true,
       precio: true,
+      costoUnitario: true,
       imagenUrl: true,
       disponible: true,
       categoria: { select: { slug: true } },
@@ -77,6 +84,8 @@ async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<C
       imagenUrl: product.imagenUrl,
       categoriaSlug: product.categoria.slug,
       cantidad: quantities.get(product.id) ?? requested.cantidad,
+      costoUnitario:
+        product.costoUnitario === null ? null : Number(product.costoUnitario),
     };
   });
 }
@@ -135,6 +144,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
           productoId: item.productoId,
           cantidad: item.cantidad,
           precioUnitario: item.precio,
+          costoUnitarioSnapshot: item.costoUnitario,
           subtotal: item.precio * item.cantidad,
         })),
       },
