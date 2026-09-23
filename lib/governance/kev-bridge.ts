@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, randomUUID } from "node:crypto";
+import { recordIntegrationEvidence } from "@/lib/integrations/production-certification";
 
 export type PisaoGovernanceEventType =
   | "pisao.reservation.confirmed"
@@ -124,6 +125,12 @@ export async function emitKevGovernanceEvent(
         eventType,
         status: response.status,
       });
+      void recordIntegrationEvidence({
+        integration: "KEV",
+        event: "governance_delivery",
+        status: "REJECTED",
+        detail: { eventType, httpStatus: response.status },
+      });
       return {
         delivered: false,
         reason: "bridge_rejected" as const,
@@ -131,11 +138,26 @@ export async function emitKevGovernanceEvent(
       };
     }
 
+    void recordIntegrationEvidence({
+      integration: "KEV",
+      event: "governance_delivery",
+      status: "SUCCESS",
+      detail: { eventType, httpStatus: response.status },
+    });
     return { delivered: true as const };
   } catch (error) {
     console.warn("[PISAO GOVERNANCE] Kev bridge unavailable", {
       eventType,
       error: error instanceof Error ? error.name : "UnknownError",
+    });
+    void recordIntegrationEvidence({
+      integration: "KEV",
+      event: "governance_delivery",
+      status: "UNAVAILABLE",
+      detail: {
+        eventType,
+        error: error instanceof Error ? error.name : "UnknownError",
+      },
     });
     return { delivered: false, reason: "bridge_unavailable" as const };
   }

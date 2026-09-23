@@ -757,3 +757,20 @@ model WhatsAppWebhookEvent {
   @@index([field, receivedAt])
   @@map("whatsapp_webhook_events")
 }
+
+
+/// Evidencia técnica sin PII para certificar integraciones de producción.
+/// Registra entregas y ejecuciones, nunca mensajes, teléfonos, tokens ni payloads sensibles.
+model IntegrationEvidence {
+  id          String   @id @default(cuid())
+  integration String   @db.VarChar(32)
+  event       String   @db.VarChar(64)
+  status      String   @db.VarChar(24)
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  @@index([integration, status, createdAt])
+  @@index([integration, event, createdAt])
+  @@index([createdAt])
+  @@map("integration_evidence")
+}

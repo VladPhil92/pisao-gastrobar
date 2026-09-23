@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { reconcilePendingCryptoPayments } from "@/lib/payments/crypto-reconciliation";
 import { captureServerError } from "@/lib/observability/sentry-transport";
+import { recordIntegrationEvidence } from "@/lib/integrations/production-certification";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,18 @@ export async function POST(request: Request) {
 
   try {
     const summary = await reconcilePendingCryptoPayments();
+    await recordIntegrationEvidence({
+      integration: "CRYPTO",
+      event: "reconciliation_run",
+      status: "SUCCESS",
+      detail: {
+        checked: summary.checked,
+        confirmed: summary.confirmed,
+        observed: summary.observed,
+        underpaid: summary.underpaid,
+        errors: summary.errors,
+      },
+    });
     return NextResponse.json({
       ok: true,
       engine: "PISAO_CRYPTO_ORCHESTRATOR_V11",
@@ -52,6 +65,14 @@ export async function POST(request: Request) {
     void captureServerError(error, {
       surface: "crypto_reconciliation",
       code: "CRYPTO_RECONCILIATION_FAILED",
+    });
+    await recordIntegrationEvidence({
+      integration: "CRYPTO",
+      event: "reconciliation_run",
+      status: "FAILED",
+      detail: {
+        error: error instanceof Error ? error.name : "UnknownError",
+      },
     });
 
     return NextResponse.json(
