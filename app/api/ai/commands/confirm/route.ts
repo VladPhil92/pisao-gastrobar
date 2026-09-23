@@ -12,6 +12,8 @@ import {
 } from "@/lib/ai/transaction-command-bus";
 import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { verifyTurnstile } from "@/lib/security/turnstile";
+import { captureServerError } from "@/lib/observability/sentry-transport";
 
 type CartCommitPayload = {
   proposalId?: unknown;
@@ -78,6 +80,22 @@ export async function POST(request: Request) {
     confirmationToken?: unknown;
     sessionKey?: unknown;
   };
+
+  const security = await verifyTurnstile({
+    token: request.headers.get("x-turnstile-token"),
+    remoteIp: identity,
+    expectedAction: "concierge_command",
+  });
+
+  if (!security.ok) {
+    return NextResponse.json(
+      {
+        error: "No pudimos validar la verificación de seguridad. Intenta nuevamente.",
+        code: security.code,
+      },
+      { status: 403 },
+    );
+  }
 
   const claimed = await claimTransactionCommand({
     commandId: body.commandId,
@@ -286,7 +304,10 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   } catch (error) {
-    console.error("[PISAO AI COMMAND] Execution failed", error);
+    void captureServerError(error, {
+      surface: "concierge_command",
+      command: command.type,
+    });
 
     await completeTransactionCommand({
       commandId: command.id,
