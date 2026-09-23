@@ -25,6 +25,7 @@
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
     "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts",
+    "test:revenue": "tsx --test lib/analytics/revenue-attribution.test.ts",
     "security:audit-baseline": "node scripts/audit-security-baseline.mjs"
   },
   "dependencies": {
