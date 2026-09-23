@@ -25,6 +25,7 @@ type PolicyView = {
   minHoldoutAssignments: number;
   rollbackMarginPctPoints: number;
   rollbackReason: string | null;
+  operationalPauseReason: string | null;
   lastMeasuredAt: string | null;
   outcome: JsonRecord | null;
   action: {
@@ -96,6 +97,10 @@ export function AdaptiveRevenuePolicyCenter({
           POLICY_NOT_ACTIVATABLE:
             "Esta política no puede activarse desde su estado actual.",
           POLICY_NOT_ACTIVE: "La política ya no está activa.",
+          POLICY_INVALID_PRODUCTS:
+            "La política no contiene productos válidos.",
+          POLICY_PRODUCT_UNAVAILABLE_OR_LOW:
+            "La política no puede activarse mientras alguno de sus productos esté agotado o con inventario bajo.",
           POLICY_NOT_ROLLBACKABLE:
             "La política no admite rollback desde su estado actual.",
         };
@@ -240,6 +245,14 @@ export function AdaptiveRevenuePolicyCenter({
           const productionLift = numeric(
             policy.outcome?.observedConversionLiftPctPoints,
           );
+          const serveMargin =
+            typeof serve.contributionMarginPct === "number"
+              ? serve.contributionMarginPct
+              : null;
+          const holdoutMargin =
+            typeof holdout.contributionMarginPct === "number"
+              ? holdout.contributionMarginPct
+              : null;
 
           return (
             <article
@@ -293,6 +306,9 @@ export function AdaptiveRevenuePolicyCenter({
                   <p className="mt-1 text-xs text-pisao-cream-muted">
                     Expuestas {exposures} · conversión{" "}
                     {numeric(serve.conversionRatePct)}%
+                    {serveMargin === null
+                      ? ""
+                      : " · margen contrib. " + serveMargin + "%"}
                   </p>
                 </div>
 
@@ -305,6 +321,9 @@ export function AdaptiveRevenuePolicyCenter({
                   </p>
                   <p className="mt-1 text-xs text-pisao-cream-muted">
                     Conversión {numeric(holdout.conversionRatePct)}%
+                    {holdoutMargin === null
+                      ? ""
+                      : " · margen contrib. " + holdoutMargin + "%"}
                   </p>
                 </div>
 
@@ -337,6 +356,17 @@ export function AdaptiveRevenuePolicyCenter({
               {policy.rollbackReason && (
                 <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/5 p-4 text-xs leading-relaxed text-red-200">
                   Política retirada: {policy.rollbackReason}
+                </div>
+              )}
+
+              {policy.operationalPauseReason && policy.status === "PAUSED" && (
+                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-xs leading-relaxed text-amber-100">
+                  Pausa operativa:{" "}
+                  {policy.operationalPauseReason === "inventory_low"
+                    ? "uno de los productos tiene inventario bajo; la recomendación proactiva queda detenida."
+                    : policy.operationalPauseReason === "inventory_unavailable"
+                      ? "uno de los productos no está disponible; la política queda detenida."
+                      : "pausa administrativa."}
                 </div>
               )}
 

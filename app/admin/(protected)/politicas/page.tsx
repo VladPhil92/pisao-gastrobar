@@ -51,23 +51,23 @@ export default async function AdaptiveRevenuePage() {
       <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-pisao-gold text-xs font-semibold uppercase tracking-[0.22em]">
-            Adaptive Revenue Optimization V4
+            Profit-Aware Revenue Optimization V5
           </p>
           <h1 className="font-display mt-2 text-4xl text-pisao-cream">
             Centro de Políticas Adaptativas
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-pisao-cream-muted">
             Convierte únicamente experimentos V3 concluyentes en Next Best
-            Actions de producción, mantiene holdout de seguridad y puede retirar
-            automáticamente una política si aparece evidencia suficiente de daño
-            en conversión.
+            Actions de producción, mantiene holdout de seguridad, incorpora
+            margen de contribución cuando existe costo real configurado y pausa
+            automáticamente promociones cuando aparece riesgo de inventario.
           </p>
         </div>
 
         <div className="rounded-2xl border border-pisao-gold/15 bg-pisao-carbon-soft px-4 py-3 text-xs leading-relaxed text-pisao-cream-muted">
           <span className="font-semibold text-pisao-cream">Guardrails:</span>{" "}
-          90/10 · hasta 3 políticas · rollback automático · cero autoridad sobre
-          precio, descuento, inventario o pagos.
+          90/10 · hasta 3 políticas · rollback automático · guardrail de stock ·
+          cero autoridad para cambiar precio, descuento, inventario o pagos.
         </div>
       </div>
 

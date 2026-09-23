@@ -7,6 +7,7 @@ import {
   buildRevenueActionCandidates,
   type RevenueActionInputs,
 } from "@/lib/revenue/revenue-action-core";
+import { calculatePairEconomics } from "@/lib/revenue/profit-core";
 
 const DAY_MS = 86_400_000;
 const ENGINE_VERSION = "revenue_action_engine_v2";
@@ -74,6 +75,10 @@ async function collectInputs(): Promise<RevenueActionInputs> {
                 nombre: true,
                 slug: true,
                 destacado: true,
+                precio: true,
+                costoUnitario: true,
+                disponible: true,
+                inventarioBajo: true,
               },
             },
           },
@@ -114,6 +119,11 @@ async function collectInputs(): Promise<RevenueActionInputs> {
       units: number;
       revenue: number;
       featured: boolean;
+      available: boolean;
+      lowInventory: boolean;
+      contributionMarginPct: number | null;
+      price: number;
+      cost: number | null;
     }
   >();
 
@@ -125,6 +135,10 @@ async function collectInputs(): Promise<RevenueActionInputs> {
       productBId: string;
       productBName: string;
       orders: number;
+      promotable: boolean;
+      costCoverage: "COMPLETE" | "PARTIAL";
+      contributionMarginPct: number | null;
+      profitabilityAdjustment: number;
     }
   >();
 
@@ -137,6 +151,24 @@ async function collectInputs(): Promise<RevenueActionInputs> {
         units: 0,
         revenue: 0,
         featured: item.producto.destacado,
+        available: item.producto.disponible,
+        lowInventory: item.producto.inventarioBajo,
+        price: Number(item.producto.precio),
+        cost:
+          item.producto.costoUnitario === null
+            ? null
+            : Number(item.producto.costoUnitario),
+        contributionMarginPct:
+          item.producto.costoUnitario === null || Number(item.producto.precio) <= 0
+            ? null
+            : Number(
+                (
+                  ((Number(item.producto.precio) -
+                    Number(item.producto.costoUnitario)) /
+                    Number(item.producto.precio)) *
+                  100
+                ).toFixed(2),
+              ),
       };
       current.units += item.cantidad;
       current.revenue += Number(item.subtotal);
@@ -150,6 +182,13 @@ async function collectInputs(): Promise<RevenueActionInputs> {
           {
             id: item.productoId,
             name: item.producto.nombre,
+            price: Number(item.producto.precio),
+            cost:
+              item.producto.costoUnitario === null
+                ? null
+                : Number(item.producto.costoUnitario),
+            available: item.producto.disponible,
+            lowInventory: item.producto.inventarioBajo,
           },
         ]),
       ).values(),
@@ -160,12 +199,30 @@ async function collectInputs(): Promise<RevenueActionInputs> {
         const first = uniqueProducts[a];
         const second = uniqueProducts[b];
         const key = `${first.id}:${second.id}`;
+        const economics = calculatePairEconomics(
+          {
+            price: first.price,
+            cost: first.cost,
+            available: first.available,
+            lowInventory: first.lowInventory,
+          },
+          {
+            price: second.price,
+            cost: second.cost,
+            available: second.available,
+            lowInventory: second.lowInventory,
+          },
+        );
         const current = pairs.get(key) ?? {
           productAId: first.id,
           productAName: first.name,
           productBId: second.id,
           productBName: second.name,
           orders: 0,
+          promotable: economics.promotable,
+          costCoverage: economics.costCoverage,
+          contributionMarginPct: economics.contributionMarginPct,
+          profitabilityAdjustment: economics.profitabilityAdjustment,
         };
         current.orders += 1;
         pairs.set(key, current);
