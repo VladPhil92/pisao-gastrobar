@@ -215,12 +215,11 @@ export function ProductEconomicsManager({
                 draft?.cost.trim() === ""
                   ? null
                   : Number(draft?.cost.replace(/[.$\s]/g, ""));
-              const margin = marginPct(
-                product.precio,
-                Number.isFinite(parsedDraftCost)
+              const effectiveCost =
+                parsedDraftCost !== null && Number.isFinite(parsedDraftCost)
                   ? parsedDraftCost
-                  : product.costoUnitario,
-              );
+                  : product.costoUnitario;
+              const margin = marginPct(product.precio, effectiveCost);
 
               return (
                 <tr
@@ -255,9 +254,7 @@ export function ProductEconomicsManager({
                       <p className="text-xs text-pisao-cream-muted">
                         {money(
                           product.precio -
-                            (Number.isFinite(parsedDraftCost)
-                              ? parsedDraftCost!
-                              : product.costoUnitario ?? 0),
+                            (effectiveCost ?? 0),
                         )}{" "}
                         por unidad
                       </p>
