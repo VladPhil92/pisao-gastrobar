@@ -58,6 +58,7 @@ function availableIn(
     .filter(
       (product) =>
         product.disponible &&
+        product.inventarioBajo !== true &&
         !!product.categoriaSlug &&
         categories.has(product.categoriaSlug),
     )

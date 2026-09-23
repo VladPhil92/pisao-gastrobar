@@ -17,6 +17,7 @@ export interface MenuCardProduct {
   precio: number;
   imagenUrl?: string | null;
   disponible: boolean;
+  inventarioBajo?: boolean;
   categoriaSlug?: string;
 }
 

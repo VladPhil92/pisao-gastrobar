@@ -5,8 +5,24 @@ import {
   type OnchainCrypto,
 } from "@/lib/payments/onchain";
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
+import { OrderStatusControls } from "@/components/admin/OrderStatusControls";
 
 const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
+
+type JsonObject = Record<string, unknown>;
+
+function asObject(value: unknown): JsonObject {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonObject)
+    : {};
+}
+
+function cryptoReconciliationState(payload: unknown) {
+  const reconciliation = asObject(asObject(payload).reconciliation);
+  return typeof reconciliation.state === "string"
+    ? reconciliation.state
+    : null;
+}
 
 function getExplorerLink(moneda: string | null, txHash: string | null) {
   if (!moneda || !txHash || !CRYPTO_ASSETS.has(moneda as OnchainCrypto)) {
@@ -35,6 +51,7 @@ async function getPedidos() {
             criptoMoneda: true,
             txHash: true,
             confirmacionesOnchain: true,
+            payloadProveedor: true,
           },
         },
       },
@@ -79,6 +96,9 @@ export default async function AdminPedidosPage() {
                   p.pago?.criptoMoneda ?? null,
                   p.pago?.txHash ?? null,
                 );
+                const reconciliationState = cryptoReconciliationState(
+                  p.pago?.payloadProveedor,
+                );
 
                 return (
                   <tr key={p.id} className="border-t border-pisao-gold/10">
@@ -111,6 +131,26 @@ export default async function AdminPedidosPage() {
                           <p className="text-pisao-cream-muted">
                             {p.pago.confirmacionesOnchain ?? 0} confirmación(es)
                           </p>
+                          {reconciliationState === "CONFIRMED" && (
+                            <p className="font-semibold text-emerald-300">
+                              Confirmado on-chain · listo para revisión
+                            </p>
+                          )}
+                          {reconciliationState === "OBSERVED" && (
+                            <p className="text-amber-300">
+                              Detectado · esperando confirmaciones
+                            </p>
+                          )}
+                          {reconciliationState === "UNDERPAID" && (
+                            <p className="font-semibold text-red-300">
+                              Monto insuficiente
+                            </p>
+                          )}
+                          {reconciliationState === "RETRY_PENDING" && (
+                            <p className="text-pisao-cream-muted">
+                              Reintento automático pendiente
+                            </p>
+                          )}
                           {explorerLink && (
                             <a
                               href={explorerLink}
@@ -142,9 +182,16 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {p.estado === "PENDIENTE_VERIFICACION" && (
-                        <VerificarPagoButtons pedidoId={p.id} />
-                      )}
+                      <div className="space-y-2">
+                        {p.estado === "PENDIENTE_VERIFICACION" && (
+                          <VerificarPagoButtons pedidoId={p.id} />
+                        )}
+                        <OrderStatusControls
+                          pedidoId={p.id}
+                          estado={p.estado}
+                          tipoEntrega={p.tipoEntrega}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );

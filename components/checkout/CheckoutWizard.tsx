@@ -29,6 +29,11 @@ interface PedidoCreadoResponse {
   pedido: { id: string; numero: number; total: string | number };
   cripto?: CrearCargoCriptoResult;
   tarjeta?: CrearLinkPagoResult;
+  seguimiento: {
+    token: string;
+    url: string;
+    expiresAt: string;
+  };
 }
 
 export function CheckoutWizard() {
@@ -103,6 +108,12 @@ export function CheckoutWizard() {
       const orderedCount = cartItemCount(items);
       setPedidoData(data);
       setOrderedItems(items);
+      if (data.seguimiento?.token) {
+        window.localStorage.setItem(
+          "pisao.order-tracking-token.v1",
+          data.seguimiento.token,
+        );
+      }
       setState((s) => ({ ...s, metodoPago, pedidoId: data.pedido.id }));
       trackBehavior("checkout_complete", {
         surface: "checkout",
@@ -284,6 +295,7 @@ export function CheckoutWizard() {
             <StepConfirmacion
               numeroPedido={pedidoData.pedido.numero}
               metodoPago={state.metodoPago}
+              seguimientoUrl={pedidoData.seguimiento.url}
             />
           )}
         </div>

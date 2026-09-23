@@ -66,6 +66,17 @@ export async function GET() {
         maxCombinedTables: MAX_COMBINED_TABLES,
         maxAutomaticGroup: MAX_AUTOMATIC_RESERVATION_PEOPLE,
       },
+      customerExperience: {
+        orderTracking: {
+          mode: "private_token_polling",
+          engineVersion: "order_tracking_v12",
+          refreshSeconds: 8,
+          tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+          crossDeviceRecovery: "order_number_plus_phone",
+          whatsappDependency: false,
+          publicPiiLookup: false,
+        },
+      },
       payments: {
         activeMethod: "QR_TRANSFERENCIA",
         availableMethods:
@@ -87,6 +98,13 @@ export async function GET() {
           process.env.CRYPTO_PAYMENTS_ENABLED === "false"
             ? "disabled"
             : "locked_cop_quote_amount_gate",
+        cryptoReconciliation:
+          process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+            ? "disabled"
+            : process.env.CRYPTO_RECONCILIATION_SECRET
+              ? "scheduled_onchain_monitoring"
+              : "awaiting_scheduler_secret",
+        cryptoHumanApproval: "required",
         cryptoGatewayWebhook: "disabled",
         adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
           process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
@@ -182,6 +200,17 @@ export async function GET() {
         app: "pisao-gastrobar",
         database: "unavailable",
         reservations: { inventory: "unknown" },
+        customerExperience: {
+          orderTracking: {
+            mode: "private_token_polling",
+            engineVersion: "order_tracking_v12",
+            refreshSeconds: 8,
+            tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+            crossDeviceRecovery: "order_number_plus_phone",
+            whatsappDependency: false,
+            publicPiiLookup: false,
+          },
+        },
         payments: {
           activeMethod: "QR_TRANSFERENCIA",
           availableMethods:
@@ -203,6 +232,13 @@ export async function GET() {
             process.env.CRYPTO_PAYMENTS_ENABLED === "false"
               ? "disabled"
               : "locked_cop_quote_amount_gate",
+          cryptoReconciliation:
+            process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+              ? "disabled"
+              : process.env.CRYPTO_RECONCILIATION_SECRET
+                ? "scheduled_onchain_monitoring"
+                : "awaiting_scheduler_secret",
+          cryptoHumanApproval: "required",
           cryptoGatewayWebhook: "disabled",
           adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
             process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID

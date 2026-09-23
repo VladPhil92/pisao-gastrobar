@@ -221,6 +221,11 @@ export function ProductEconomicsManager({
                   ? parsedDraftCost
                   : product.costoUnitario,
               );
+              const effectiveCost =
+                parsedDraftCost !== null && Number.isFinite(parsedDraftCost)
+                  ? parsedDraftCost
+                  : product.costoUnitario;
+              const margin = marginPct(product.precio, effectiveCost);
 
               return (
                 <tr
@@ -258,6 +263,7 @@ export function ProductEconomicsManager({
                             (Number.isFinite(parsedDraftCost)
                               ? parsedDraftCost!
                               : product.costoUnitario ?? 0),
+                            (effectiveCost ?? 0),
                         )}{" "}
                         por unidad
                       </p>

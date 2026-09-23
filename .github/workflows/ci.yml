@@ -81,5 +81,8 @@ jobs:
       - name: Payment integrity tests
         run: npm run test:payments
 
+      - name: Customer order tracking tests
+        run: npm run test:tracking
+
       - name: Production build
         run: npm run build

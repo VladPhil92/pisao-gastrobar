@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Eye, Layers3, Utensils } from "lucide-react";
@@ -6,19 +7,46 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
 import { Reveal } from "@/components/visual/VisualMotion";
+import { prisma } from "@/lib/prisma";
 import { productosPlaceholder } from "@/lib/menu/placeholder-data";
 import { getMenuCategoryVisual } from "@/lib/menu/visual-language";
 import { formatCurrency } from "@/lib/utils";
 import { AddToCartButton } from "./AddToCartButton";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-async function getProducto(slug: string) {
-  // TODO: sustituir por prisma.producto.findUnique({ where: { slug } })
-  return productosPlaceholder.find((p) => p.slug === slug) ?? null;
-}
+const getProducto = cache(async (slug: string) => {
+  try {
+    const product = await prisma.producto.findUnique({
+      where: { slug },
+      include: { categoria: { select: { slug: true } } },
+    });
+
+    if (!product) return null;
+
+    return {
+      id: product.id,
+      nombre: product.nombre,
+      slug: product.slug,
+      descripcion: product.descripcion,
+      precio: Number(product.precio),
+      imagenUrl: product.imagenUrl,
+      disponible: product.disponible,
+      inventarioBajo: product.inventarioBajo,
+      categoriaSlug: product.categoria.slug,
+    };
+  } catch (error) {
+    console.error(
+      "[PISAO MENU] Detalle dinámico no disponible; usando fallback verificado.",
+      error,
+    );
+    return productosPlaceholder.find((product) => product.slug === slug) ?? null;
+  }
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
