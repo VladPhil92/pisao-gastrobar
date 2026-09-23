@@ -65,6 +65,7 @@ export function StepPagoCripto({
       setCopiado(true);
       window.setTimeout(() => setCopiado(false), 1800);
     } catch {
+      setError("No fue posible copiar la dirección. Puedes seleccionarla manualmente.");
       setError(
         "No fue posible copiar la dirección. Puedes seleccionarla manualmente.",
       );
@@ -218,6 +219,7 @@ export function StepPagoCripto({
               2. Paga por {destino.moneda}
             </p>
             <p className="mt-1 text-xs text-pisao-cream-muted">
+              Red obligatoria: <strong className="text-pisao-cream">{destino.red}</strong>
               Red obligatoria:{" "}
               <strong className="text-pisao-cream">{destino.red}</strong>
             </p>
