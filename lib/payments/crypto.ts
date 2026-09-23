@@ -15,6 +15,7 @@ export interface CryptoPaymentDestination {
   red: string;
   direccion: string;
   qrImageUrl: string;
+  recommended?: boolean;
   quote?: CryptoQuote | null;
 }
 
@@ -23,16 +24,17 @@ const BTC_WALLET = "13Kg9rf5C4mNQG9A21G655q7dARrbJmatF";
 
 export const CRYPTO_PAYMENT_DESTINATIONS: CryptoPaymentDestination[] = [
   {
-    moneda: "BNB",
-    red: "BNB Smart Chain (BEP20)",
-    direccion: EVM_WALLET,
-    qrImageUrl: "/QR/crypto/BNB.png",
-  },
-  {
     moneda: "USDT",
     red: "BNB Smart Chain (BEP20)",
     direccion: EVM_WALLET,
     qrImageUrl: "/QR/crypto/USDT.png",
+    recommended: true,
+  },
+  {
+    moneda: "BNB",
+    red: "BNB Smart Chain (BEP20)",
+    direccion: EVM_WALLET,
+    qrImageUrl: "/QR/crypto/BNB.png",
   },
   {
     moneda: "ETH",
