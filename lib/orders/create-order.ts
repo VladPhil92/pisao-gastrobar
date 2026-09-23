@@ -5,6 +5,7 @@ import { getCardPaymentProvider } from "@/lib/payments/providers";
 import { crearCargoCripto } from "@/lib/payments/crypto";
 import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 import type { CartItem } from "@/lib/cart/types";
+import { issueOrderTrackingAccess } from "@/lib/orders/tracking-access";
 
 type ValidatedOrderItem = CartItem & {
   costoUnitario: number | null;
@@ -123,10 +124,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       subtotal,
       descuento,
       total,
-      estado:
-        input.metodoPago === "QR_TRANSFERENCIA"
-          ? "PENDIENTE_VERIFICACION"
-          : "PENDIENTE_PAGO",
+      estado: "PENDIENTE_PAGO",
       attribution: attribution
         ? {
             create: {
@@ -151,6 +149,8 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     },
   });
 
+  const seguimiento = await issueOrderTrackingAccess(pedido.id);
+
   if (input.metodoPago === "QR_TRANSFERENCIA") {
     await prisma.pago.create({
       data: {
@@ -160,7 +160,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         monto: total,
       },
     });
-    return { pedido };
+    return { pedido, seguimiento };
   }
 
   if (input.metodoPago === "CRIPTO") {
@@ -201,7 +201,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       },
     });
 
-    return { pedido, cripto: cargo };
+    return { pedido, cripto: cargo, seguimiento };
   }
 
   // TARJETA
@@ -214,7 +214,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     clienteEmail: input.cliente.email,
     clienteNombre: input.cliente.nombre,
     clienteTelefono: input.cliente.telefono,
-    redirectUrl: `${baseUrl}/pedidos/confirmacion?pedido=${pedido.id}`,
+    redirectUrl: `${baseUrl}${seguimiento.url}`,
     webhookUrl: `${baseUrl}/api/pagos/tarjeta/webhook`,
   });
 
@@ -230,5 +230,5 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     },
   });
 
-  return { pedido, tarjeta: resultado };
+  return { pedido, tarjeta: resultado, seguimiento };
 }

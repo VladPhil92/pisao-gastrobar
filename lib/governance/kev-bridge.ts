@@ -18,6 +18,7 @@ export type PisaoGovernanceEventType =
   | "pisao.order.created"
   | "pisao.order.confirmed"
   | "pisao.order.cancelled"
+  | "pisao.order.status_changed"
   | "pisao.payment.crypto.confirmed_onchain"
   | "pisao.revenue.actions_generated"
   | "pisao.revenue.action_approved"

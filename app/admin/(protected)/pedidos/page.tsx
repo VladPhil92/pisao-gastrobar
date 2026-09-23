@@ -5,6 +5,7 @@ import {
   type OnchainCrypto,
 } from "@/lib/payments/onchain";
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
+import { OrderStatusControls } from "@/components/admin/OrderStatusControls";
 
 const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
 
@@ -181,9 +182,16 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {p.estado === "PENDIENTE_VERIFICACION" && (
-                        <VerificarPagoButtons pedidoId={p.id} />
-                      )}
+                      <div className="space-y-2">
+                        {p.estado === "PENDIENTE_VERIFICACION" && (
+                          <VerificarPagoButtons pedidoId={p.id} />
+                        )}
+                        <OrderStatusControls
+                          pedidoId={p.id}
+                          estado={p.estado}
+                          tipoEntrega={p.tipoEntrega}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );

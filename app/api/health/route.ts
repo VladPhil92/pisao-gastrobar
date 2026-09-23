@@ -66,6 +66,17 @@ export async function GET() {
         maxCombinedTables: MAX_COMBINED_TABLES,
         maxAutomaticGroup: MAX_AUTOMATIC_RESERVATION_PEOPLE,
       },
+      customerExperience: {
+        orderTracking: {
+          mode: "private_token_polling",
+          engineVersion: "order_tracking_v12",
+          refreshSeconds: 8,
+          tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+          crossDeviceRecovery: "order_number_plus_phone",
+          whatsappDependency: false,
+          publicPiiLookup: false,
+        },
+      },
       payments: {
         activeMethod: "QR_TRANSFERENCIA",
         availableMethods:
@@ -189,6 +200,17 @@ export async function GET() {
         app: "pisao-gastrobar",
         database: "unavailable",
         reservations: { inventory: "unknown" },
+        customerExperience: {
+          orderTracking: {
+            mode: "private_token_polling",
+            engineVersion: "order_tracking_v12",
+            refreshSeconds: 8,
+            tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+            crossDeviceRecovery: "order_number_plus_phone",
+            whatsappDependency: false,
+            publicPiiLookup: false,
+          },
+        },
         payments: {
           activeMethod: "QR_TRANSFERENCIA",
           availableMethods:

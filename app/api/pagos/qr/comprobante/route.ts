@@ -100,18 +100,24 @@ export async function POST(request: Request) {
     const comprobanteUrl = `/api/admin/pedidos/${pedidoId}/comprobante`;
     const receivedAt = new Date();
 
-    await prisma.pago.update({
-      where: { pedidoId },
-      data: {
-        comprobanteUrl,
-        comprobanteNombre: evidence.fileName,
-        comprobanteMime: evidence.mimeType,
-        comprobanteBytes: evidence.bytes,
-        comprobanteSha256: evidence.sha256,
-        comprobanteRecibidoEn: receivedAt,
-        estado: "EN_VERIFICACION",
-      },
-    });
+    await prisma.$transaction([
+      prisma.pago.update({
+        where: { pedidoId },
+        data: {
+          comprobanteUrl,
+          comprobanteNombre: evidence.fileName,
+          comprobanteMime: evidence.mimeType,
+          comprobanteBytes: evidence.bytes,
+          comprobanteSha256: evidence.sha256,
+          comprobanteRecibidoEn: receivedAt,
+          estado: "EN_VERIFICACION",
+        },
+      }),
+      prisma.pedido.update({
+        where: { id: pedidoId },
+        data: { estado: "PENDIENTE_VERIFICACION" },
+      }),
+    ]);
 
     const notification = await notifyPaymentAdmin(
       {
