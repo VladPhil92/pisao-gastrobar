@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
+import { cryptoAmountSufficiency } from "@/lib/payments/crypto-quote";
 import {
   OnchainVerificationError,
   verifyCryptoTransaction,
@@ -112,24 +113,82 @@ export async function POST(
       throw error;
     }
 
+    const existingPayload =
+      currentPayment.payloadProveedor &&
+      typeof currentPayment.payloadProveedor === "object" &&
+      !Array.isArray(currentPayment.payloadProveedor)
+        ? (currentPayment.payloadProveedor as Record<string, unknown>)
+        : {};
+    const quotes =
+      existingPayload.quotes &&
+      typeof existingPayload.quotes === "object" &&
+      !Array.isArray(existingPayload.quotes)
+        ? (existingPayload.quotes as Record<string, unknown>)
+        : {};
+    const selectedQuote =
+      quotes[currentPayment.criptoMoneda] &&
+      typeof quotes[currentPayment.criptoMoneda] === "object" &&
+      !Array.isArray(quotes[currentPayment.criptoMoneda])
+        ? (quotes[currentPayment.criptoMoneda] as Record<string, unknown>)
+        : null;
+    const expectedAmount =
+      typeof selectedQuote?.amount === "string" ? selectedQuote.amount : null;
+    const sufficiency = cryptoAmountSufficiency({
+      expectedAmount,
+      receivedAmount: onchain.amount,
+    });
+    const recheckPayload = {
+      ...existingPayload,
+      verifier: "PISAO_ONCHAIN_V2",
+      stage: "admin_recheck",
+      checkedAt: new Date().toISOString(),
+      network: onchain.red,
+      recipient: onchain.recipient,
+      amount: onchain.amount,
+      confirmations: onchain.confirmations,
+      requiredConfirmations: onchain.requiredConfirmations,
+      status: onchain.status,
+      explorerUrl: onchain.explorerUrl,
+      blockNumber: onchain.blockNumber,
+      settlement: {
+        quoteAvailable: sufficiency.available,
+        expectedAmount: sufficiency.expectedAmount,
+        receivedAmount: sufficiency.receivedAmount,
+        minimumAcceptedAmount: sufficiency.minimumAcceptedAmount,
+        tolerancePercent: sufficiency.tolerancePercent,
+        variancePercent: sufficiency.variancePercent,
+        sufficient: sufficiency.sufficient,
+      },
+    };
+
+    if (sufficiency.available && sufficiency.sufficient === false) {
+      await prisma.pago.update({
+        where: { pedidoId: id },
+        data: {
+          confirmacionesOnchain: onchain.confirmations,
+          payloadProveedor: recheckPayload,
+        },
+      });
+      return NextResponse.json(
+        {
+          error:
+            "La transacción está confirmada, pero el monto recibido es inferior al mínimo aceptado para este pedido.",
+          code: "CRYPTO_UNDERPAID",
+          receivedAmount: sufficiency.receivedAmount,
+          expectedAmount: sufficiency.expectedAmount,
+          minimumAcceptedAmount: sufficiency.minimumAcceptedAmount,
+          explorerUrl: onchain.explorerUrl,
+        },
+        { status: 409 },
+      );
+    }
+
     if (onchain.status !== "CONFIRMED") {
       await prisma.pago.update({
         where: { pedidoId: id },
         data: {
           confirmacionesOnchain: onchain.confirmations,
-          payloadProveedor: {
-            verifier: "PISAO_ONCHAIN_V1",
-            stage: "admin_recheck",
-            checkedAt: new Date().toISOString(),
-            network: onchain.red,
-            recipient: onchain.recipient,
-            amount: onchain.amount,
-            confirmations: onchain.confirmations,
-            requiredConfirmations: onchain.requiredConfirmations,
-            status: onchain.status,
-            explorerUrl: onchain.explorerUrl,
-            blockNumber: onchain.blockNumber,
-          },
+          payloadProveedor: recheckPayload,
         },
       });
 
@@ -158,7 +217,12 @@ export async function POST(
           ? {
               confirmacionesOnchain: onchain.confirmations,
               payloadProveedor: {
-                verifier: "PISAO_ONCHAIN_V1",
+                ...(currentPayment.payloadProveedor &&
+                typeof currentPayment.payloadProveedor === "object" &&
+                !Array.isArray(currentPayment.payloadProveedor)
+                  ? (currentPayment.payloadProveedor as Record<string, unknown>)
+                  : {}),
+                verifier: "PISAO_ONCHAIN_V2",
                 stage: "admin_approved",
                 checkedAt: new Date().toISOString(),
                 network: onchain.red,
