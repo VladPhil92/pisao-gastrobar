@@ -20,9 +20,13 @@ function cleanup(now: number) {
   }
 }
 
+export function cloudflareProxyTrusted() {
+  return process.env.CLOUDFLARE_TRUST_PROXY === "true";
+}
+
 export function requestIdentity(request: Request) {
   const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
-  if (cloudflareIp) return cloudflareIp;
+  if (cloudflareProxyTrusted() && cloudflareIp) return cloudflareIp;
 
   const forwarded = request.headers.get("x-forwarded-for");
   const forwardedIp = forwarded?.split(",")[0]?.trim();
