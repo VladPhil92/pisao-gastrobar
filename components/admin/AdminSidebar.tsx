@@ -12,6 +12,7 @@ import {
   MousePointerClick,
   Zap,
   FlaskConical,
+  Radar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -39,6 +40,12 @@ const items = [
     href: "/admin/experimentos",
     label: "Experimentos",
     icon: FlaskConical,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/politicas",
+    label: "Políticas IA",
+    icon: Radar,
     roles: ["ADMIN"],
   },
   {
