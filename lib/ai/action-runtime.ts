@@ -92,7 +92,7 @@ export function buildConciergeAction(params: {
     return {
       type: "reservation.confirm",
       execution: "user_tap",
-      label: "Confirmando reserva",
+      label: "Confirmar reserva",
       reason:
         "El huésped dio una orden explícita de confirmar una reserva cuyos datos y disponibilidad ya fueron validados.",
     };
@@ -102,7 +102,7 @@ export function buildConciergeAction(params: {
     return {
       type: "cart.add_proposal",
       execution: "user_tap",
-      label: "Añadiendo a Mesa Visual",
+      label: "Confirmar en Mesa Visual",
       reason:
         "El huésped dio una orden explícita de añadir la propuesta calculada al carrito.",
     };
