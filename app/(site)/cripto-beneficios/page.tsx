@@ -21,20 +21,30 @@ export default function CriptoBeneficiosPage() {
           </p>
           <p className="text-pisao-cream-muted mt-3">
             Al elegir pago en criptomonedas durante el checkout, el descuento se
-            aplica automáticamente sobre el subtotal de tu pedido. La
-            confirmación se realiza al detectar las confirmaciones on-chain de
-            la transacción, y el hash queda asociado a tu pedido para
-            trazabilidad.
+            aplica automáticamente sobre el subtotal de tu pedido. PISÁO
+            verifica red, wallet, monto y confirmaciones directamente contra la
+            blockchain; el TxID/TxHash queda asociado al pedido para
+            trazabilidad y la aprobación final continúa bajo control
+            administrativo.
           </p>
           <ul className="text-pisao-cream-muted mt-6 space-y-2 text-sm">
             <li>
               · Selecciona &quot;Criptomonedas&quot; como método de pago en el
               checkout.
             </li>
-            <li>· Escanea la dirección/QR entregado por nuestro gateway.</li>
             <li>
-              · Tu pedido se confirma automáticamente al validarse la
-              transacción.
+              · USDT sobre BNB Smart Chain aparece primero como opción de pago;
+              BNB, ETH y BTC también están disponibles.
+            </li>
+            <li>· Escanea el QR o copia la dirección y el monto cotizado.</li>
+            <li>
+              · PISÁO monitorea las confirmaciones on-chain automáticamente y
+              deja el pago listo para revisión cuando alcanza el mínimo
+              requerido.
+            </li>
+            <li>
+              · Un administrador aprueba finalmente el pago antes de liberar el
+              pedido a operación.
             </li>
           </ul>
           <Button href="/menu" variant="primary" className="mt-8">

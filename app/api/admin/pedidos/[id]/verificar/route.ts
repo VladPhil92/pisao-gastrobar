@@ -59,6 +59,10 @@ export async function POST(
   }
 
   let onchain: OnchainVerification | null = null;
+  let cryptoTreasurySnapshot: Record<
+    string,
+    string | number | null
+  > | null = null;
 
   if (aprobado && currentPayment.metodo === "CRIPTO") {
     if (
@@ -204,6 +208,35 @@ export async function POST(
         { status: 409 },
       );
     }
+
+    const rawQuoteCopPerUnit =
+      typeof selectedQuote?.copPerUnit === "number" ||
+      typeof selectedQuote?.copPerUnit === "string"
+        ? Number(selectedQuote.copPerUnit)
+        : null;
+
+    cryptoTreasurySnapshot = {
+      ledgerVersion: "PISAO_CRYPTO_TREASURY_V13",
+      bookedAt: new Date().toISOString(),
+      asset: destination.moneda,
+      network: onchain.red,
+      receivedAmount: onchain.amount,
+      orderValueCop: Number(currentPayment.monto),
+      discountPercent:
+        currentPayment.descuentoAplicadoPct === null
+          ? null
+          : Number(currentPayment.descuentoAplicadoPct),
+      quoteCopPerUnit:
+        rawQuoteCopPerUnit !== null && Number.isFinite(rawQuoteCopPerUnit)
+          ? rawQuoteCopPerUnit
+          : null,
+      quotedAt:
+        typeof selectedQuote?.quotedAt === "string"
+          ? selectedQuote.quotedAt
+          : null,
+      txHash: onchain.txHash,
+      confirmations: onchain.confirmations,
+    };
   }
 
   const [pago, pedido] = await prisma.$transaction([
@@ -233,6 +266,7 @@ export async function POST(
                 status: onchain.status,
                 explorerUrl: onchain.explorerUrl,
                 blockNumber: onchain.blockNumber,
+                treasury: cryptoTreasurySnapshot,
               },
             }
           : {}),
@@ -271,7 +305,10 @@ export async function POST(
       tipo_entrega: pedido.tipoEntrega,
       estado: pedido.estado,
       payment_method: currentPayment.metodo,
+      crypto_asset: currentPayment.criptoMoneda ?? null,
+      crypto_received_amount: onchain?.amount ?? null,
       crypto_confirmations: onchain?.confirmations ?? null,
+      crypto_treasury_booked: Boolean(cryptoTreasurySnapshot),
       attribution_tracked: Boolean(pedido.attribution),
       assist_surfaces: pedido.attribution?.assists ?? [],
       last_assist: pedido.attribution?.lastAssist ?? null,
