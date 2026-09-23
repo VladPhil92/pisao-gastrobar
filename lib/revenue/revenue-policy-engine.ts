@@ -91,6 +91,7 @@ export async function syncAdaptiveRevenuePolicies() {
     await prisma.revenuePolicy.create({
       data: {
         key: `adaptive_${experiment.id}`.slice(0, 64),
+        engineVersion: "profit_aware_revenue_v5",
         actionId: experiment.action.id,
         experimentId: experiment.id,
         priorityScore: experiment.action.priorityScore,
