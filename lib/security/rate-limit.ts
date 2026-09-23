@@ -21,9 +21,13 @@ function cleanup(now: number) {
 }
 
 export function requestIdentity(request: Request) {
+  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cloudflareIp) return cloudflareIp;
+
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim();
-  return ip || request.headers.get("x-real-ip") || "unknown";
+  const forwardedIp = forwarded?.split(",")[0]?.trim();
+
+  return forwardedIp || request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 export function checkRateLimit(params: {
