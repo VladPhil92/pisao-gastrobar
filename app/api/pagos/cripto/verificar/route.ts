@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
 import { cryptoAmountSufficiency } from "@/lib/payments/crypto-quote";
+import { settlementState } from "@/lib/payments/crypto-intent";
 import {
   OnchainVerificationError,
   normalizeCryptoTransactionHash,
@@ -161,6 +162,12 @@ export async function POST(request: Request) {
     });
 
     const checkedAt = new Date().toISOString();
+    const paymentState = settlementState({
+      confirmations: verification.confirmations,
+      requiredConfirmations: verification.requiredConfirmations,
+      sufficient: sufficiency.sufficient,
+      variancePercent: sufficiency.variancePercent,
+    });
     const settlementPayload = {
       ...existingPayload,
       verifier: "PISAO_ONCHAIN_V2",
@@ -173,6 +180,7 @@ export async function POST(request: Request) {
       status: verification.status,
       explorerUrl: verification.explorerUrl,
       blockNumber: verification.blockNumber,
+      paymentState,
       settlement: {
         quoteAvailable: sufficiency.available,
         expectedAmount: sufficiency.expectedAmount,
@@ -191,6 +199,7 @@ export async function POST(request: Request) {
         walletDireccion: destination.direccion,
         txHash: verification.txHash,
         confirmacionesOnchain: verification.confirmations,
+        estado: paymentState === "PAID" ? "EN_VERIFICACION" : "PENDIENTE",
         payloadProveedor: settlementPayload,
       },
     });
@@ -235,6 +244,7 @@ export async function POST(request: Request) {
         confirmations: verification.confirmations,
         requiredConfirmations: verification.requiredConfirmations,
         explorerUrl: verification.explorerUrl,
+        paymentState,
       },
     });
   } catch (error) {
