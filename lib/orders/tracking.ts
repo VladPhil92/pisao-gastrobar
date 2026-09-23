@@ -215,17 +215,20 @@ export function buildOrderTrackingSnapshot(input: OrderTrackingInput) {
     id: step.id,
     label: step.label,
     description: step.description,
-    state: cancelled
-      ? index === currentIndex
+    state:
+      underpaid && step.id === "onchain"
         ? ("issue" as const)
-        : step.complete
-          ? ("complete" as const)
-          : ("upcoming" as const)
-      : step.complete
-        ? ("complete" as const)
-        : index === currentIndex
-          ? ("current" as const)
-          : ("upcoming" as const),
+        : cancelled
+          ? index === currentIndex
+            ? ("issue" as const)
+            : step.complete
+              ? ("complete" as const)
+              : ("upcoming" as const)
+          : step.complete
+            ? ("complete" as const)
+            : index === currentIndex
+              ? ("current" as const)
+              : ("upcoming" as const),
   }));
 
   let stage: {
