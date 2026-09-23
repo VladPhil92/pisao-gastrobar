@@ -191,7 +191,8 @@ async function collectInputs(): Promise<RevenueActionInputs> {
                 : Number(item.producto.costoUnitario),
             available: item.producto.disponible,
             lowInventory:
-          item.producto.inventarioBajo || item.producto.inventarioBajoReceta,
+              item.producto.inventarioBajo ||
+              item.producto.inventarioBajoReceta,
           },
         ]),
       ).values(),
