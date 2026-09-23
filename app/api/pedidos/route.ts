@@ -62,19 +62,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      parsed.data.metodoPago === "CRIPTO" &&
-      process.env.CRYPTO_PAYMENTS_ENABLED !== "true"
-    ) {
-      return NextResponse.json(
-        {
-          error: "El pago con criptomonedas no está habilitado actualmente.",
-          code: "PAYMENT_METHOD_DISABLED",
-        },
-        { status: 409 },
-      );
-    }
-
     const baseUrl = new URL(request.url).origin;
     const resultado = await crearPedido(parsed.data, baseUrl);
 
