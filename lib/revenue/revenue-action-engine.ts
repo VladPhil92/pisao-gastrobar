@@ -383,11 +383,21 @@ export async function getActiveRevenuePlaybook() {
           result: true,
         },
       },
+      policies: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+        },
+      },
     },
   });
 
   const eligibleActions = actions
     .filter((action) => {
+      const latestPolicy = action.policies[0];
+      if (latestPolicy && latestPolicy.status !== "DRAFT") return false;
+
       const latestExperiment = action.experiments[0];
       if (!latestExperiment) return true;
       if (latestExperiment.status !== "COMPLETED") return false;
