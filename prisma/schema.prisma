@@ -127,6 +127,7 @@ model Producto {
   updatedAt DateTime @updatedAt
 
   @@index([categoriaId])
+  @@index([disponible, inventarioBajo])
   @@map("productos")
 }
 
