@@ -94,12 +94,15 @@ export async function persistConciergeState(params: {
     return { persisted: false as const, reason: "identity_unavailable" as const };
   }
 
+  const guestKey = params.guestKey;
+  const sessionKey = params.sessionKey;
+
   try {
     await prisma.$transaction(async (tx) => {
       const guest = await tx.aiGuestProfile.upsert({
-        where: { guestKey: params.guestKey },
+        where: { guestKey },
         create: {
-          guestKey: params.guestKey,
+          guestKey,
           interactionCount: params.profile.interactionCount,
           conversationStyle: params.profile.conversationStyle,
           preferredFoodSignals: params.profile.preferredFoodSignals,
@@ -120,9 +123,9 @@ export async function persistConciergeState(params: {
       });
 
       const session = await tx.aiConversationSession.upsert({
-        where: { sessionKey: params.sessionKey },
+        where: { sessionKey },
         create: {
-          sessionKey: params.sessionKey,
+          sessionKey,
           guestProfileId: guest.id,
           messageCount: params.messageCount,
           lastAgent: params.agent,
