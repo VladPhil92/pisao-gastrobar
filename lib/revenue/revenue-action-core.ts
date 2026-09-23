@@ -38,9 +38,9 @@ export type RevenueActionInputs = {
     units: number;
     revenue: number;
     featured: boolean;
-    available: boolean;
-    lowInventory: boolean;
-    contributionMarginPct: number | null;
+    available?: boolean;
+    lowInventory?: boolean;
+    contributionMarginPct?: number | null;
   }>;
   pairs: Array<{
     productAId: string;
@@ -48,10 +48,10 @@ export type RevenueActionInputs = {
     productBId: string;
     productBName: string;
     orders: number;
-    promotable: boolean;
-    costCoverage: "COMPLETE" | "PARTIAL";
-    contributionMarginPct: number | null;
-    profitabilityAdjustment: number;
+    promotable?: boolean;
+    costCoverage?: "COMPLETE" | "PARTIAL";
+    contributionMarginPct?: number | null;
+    profitabilityAdjustment?: number;
   }>;
 };
 
@@ -69,8 +69,8 @@ export function buildRevenueActionCandidates(
       (product) =>
         !product.featured &&
         product.units >= 3 &&
-        product.available &&
-        !product.lowInventory,
+        product.available !== false &&
+        product.lowInventory !== true,
     )
     .sort((a, b) => b.revenue - a.revenue || b.units - a.units)[0];
 
@@ -83,7 +83,7 @@ export function buildRevenueActionCandidates(
       priorityScore: clampScore(
         55 +
           Math.min(25, topUnfeatured.units * 2) +
-          (topUnfeatured.contributionMarginPct === null
+          (topUnfeatured.contributionMarginPct == null
             ? 0
             : Math.max(
                 -8,
@@ -110,11 +110,12 @@ export function buildRevenueActionCandidates(
   }
 
   const topPair = [...input.pairs]
-    .filter((pair) => pair.promotable)
+    .filter((pair) => pair.promotable !== false)
     .sort(
       (a, b) =>
         b.orders - a.orders ||
-        b.profitabilityAdjustment - a.profitabilityAdjustment,
+        (b.profitabilityAdjustment ?? 0) -
+          (a.profitabilityAdjustment ?? 0),
     )[0];
   if (topPair && topPair.orders >= 2 && input.paidOrders >= 4) {
     candidates.push({
@@ -123,7 +124,7 @@ export function buildRevenueActionCandidates(
       riskLevel: "LOW",
       executionMode: "SYSTEM_AFTER_APPROVAL",
       priorityScore: clampScore(
-        60 + topPair.orders * 5 + topPair.profitabilityAdjustment,
+        60 + topPair.orders * 5 + (topPair.profitabilityAdjustment ?? 0),
       ),
       title: `Activar maridaje: ${topPair.productAName} + ${topPair.productBName}`,
       rationale: `La combinación aparece en ${topPair.orders} pedidos pagados observados. Es una señal de afinidad real de cesta, no una recomendación inventada por el modelo.`,
@@ -134,8 +135,8 @@ export function buildRevenueActionCandidates(
         pairOrders30d: topPair.orders,
         paidOrders30d: input.paidOrders,
         baselineDailyPairOrders: Number((topPair.orders / 30).toFixed(3)),
-        costCoverage: topPair.costCoverage,
-        contributionMarginPct: topPair.contributionMarginPct,
+        costCoverage: topPair.costCoverage ?? "PARTIAL",
+        contributionMarginPct: topPair.contributionMarginPct ?? null,
       },
       payload: {
         productAId: topPair.productAId,
