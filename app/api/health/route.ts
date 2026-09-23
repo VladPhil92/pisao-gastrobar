@@ -71,6 +71,13 @@ export async function GET() {
           process.env.CRYPTO_PAYMENTS_ENABLED === "false"
             ? "disabled"
             : "locked_cop_quote_amount_gate",
+        cryptoReconciliation:
+          process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+            ? "disabled"
+            : process.env.CRYPTO_RECONCILIATION_SECRET
+              ? "scheduled_onchain_monitoring"
+              : "awaiting_scheduler_secret",
+        cryptoHumanApproval: "required",
         cryptoGatewayWebhook: "disabled",
         adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
           process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
@@ -172,6 +179,13 @@ export async function GET() {
             process.env.CRYPTO_PAYMENTS_ENABLED === "false"
               ? "disabled"
               : "locked_cop_quote_amount_gate",
+          cryptoReconciliation:
+            process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+              ? "disabled"
+              : process.env.CRYPTO_RECONCILIATION_SECRET
+                ? "scheduled_onchain_monitoring"
+                : "awaiting_scheduler_secret",
+          cryptoHumanApproval: "required",
           cryptoGatewayWebhook: "disabled",
           adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
             process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
