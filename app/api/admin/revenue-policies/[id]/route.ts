@@ -60,7 +60,7 @@ export async function POST(
           : "pisao.revenue.policy_rolled_back";
 
     void emitKevGovernanceEvent(eventType, {
-      source: "adaptive_revenue_v4",
+      source: "profit_aware_revenue_v5",
       policy_ref: policy.key,
       status: policy.status,
       traffic_pct: policy.trafficPct,
