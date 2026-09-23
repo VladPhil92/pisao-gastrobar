@@ -66,5 +66,8 @@ jobs:
       - name: Revenue attribution tests
         run: npm run test:revenue
 
+      - name: Payment integrity tests
+        run: npm run test:payments
+
       - name: Production build
         run: npm run build
