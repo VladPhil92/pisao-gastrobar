@@ -36,7 +36,8 @@ const getProducto = cache(async (slug: string) => {
       precio: Number(product.precio),
       imagenUrl: product.imagenUrl,
       disponible: product.disponible,
-      inventarioBajo: product.inventarioBajo,
+      inventarioBajo:
+        product.inventarioBajo || product.inventarioBajoReceta,
       categoriaSlug: product.categoria.slug,
     };
   } catch (error) {
