@@ -26,6 +26,10 @@ CREATE TABLE "revenue_experiment_assignments" (
   "arm" VARCHAR(16) NOT NULL,
   "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "lastSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "eligibleAt" TIMESTAMP(3),
+  "eligibilityCount" INTEGER NOT NULL DEFAULT 0,
+  "exposedAt" TIMESTAMP(3),
+  "exposureCount" INTEGER NOT NULL DEFAULT 0,
 
   CONSTRAINT "revenue_experiment_assignments_pkey" PRIMARY KEY ("id")
 );
