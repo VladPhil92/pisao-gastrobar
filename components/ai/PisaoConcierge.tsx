@@ -34,10 +34,7 @@ import {
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 import type { ConciergeActionPlan } from "@/lib/ai/action-runtime";
-import {
-  TurnstileGate,
-  type TurnstileGateHandle,
-} from "@/components/security/TurnstileGate";
+import { TurnstileGate } from "@/components/security/TurnstileGate";
 
 type TransactionCommandClient = {
   id: string;
@@ -138,7 +135,11 @@ export function PisaoConcierge() {
   const [conciergeIdentity, setConciergeIdentity] =
     useState<ConciergeIdentity | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const turnstileRef = useRef<TurnstileGateHandle>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  );
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const addItems = useCartStore((state) => state.addItems);
   const openCart = useCartStore((state) => state.open);
 
@@ -248,10 +249,7 @@ export function PisaoConcierge() {
   ) {
     if (!conciergeIdentity?.sessionKey || commandSubmittingId) return;
 
-    if (
-      turnstileRef.current?.required() &&
-      !turnstileRef.current.ready()
-    ) {
+    if (turnstileRequired && !turnstileToken) {
       setMessages((current) => [
         ...current,
         {
@@ -263,7 +261,6 @@ export function PisaoConcierge() {
       return;
     }
 
-    const turnstileToken = turnstileRef.current?.token();
     setCommandSubmittingId(command.id);
 
     try {
@@ -386,7 +383,8 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
-      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
       setCommandSubmittingId(null);
     }
   }
@@ -408,10 +406,7 @@ export function PisaoConcierge() {
     const key = reservationKey(draft);
     if (createdReservations[key]) return;
 
-    if (
-      turnstileRef.current?.required() &&
-      !turnstileRef.current.ready()
-    ) {
+    if (turnstileRequired && !turnstileToken) {
       setMessages((current) => [
         ...current,
         {
@@ -423,7 +418,6 @@ export function PisaoConcierge() {
       return;
     }
 
-    const turnstileToken = turnstileRef.current?.token();
     setReservationSubmitting(true);
 
     try {
@@ -493,7 +487,8 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
-      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
       setReservationSubmitting(false);
     }
   }
@@ -875,8 +870,9 @@ export function PisaoConcierge() {
             </div>
 
             <TurnstileGate
-              ref={turnstileRef}
               action="concierge_command"
+              resetKey={turnstileResetKey}
+              onTokenChange={setTurnstileToken}
               className="mb-2 min-h-0"
             />
 
