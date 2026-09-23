@@ -44,20 +44,33 @@ import {
   isCommercePlanningTurn,
   serializeCommerceProposal,
 } from "@/lib/ai/tool-orchestrator";
+import {
+  buildNativeToolDefinitions,
+  executeNativeToolCall,
+  extractNativeToolCalls,
+  isExplicitTableMutationIntent,
+  type NativeToolOutput,
+} from "@/lib/ai/native-tools";
 
 type ClientMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-type OpenAIResponse = {
-  output?: Array<{
+type OpenAIOutputItem = {
+  type?: string;
+  call_id?: string;
+  name?: string;
+  arguments?: string;
+  content?: Array<{
     type?: string;
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
+    text?: string;
   }>;
+  [key: string]: unknown;
+};
+
+type OpenAIResponse = {
+  output?: OpenAIOutputItem[];
   error?: { message?: string };
 };
 
@@ -74,6 +87,38 @@ function extractOutputText(payload: OpenAIResponse) {
     }
   }
   return "";
+}
+
+async function requestOpenAI(params: {
+  apiKey: string;
+  clientRequestId: string;
+  model: string;
+  instructions: string;
+  input: unknown[];
+  tools: Array<Record<string, unknown>>;
+}) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.apiKey}`,
+      "Content-Type": "application/json",
+      "X-Client-Request-Id": params.clientRequestId,
+    },
+    body: JSON.stringify({
+      model: params.model,
+      store: false,
+      max_output_tokens: 500,
+      instructions: params.instructions,
+      input: params.input,
+      tools: params.tools,
+      tool_choice: "auto",
+      parallel_tool_calls: false,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  const payload = (await response.json()) as OpenAIResponse;
+  return { response, payload };
 }
 
 function sanitizeMessages(value: unknown): ClientMessage[] {
@@ -387,7 +432,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const responseProposal =
+    let responseProposal =
       proposalForDisplay ??
       (action?.type === "cart.add_proposal" ? activeProposal : null);
 
@@ -459,22 +504,17 @@ export async function POST(request: Request) {
     }
 
     const clientRequestId = crypto.randomUUID();
-    const upstream = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "X-Client-Request-Id": clientRequestId,
-      },
-      body: JSON.stringify({
-        model: aiModel,
-        store: false,
-        max_output_tokens: 500,
-        instructions: `${buildPisaoInstructions({
-          agent,
-          menuContext: catalog.context,
-          hoursContext,
-        })}
+    const nativeTools = buildNativeToolDefinitions({
+      allowTableMutation:
+        Boolean(activeProposal) &&
+        !commerceTool.handled &&
+        isExplicitTableMutationIntent(latestUserMessage.content),
+    });
+    const openAIInstructions = `${buildPisaoInstructions({
+      agent,
+      menuContext: catalog.context,
+      hoursContext,
+    })}
 
 COMERCIO CONVERSACIONAL
 ${proposalContextForModel(activeProposal)}
@@ -490,6 +530,14 @@ ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
 
 ${actionContextForModel(action)}
 
+NATIVE TOOL CALLING
+- Usa search_menu para confirmar productos concretos cuando la solicitud lo requiera.
+- Usa get_active_table cuando necesites consultar la mesa activa antes de responder.
+- Usa check_reservation_availability para consultar cupo real; nunca la confundas con crear una reserva.
+- modify_active_table solo estará disponible cuando el último mensaje contenga una orden explícita de edición.
+- Una herramienta puede devolver error o denegar una mutación. Respeta siempre ese resultado.
+- No afirmes que una acción de carrito, reserva o pago fue ejecutada si no existe confirmación de la aplicación.
+
 REGLAS ADICIONALES
 - Si hay intención de reserva, prioriza completar la reserva antes de vender comida.
 - Nunca afirmes que una reserva fue registrada antes de que el usuario pulse el botón de confirmación y el backend responda exitosamente.
@@ -497,73 +545,105 @@ REGLAS ADICIONALES
 - Si la disponibilidad no pudo verificarse, dilo claramente y no prometas cupo.
 - La reserva automática admite como máximo ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas porque solo pueden unirse hasta 3 mesas. Para grupos mayores, indica que requieren coordinación especial por WhatsApp.
 - Si faltan datos, haz solo la pregunta mínima necesaria.
-- Para alergias, intolerancias o veganismo, deriva a validación humana.`,
-        input: messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
+- Para alergias, intolerancias o veganismo, deriva a validación humana.`;
 
-    const payload = (await upstream.json()) as OpenAIResponse;
+    const baseInput = messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+    let responseInput: unknown[] = [...baseInput];
+    let finalPayload: OpenAIResponse | null = null;
+    let nativeToolFailure = false;
+    let lastToolName: string | null = commerceTool.tool;
+    let nativeToolCount = 0;
 
-    if (!upstream.ok) {
-      console.error(
-        "[PISAO AI] OpenAI error",
-        upstream.status,
-        payload.error,
-        { clientRequestId },
-      );
-
-      void emitKevGovernanceEvent("pisao.concierge.provider_error", {
-        source: "concierge_api",
-        mode: "openai",
+    for (let round = 0; round < 3; round += 1) {
+      const { response: upstream, payload } = await requestOpenAI({
+        apiKey,
+        clientRequestId,
         model: aiModel,
-        reservation_intent: reservationIntent,
-        availability: availabilityState,
-        message_count: messages.length,
-        outcome: "fallback_served",
-        error_code: String(upstream.status),
-        ...hospitalityGovernance,
+        instructions: openAIInstructions,
+        input: responseInput,
+        tools: nativeTools,
       });
 
-      await persistConciergeState({
-        guestKey: body.guestKey,
-        sessionKey: body.sessionKey,
-        profile: hospitalityProfile,
-        analysis: hospitalityAnalysis,
-        agent: agent.id,
-        model: aiModel,
-        outcome: "provider_error",
-        fallback: true,
-        latencyMs: Date.now() - startedAt,
-        reservationIntent,
-        proposalCreated: Boolean(activeProposal),
-        messageCount: messages.length,
-        commerceState: activeProposal
-          ? serializeCommerceProposal(activeProposal)
-          : undefined,
-        lastTool: commerceTool.tool,
-      });
+      if (!upstream.ok) {
+        console.error(
+          "[PISAO AI] OpenAI error",
+          upstream.status,
+          payload.error,
+          { clientRequestId, round },
+        );
+        nativeToolFailure = true;
 
-      return Response.json({
-        text: fallbackText,
-        proposal: responseProposal,
-        reservation: reservationPayload,
-        action,
-        fallback: true,
-        agent: agent.id,
-        agentLabel: agent.label,
-        menuSource: catalog.source,
-        hospitality: {
-          analysis: hospitalityAnalysis,
-          profile: hospitalityProfile,
-        },
-      });
+        void emitKevGovernanceEvent("pisao.concierge.provider_error", {
+          source: "concierge_api",
+          mode: "openai",
+          model: aiModel,
+          reservation_intent: reservationIntent,
+          availability: availabilityState,
+          message_count: messages.length,
+          outcome: round === 0 ? "fallback_served" : "tool_loop_failed",
+          error_code: String(upstream.status),
+          ...hospitalityGovernance,
+        });
+        break;
+      }
+
+      finalPayload = payload;
+      const calls = extractNativeToolCalls(payload);
+      if (!calls.length) break;
+      if (round === 2) {
+        nativeToolFailure = true;
+        console.warn("[PISAO AI] Native tool loop reached safety cap", {
+          clientRequestId,
+          calls: calls.length,
+        });
+        break;
+      }
+
+      const outputs: NativeToolOutput[] = [];
+      for (const call of calls) {
+        const execution = await executeNativeToolCall({
+          call,
+          products: catalog.products,
+          activeProposal,
+          latestUserMessage: latestUserMessage.content,
+          checkAvailability: checkReservationAvailability,
+        });
+
+        nativeToolCount += 1;
+        lastToolName = execution.toolName;
+
+        if (execution.commerceProposal !== undefined) {
+          activeProposal = execution.commerceProposal;
+        }
+        if (execution.commerceMutated) {
+          proposalForDisplay = activeProposal;
+          responseProposal = activeProposal;
+          if (execution.summary) fallbackText = execution.summary;
+        }
+
+        void emitKevGovernanceEvent("pisao.concierge.tool_executed", {
+          source: "concierge_api",
+          tool: execution.toolName,
+          native: true,
+          round,
+          agent: agent.id,
+          active_items: activeProposal?.items.length ?? 0,
+        });
+
+        outputs.push(execution.output);
+      }
+
+      responseInput = [
+        ...responseInput,
+        ...(payload.output ?? []),
+        ...outputs,
+      ];
     }
 
-    const modelText = extractOutputText(payload);
+    const modelText = finalPayload ? extractOutputText(finalPayload) : "";
     const text = modelText || fallbackText;
 
     void emitKevGovernanceEvent(
@@ -575,7 +655,12 @@ REGLAS ADICIONALES
         reservation_intent: reservationIntent,
         availability: availabilityState,
         message_count: messages.length,
-        outcome: modelText ? "model_response" : "empty_model_response",
+        outcome: nativeToolFailure
+          ? "tool_loop_failed"
+          : modelText
+            ? "model_response"
+            : "empty_model_response",
+        native_tool_count: nativeToolCount,
         ...hospitalityGovernance,
       },
     );
@@ -587,7 +672,11 @@ REGLAS ADICIONALES
       analysis: hospitalityAnalysis,
       agent: agent.id,
       model: aiModel,
-      outcome: modelText ? "model_response" : "empty_model_response",
+      outcome: nativeToolFailure
+        ? "tool_loop_failed"
+        : modelText
+          ? "model_response"
+          : "empty_model_response",
       fallback: !modelText,
       latencyMs: Date.now() - startedAt,
       reservationIntent,
@@ -596,7 +685,7 @@ REGLAS ADICIONALES
       commerceState: activeProposal
         ? serializeCommerceProposal(activeProposal)
         : undefined,
-      lastTool: commerceTool.tool,
+      lastTool: lastToolName,
     });
 
     return Response.json({

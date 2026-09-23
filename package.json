@@ -22,7 +22,8 @@
     "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts lib/reservas/conversation.test.ts",
     "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts",
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
-    "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts"
+    "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
+    "test:native-tools": "tsx --test lib/ai/native-tools.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
