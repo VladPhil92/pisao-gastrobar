@@ -59,6 +59,10 @@ export async function POST(
   }
 
   let onchain: OnchainVerification | null = null;
+  let cryptoTreasurySnapshot: Record<
+    string,
+    string | number | null
+  > | null = null;
 
   if (aprobado && currentPayment.metodo === "CRIPTO") {
     if (
@@ -204,6 +208,31 @@ export async function POST(
         { status: 409 },
       );
     }
+
+    cryptoTreasurySnapshot = {
+      ledgerVersion: "PISAO_CRYPTO_TREASURY_V13",
+      bookedAt: new Date().toISOString(),
+      asset: destination.moneda,
+      network: onchain.red,
+      receivedAmount: onchain.amount,
+      orderValueCop: Number(currentPayment.monto),
+      discountPercent:
+        currentPayment.descuentoAplicadoPct === null
+          ? null
+          : Number(currentPayment.descuentoAplicadoPct),
+      quoteCopPerUnit:
+        typeof selectedQuote?.copPerUnit === "number"
+          ? selectedQuote.copPerUnit
+          : typeof selectedQuote?.copPerUnit === "string"
+            ? Number(selectedQuote.copPerUnit)
+            : null,
+      quotedAt:
+        typeof selectedQuote?.quotedAt === "string"
+          ? selectedQuote.quotedAt
+          : null,
+      txHash: onchain.txHash,
+      confirmations: onchain.confirmations,
+    };
   }
 
   const [pago, pedido] = await prisma.$transaction([
@@ -233,6 +262,7 @@ export async function POST(
                 status: onchain.status,
                 explorerUrl: onchain.explorerUrl,
                 blockNumber: onchain.blockNumber,
+                treasury: cryptoTreasurySnapshot,
               },
             }
           : {}),
