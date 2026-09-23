@@ -66,3 +66,58 @@ número telefónico ni transcripciones nuevas.
 5. Suscribir el campo `messages`.
 6. Cambiar `WHATSAPP_WEBHOOK_ENABLED=true`.
 7. Probar un mensaje entrante antes de publicar el flujo al público.
+
+
+## V2 — Coexistence
+
+PISÁO soporta el flujo de Embedded Signup para usuarios que ya operan el mismo
+número en WhatsApp Business App.
+
+### Principios
+
+- No se llama `/{phone-number-id}/register` durante Coexistence.
+- El token BISU que devuelve Embedded Signup se cifra con AES-256-GCM antes de
+  persistirse.
+- `smb_message_echoes` activa un handoff humano temporal para evitar que el
+  Concierge responda encima de una persona que escribió desde la app.
+- `history` y `smb_app_state_sync` se reconocen y se acusan, pero V2 no
+  persiste historial de chats ni libreta de contactos. Esto reduce exposición
+  de datos hasta que exista una necesidad operacional explícita.
+- La idempotencia de mensajes y echoes se persiste en PostgreSQL.
+
+### Admin
+
+`/admin/whatsapp` muestra el estado de preparación y contiene el launcher de
+Embedded Signup. El botón solo se habilita cuando existen:
+
+```text
+NEXT_PUBLIC_META_APP_ID
+NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
+WHATSAPP_META_APP_SECRET
+WHATSAPP_TOKEN_ENCRYPTION_KEY
+```
+
+### Embedded Signup
+
+El launcher usa explícitamente:
+
+```text
+featureType = whatsapp_business_app_onboarding
+sessionInfoVersion = 3
+```
+
+para solicitar el flujo de Coexistence. Al finalizar:
+
+1. El navegador obtiene un authorization code.
+2. Meta comunica el `waba_id` mediante el evento `WA_EMBEDDED_SIGNUP`.
+3. El backend intercambia el code por un token de negocio.
+4. Enumera el número de la WABA.
+5. Suscribe la app a la WABA.
+6. Cifra y persiste el token.
+7. Cloud API pasa a usar estas credenciales antes del fallback por variables de entorno.
+
+### Gate humano pendiente
+
+Antes de lanzar Embedded Signup desde PISÁO, Meta debe habilitar la app como
+Tech Provider/Embedded Signup y emitir un Configuration ID válido. El App Secret
+se configura exclusivamente en Render y nunca se copia al navegador.
