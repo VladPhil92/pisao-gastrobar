@@ -1,8 +1,58 @@
 /**
- * Abstracción del gateway de criptomonedas. El proveedor real (ej.
- * Coinbase Commerce, BTCPay, NOWPayments...) se conecta implementando
- * esta misma forma, controlado por CRYPTO_GATEWAY_PROVIDER.
+ * Pago manual con criptomonedas.
+ *
+ * El cliente elige el activo, escanea el QR/copia la dirección y luego sube
+ * el comprobante. El backend conserva la evidencia y notifica al equipo de
+ * pagos por el mismo canal utilizado para QR/Bre-B.
  */
+
+export type CriptoMoneda = "BNB" | "USDT" | "ETH" | "BTC";
+
+export interface CryptoPaymentDestination {
+  moneda: CriptoMoneda;
+  red: string;
+  direccion: string;
+  qrImageUrl: string;
+}
+
+const EVM_WALLET = "0xf27f2ab291cb3fee22298b3169b119c6b854b21c";
+const BTC_WALLET = "13Kg9rf5C4mNQG9A21G655q7dARrbJmatF";
+
+export const CRYPTO_PAYMENT_DESTINATIONS: CryptoPaymentDestination[] = [
+  {
+    moneda: "BNB",
+    red: "BNB Smart Chain (BEP20)",
+    direccion: EVM_WALLET,
+    qrImageUrl: "/QR/crypto/BNB.png",
+  },
+  {
+    moneda: "USDT",
+    red: "BNB Smart Chain (BEP20)",
+    direccion: EVM_WALLET,
+    qrImageUrl: "/QR/crypto/USDT.png",
+  },
+  {
+    moneda: "ETH",
+    red: "Ethereum (ERC20)",
+    direccion: EVM_WALLET,
+    qrImageUrl: "/QR/crypto/ETH.png",
+  },
+  {
+    moneda: "BTC",
+    red: "Bitcoin",
+    direccion: BTC_WALLET,
+    qrImageUrl: "/QR/crypto/BTC.png",
+  },
+];
+
+export function getCryptoPaymentDestination(
+  moneda: string | null | undefined,
+): CryptoPaymentDestination | null {
+  if (!moneda) return null;
+  return (
+    CRYPTO_PAYMENT_DESTINATIONS.find((item) => item.moneda === moneda) ?? null
+  );
+}
 
 export interface CrearCargoCriptoInput {
   pedidoId: string;
@@ -12,13 +62,10 @@ export interface CrearCargoCriptoInput {
 }
 
 export interface CrearCargoCriptoResult {
-  proveedor: string;
-  /** Dirección de wallet o checkout hospedado por el gateway. */
-  direccionPago: string;
-  criptoMoneda: string;
-  montoCripto: string;
-  checkoutUrl?: string;
+  proveedor: "BINANCE_MANUAL";
+  modo: "MANUAL_RECEIPT";
   referencia: string;
+  opciones: CryptoPaymentDestination[];
 }
 
 export interface EstadoCargoCripto {
@@ -45,27 +92,21 @@ export function aplicarDescuentoCripto(subtotal: number) {
 export async function crearCargoCripto(
   input: CrearCargoCriptoInput,
 ): Promise<CrearCargoCriptoResult> {
-  // TODO: integrar con el gateway configurado en CRYPTO_GATEWAY_PROVIDER
-  // (ej. Coinbase Commerce `POST /charges`). Debe devolver la dirección
-  // o checkout hospedado donde el cliente completa el pago on-chain.
-  const referencia = `pisao-cripto-${input.pedidoId}`;
-
   return {
-    proveedor: process.env.CRYPTO_GATEWAY_PROVIDER ?? "PLACEHOLDER",
-    direccionPago: "0xPLACEHOLDER_WALLET_ADDRESS",
-    criptoMoneda: "USDT",
-    montoCripto: "0.00",
-    checkoutUrl: undefined,
-    referencia,
+    proveedor: "BINANCE_MANUAL",
+    modo: "MANUAL_RECEIPT",
+    referencia: `pisao-cripto-${input.pedidoId}`,
+    opciones: CRYPTO_PAYMENT_DESTINATIONS,
   };
 }
 
-/** Consulta el estado on-chain de un cargo (usado por polling o webhook). */
+/**
+ * Mientras el flujo sea manual, la aprobación depende del comprobante y de la
+ * validación administrativa. Esta interfaz se conserva para poder migrar a un
+ * verificador on-chain sin alterar el contrato del resto de la aplicación.
+ */
 export async function consultarEstadoCargoCripto(
-  _referencia: string,
+  referencia: string,
 ): Promise<EstadoCargoCripto> {
-  // TODO: consultar al gateway el número de confirmaciones on-chain y
-  // el hash de transacción asociado antes de marcar el pedido como
-  // CONFIRMADO. Guardar siempre `txHash` en el modelo Pago.
-  return { referencia: _referencia, estado: "PENDIENTE" };
+  return { referencia, estado: "PENDIENTE" };
 }
