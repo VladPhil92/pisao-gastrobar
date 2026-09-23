@@ -34,6 +34,10 @@ import {
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 import type { ConciergeActionPlan } from "@/lib/ai/action-runtime";
+import {
+  TurnstileGate,
+  type TurnstileGateHandle,
+} from "@/components/security/TurnstileGate";
 
 type TransactionCommandClient = {
   id: string;
@@ -134,6 +138,7 @@ export function PisaoConcierge() {
   const [conciergeIdentity, setConciergeIdentity] =
     useState<ConciergeIdentity | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const turnstileRef = useRef<TurnstileGateHandle>(null);
   const addItems = useCartStore((state) => state.addItems);
   const openCart = useCartStore((state) => state.open);
 
@@ -162,7 +167,12 @@ export function PisaoConcierge() {
     try {
       const response = await fetch("/api/ai/concierge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content: messageContent }) => ({
             role,
@@ -243,6 +253,22 @@ export function PisaoConcierge() {
   ) {
     if (!conciergeIdentity?.sessionKey || commandSubmittingId) return;
 
+    if (
+      turnstileRef.current?.required() &&
+      !turnstileRef.current.ready()
+    ) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            "La verificación de seguridad todavía no está lista. Intenta confirmar nuevamente en un momento.",
+        },
+      ]);
+      return;
+    }
+
+    const turnstileToken = turnstileRef.current?.token();
     setCommandSubmittingId(command.id);
 
     try {
@@ -360,6 +386,7 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
+      turnstileRef.current?.reset();
       setCommandSubmittingId(null);
     }
   }
@@ -824,6 +851,12 @@ export function PisaoConcierge() {
                 WhatsApp
               </a>
             </div>
+
+            <TurnstileGate
+              ref={turnstileRef}
+              action="concierge_command"
+              className="mb-2 min-h-0"
+            />
 
             <form onSubmit={handleSubmit} className="flex gap-2 pb-3">
               <label htmlFor="pisao-ai-input" className="sr-only">
