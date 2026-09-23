@@ -29,7 +29,7 @@ export type CryptoPaymentIntent = {
   expiresAt: string;
   quoteTtlSeconds: number;
   selectedAsset: string | null;
-  quotes: Record<string, unknown>;
+  quotes: Record<string, null | { copPerUnit: number; amount: string; provider: string; quotedAt: string }>;
 };
 
 export function createCryptoPaymentIntent(input: {
