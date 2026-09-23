@@ -223,6 +223,46 @@ async function getBusinessContext() {
     ? Math.round((trackedPaidOrders.length / paidOrders.length) * 100)
     : 0;
 
+  const catalogProducts = categories.flatMap((category) => category.productos);
+  const costConfiguredProducts = catalogProducts.filter(
+    (product) => product.costoUnitario !== null,
+  );
+  const costCoveragePct = catalogProducts.length
+    ? Math.round((costConfiguredProducts.length / catalogProducts.length) * 100)
+    : 0;
+  const lowInventoryProducts = catalogProducts.filter(
+    (product) => product.inventarioBajo,
+  ).length;
+  const unavailableProducts = catalogProducts.filter(
+    (product) => !product.disponible,
+  ).length;
+
+  const marginCompletePaidOrders = paidOrders.filter(
+    (order) =>
+      order.items.length > 0 &&
+      order.items.every((item) => item.costoUnitarioSnapshot !== null),
+  );
+  const marginKnownRevenue = marginCompletePaidOrders.reduce(
+    (sum, order) => sum + Number(order.total),
+    0,
+  );
+  const marginKnownCost = marginCompletePaidOrders.reduce(
+    (sum, order) =>
+      sum +
+      order.items.reduce(
+        (itemSum, item) =>
+          itemSum +
+          Number(item.costoUnitarioSnapshot ?? 0) * item.cantidad,
+        0,
+      ),
+    0,
+  );
+  const observedContribution = marginKnownRevenue - marginKnownCost;
+  const observedContributionMarginPct =
+    marginKnownRevenue > 0
+      ? Number(((observedContribution / marginKnownRevenue) * 100).toFixed(2))
+      : null;
+
   const productStats = new Map<
     string,
     { name: string; quantity: number; revenue: number }
@@ -249,8 +289,18 @@ async function getBusinessContext() {
     .map((category) => {
       const products = category.productos
         .map(
-          (product) =>
-            `- ${product.nombre} | $${Number(product.precio).toLocaleString("es-CO")} | ${product.disponible ? "disponible" : "NO disponible"} | ${product.destacado ? "destacado" : "normal"}`,
+          (product) => {
+            const price = Number(product.precio);
+            const cost =
+              product.costoUnitario === null
+                ? null
+                : Number(product.costoUnitario);
+            const margin =
+              cost === null || price <= 0
+                ? null
+                : Number((((price - cost) / price) * 100).toFixed(1));
+            return `- ${product.nombre} | precio ${price.toLocaleString("es-CO")} | costo ${cost === null ? "SIN CONFIGURAR" : "$" + cost.toLocaleString("es-CO")} | margen contrib. ${margin === null ? "N/D" : margin + "%"} | ${product.disponible ? "disponible" : "NO disponible"} | ${product.inventarioBajo ? "INVENTARIO BAJO" : "stock operativo normal"} | ${product.destacado ? "destacado" : "normal"}`;
+          },
         )
         .join("\n");
       return `${category.nombre}\n${products}`;
@@ -350,6 +400,16 @@ async function getBusinessContext() {
     `Ingreso pagado asociado a alguna asistencia digital: ${Math.round(assistedRevenue).toLocaleString("es-CO")} COP`,
     `Ingreso pagado asociado a señal de PISÁO Concierge: ${Math.round(conciergeRevenue).toLocaleString("es-CO")} COP`,
     "NOTA DE ATRIBUCIÓN: las asistencias son señales observadas antes del pedido; no prueban causalidad ni ingreso incremental.",
+    "PROFIT INTELLIGENCE V5:",
+    `Cobertura actual de costo unitario: ${costCoveragePct}% (${costConfiguredProducts.length}/${catalogProducts.length} productos)`,
+    `Productos no disponibles: ${unavailableProducts}`,
+    `Productos con inventario bajo: ${lowInventoryProducts}`,
+    `Pedidos pagados con snapshot completo de costos: ${marginCompletePaidOrders.length}/${paidOrders.length}`,
+    `Ingreso pagado con costo histórico completo: ${Math.round(marginKnownRevenue).toLocaleString("es-CO")} COP`,
+    `Costo histórico observado en esos pedidos: ${Math.round(marginKnownCost).toLocaleString("es-CO")} COP`,
+    `Contribución observada con cobertura completa: ${Math.round(observedContribution).toLocaleString("es-CO")} COP`,
+    `Margen de contribución observado: ${observedContributionMarginPct === null ? "N/D" : observedContributionMarginPct + "%"}`,
+    "NOTA DE MARGEN: estas métricas solo incluyen pedidos cuyos ítems tienen snapshot de costo completo; no extrapoles el margen a pedidos sin cobertura.",
     `Reservas futuras observadas: ${reservations.length}`,
     `Ejecuciones Concierge IA observadas: ${aiRuns.length}`,
     `Fallbacks IA observados: ${aiFallbacks}`,
@@ -422,6 +482,8 @@ REGLAS OPERATIVAS
 - No afirmes causalidad cuando solo hay correlación o una muestra limitada.
 - Puedes describir un resultado como evidencia experimental únicamente cuando provenga del bloque EXPERIMENTOS CONTROLADOS, la muestra figure como lista y la asignación CONTROL/TREATMENT sea válida. Aun así, limita la conclusión a la población y periodo instrumentados.
 - Las POLÍTICAS ADAPTATIVAS son producción gobernada basada en experimentos previos. Su holdout continuo sirve como guardrail; no lo presentes como un nuevo A/B fijo equivalente al experimento original.
+- PROFIT INTELLIGENCE V5 usa costos configurados y snapshots históricos. Si la cobertura no es completa, limita cualquier conclusión de rentabilidad a los pedidos/productos cubiertos.
+- Un producto con INVENTARIO BAJO puede seguir vendiéndose si está disponible, pero no debe recomendarse proactivamente como Next Best Action hasta normalizar existencias.
 - Si una política aparece ROLLED_BACK, no recomiendes reactivarla sin un nuevo experimento o revisión humana explícita.
 - Prioriza acciones concretas, medibles y ordenadas por impacto/esfuerzo.
 - Puedes proponer cambios de menú, campañas, promociones o procesos, pero NO afirmes que fueron ejecutados.
