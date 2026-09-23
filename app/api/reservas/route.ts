@@ -9,8 +9,17 @@ import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
 import { verifyTurnstile } from "@/lib/security/turnstile";
 import { captureServerError } from "@/lib/observability/sentry-transport";
+import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 
 export async function POST(request: Request) {
+  const edgeOrigin = validateCanonicalWriteOrigin(request);
+  if (!edgeOrigin.ok) {
+    return Response.json(
+      { error: "Origen de solicitud no permitido.", code: edgeOrigin.code },
+      { status: 403 },
+    );
+  }
+
   const identity = requestIdentity(request);
   const rate = checkRateLimit({
     key: `reservation:${identity}`,
