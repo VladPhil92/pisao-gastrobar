@@ -109,11 +109,14 @@ model Producto {
   nombre      String
   slug        String  @unique
   descripcion String
-  precio      Decimal @db.Decimal(10, 2)
-  imagenUrl   String?
-  disponible  Boolean @default(true)
-  destacado   Boolean @default(false)
-  orden       Int     @default(0)
+  precio          Decimal  @db.Decimal(10, 2)
+  costoUnitario   Decimal? @db.Decimal(10, 2)
+  imagenUrl       String?
+  disponible      Boolean  @default(true)
+  inventarioBajo  Boolean  @default(false)
+  destacado       Boolean  @default(false)
+  orden           Int      @default(0)
+  costoActualizadoAt DateTime?
 
   categoriaId String
   categoria   Categoria @relation(fields: [categoriaId], references: [id])
@@ -160,8 +163,9 @@ model ItemPedido {
   id       String @id @default(cuid())
   cantidad Int
 
-  precioUnitario Decimal @db.Decimal(10, 2)
-  subtotal       Decimal @db.Decimal(10, 2)
+  precioUnitario       Decimal  @db.Decimal(10, 2)
+  costoUnitarioSnapshot Decimal? @db.Decimal(10, 2)
+  subtotal              Decimal  @db.Decimal(10, 2)
 
   pedidoId String
   pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
