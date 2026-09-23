@@ -9,6 +9,10 @@ import {
   type RevenuePolicyArm,
 } from "@/lib/revenue/revenue-policy-core";
 import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
+import {
+  calculateOrderContribution,
+  calculatePairEconomics,
+} from "@/lib/revenue/profit-core";
 
 const SESSION_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
 const GUARDRAIL_INTERVAL_MS = 15 * 60 * 1000;
@@ -87,6 +91,7 @@ export async function syncAdaptiveRevenuePolicies() {
     await prisma.revenuePolicy.create({
       data: {
         key: `adaptive_${experiment.id}`.slice(0, 64),
+        engineVersion: "profit_aware_revenue_v5",
         actionId: experiment.action.id,
         experimentId: experiment.id,
         priorityScore: experiment.action.priorityScore,
@@ -125,6 +130,7 @@ export async function getAdaptiveRevenuePolicyCenter() {
       pausedAt: true,
       rolledBackAt: true,
       rollbackReason: true,
+      operationalPauseReason: true,
       lastMeasuredAt: true,
       lastGuardrailCheckAt: true,
       outcome: true,
@@ -169,9 +175,42 @@ export async function getAdaptiveRevenuePolicyCenter() {
 
 export async function activateAdaptiveRevenuePolicy(id: string, userId: string) {
   return prisma.$transaction(async (tx) => {
-    const policy = await tx.revenuePolicy.findUnique({ where: { id } });
+    const policy = await tx.revenuePolicy.findUnique({
+      where: { id },
+      include: { action: { select: { payload: true } } },
+    });
     if (!policy || !["DRAFT", "PAUSED"].includes(policy.status)) {
       throw new Error("POLICY_NOT_ACTIVATABLE");
+    }
+
+    const productAId = jsonString(policy.action.payload, "productAId");
+    const productBId = jsonString(policy.action.payload, "productBId");
+    if (!productAId || !productBId) {
+      throw new Error("POLICY_INVALID_PRODUCTS");
+    }
+
+    const products = await tx.producto.findMany({
+      where: { id: { in: [productAId, productBId] } },
+      select: {
+        id: true,
+        disponible: true,
+        inventarioBajo: true,
+      },
+    });
+    if (
+      products.length !== 2 ||
+      products.some((product) => !product.disponible || product.inventarioBajo)
+    ) {
+      void emitKevGovernanceEvent("pisao.revenue.policy_inventory_blocked", {
+        source: "profit_aware_revenue_v5",
+        policy_ref: policy.key,
+        reason:
+          products.length !== 2 ||
+          products.some((product) => !product.disponible)
+            ? "inventory_unavailable"
+            : "inventory_low",
+      });
+      throw new Error("POLICY_PRODUCT_UNAVAILABLE_OR_LOW");
     }
 
     const activeCount = await tx.revenuePolicy.count({
@@ -189,6 +228,7 @@ export async function activateAdaptiveRevenuePolicy(id: string, userId: string) 
         activatedById: policy.activatedById ?? userId,
         pausedAt: null,
         rollbackReason: null,
+        operationalPauseReason: null,
       },
     });
   });
@@ -200,6 +240,7 @@ export async function pauseAdaptiveRevenuePolicy(id: string) {
     data: {
       status: "PAUSED",
       pausedAt: new Date(),
+      operationalPauseReason: "manual_admin_pause",
     },
   });
 
@@ -265,7 +306,14 @@ export async function measureAdaptiveRevenuePolicy(id: string) {
             select: {
               createdAt: true,
               total: true,
-              items: { select: { productoId: true } },
+              items: {
+                select: {
+                  productoId: true,
+                  cantidad: true,
+                  subtotal: true,
+                  costoUnitarioSnapshot: true,
+                },
+              },
             },
           },
         },
@@ -279,9 +327,21 @@ export async function measureAdaptiveRevenuePolicy(id: string) {
     })
     .map((item) => {
       const productIds = new Set(item.pedido.items.map((entry) => entry.productoId));
+      const economics = calculateOrderContribution(
+        item.pedido.items.map((entry) => ({
+          subtotal: Number(entry.subtotal),
+          quantity: entry.cantidad,
+          unitCostSnapshot:
+            entry.costoUnitarioSnapshot === null
+              ? null
+              : Number(entry.costoUnitarioSnapshot),
+        })),
+      );
+
       return {
         sessionId: item.sessionId,
         total: Number(item.pedido.total),
+        contribution: economics.contribution,
         containsTargetPair: Boolean(
           productAId &&
             productBId &&
@@ -344,7 +404,7 @@ export async function measureAdaptiveRevenuePolicy(id: string) {
 
     if (autoRolledBack) {
       void emitKevGovernanceEvent("pisao.revenue.policy_auto_rolled_back", {
-        source: "adaptive_revenue_v4",
+        source: "profit_aware_revenue_v5",
         policy_ref: policy.key,
         guardrail: result.guardrail,
         conversion_lift_pp: result.observedConversionLiftPctPoints,
@@ -414,6 +474,8 @@ export type AdaptiveRevenueContext = {
     served: boolean;
     productAName: string;
     productBName: string;
+    costCoverage: "COMPLETE" | "PARTIAL";
+    contributionMarginPct: number | null;
   };
 };
 
@@ -465,11 +527,108 @@ export async function getAdaptiveRevenueContext(params: {
     },
   });
 
+  const productIds = [
+    ...new Set(
+      policies.flatMap((policy) =>
+        [
+          jsonString(policy.action.payload, "productAId"),
+          jsonString(policy.action.payload, "productBId"),
+        ].filter((value): value is string => Boolean(value)),
+      ),
+    ),
+  ];
+
+  const products = productIds.length
+    ? await prisma.producto.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          precio: true,
+          costoUnitario: true,
+          disponible: true,
+          inventarioBajo: true,
+        },
+      })
+    : [];
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const inventoryBlockedPolicies = new Set<string>();
+
+  for (const policy of policies) {
+    const productAId = jsonString(policy.action.payload, "productAId");
+    const productBId = jsonString(policy.action.payload, "productBId");
+    const productA = productAId ? productById.get(productAId) : null;
+    const productB = productBId ? productById.get(productBId) : null;
+
+    const reason =
+      !productA ||
+      !productB ||
+      !productA.disponible ||
+      !productB.disponible
+        ? "inventory_unavailable"
+        : productA.inventarioBajo || productB.inventarioBajo
+          ? "inventory_low"
+          : null;
+
+    if (!reason) continue;
+
+    const paused = await prisma.revenuePolicy.updateMany({
+      where: { id: policy.id, status: "ACTIVE" },
+      data: {
+        status: "PAUSED",
+        pausedAt: new Date(),
+        operationalPauseReason: reason,
+      },
+    });
+
+    if (paused.count === 1) {
+      inventoryBlockedPolicies.add(policy.id);
+      void emitKevGovernanceEvent("pisao.revenue.policy_inventory_blocked", {
+        source: "profit_aware_revenue_v5",
+        policy_ref: policy.key,
+        reason,
+      });
+    }
+  }
+
   const candidates = policies
     .map((policy) => {
+      if (inventoryBlockedPolicies.has(policy.id)) return null;
+
+      const productAId = jsonString(policy.action.payload, "productAId");
+      const productBId = jsonString(policy.action.payload, "productBId");
       const productAName = jsonString(policy.action.payload, "productAName");
       const productBName = jsonString(policy.action.payload, "productBName");
-      if (!productAName || !productBName) return null;
+      if (!productAId || !productBId || !productAName || !productBName) {
+        return null;
+      }
+
+      const productA = productById.get(productAId);
+      const productB = productById.get(productBId);
+      if (!productA || !productB) return null;
+
+      const economics = calculatePairEconomics(
+        {
+          price: Number(productA.precio),
+          cost:
+            productA.costoUnitario === null
+              ? null
+              : Number(productA.costoUnitario),
+          available: productA.disponible,
+          lowInventory: productA.inventarioBajo,
+        },
+        {
+          price: Number(productB.precio),
+          cost:
+            productB.costoUnitario === null
+              ? null
+              : Number(productB.costoUnitario),
+          available: productB.disponible,
+          lowInventory: productB.inventarioBajo,
+        },
+      );
+
+      if (!economics.promotable) return null;
+
       return {
         id: policy.id,
         priorityScore: policy.priorityScore,
@@ -480,6 +639,9 @@ export async function getAdaptiveRevenueContext(params: {
           ) ?? 0,
         productAName,
         productBName,
+        profitabilityAdjustment: economics.profitabilityAdjustment,
+        contributionMarginPct: economics.contributionMarginPct,
+        costCoverage: economics.costCoverage,
         policy,
       };
     })
@@ -492,13 +654,23 @@ export async function getAdaptiveRevenueContext(params: {
         observedLiftPctPoints: number;
         productAName: string;
         productBName: string;
+        profitabilityAdjustment: number;
+        contributionMarginPct: number | null;
+        costCoverage: "COMPLETE" | "PARTIAL";
         policy: (typeof policies)[number];
       } => Boolean(item),
     );
 
   const selected = selectAdaptivePairingCandidate(
     params.latestUserMessage,
-    candidates.map(({ policy: _policy, ...candidate }) => candidate),
+    candidates.map(
+      ({
+        policy: _policy,
+        contributionMarginPct: _margin,
+        costCoverage: _coverage,
+        ...candidate
+      }) => candidate,
+    ),
   );
 
   if (!selected) {
@@ -572,6 +744,8 @@ export async function getAdaptiveRevenueContext(params: {
         served: false,
         productAName: selectedPolicy.productAName,
         productBName: selectedPolicy.productBName,
+        costCoverage: selectedPolicy.costCoverage,
+        contributionMarginPct: selectedPolicy.contributionMarginPct,
       },
     };
   }
@@ -597,6 +771,8 @@ export async function getAdaptiveRevenueContext(params: {
       served: true,
       productAName: selectedPolicy.productAName,
       productBName: selectedPolicy.productBName,
+      costCoverage: selectedPolicy.costCoverage,
+      contributionMarginPct: selectedPolicy.contributionMarginPct,
     },
   };
 }

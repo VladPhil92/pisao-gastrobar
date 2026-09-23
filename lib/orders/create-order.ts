@@ -6,6 +6,11 @@ import { crearCargoCripto } from "@/lib/payments/crypto";
 import { createCryptoPaymentIntent } from "@/lib/payments/crypto-intent";
 import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 import type { CartItem } from "@/lib/cart/types";
+import { issueOrderTrackingAccess } from "@/lib/orders/tracking-access";
+
+type ValidatedOrderItem = CartItem & {
+  costoUnitario: number | null;
+};
 
 export class OrderCatalogValidationError extends Error {
   constructor(
@@ -20,7 +25,9 @@ export class OrderCatalogValidationError extends Error {
   }
 }
 
-async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<CartItem[]> {
+async function validateCatalogItems(
+  items: CrearPedidoInput["items"],
+): Promise<ValidatedOrderItem[]> {
   const quantities = new Map<string, number>();
   for (const item of items) {
     quantities.set(
@@ -37,6 +44,7 @@ async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<C
       nombre: true,
       slug: true,
       precio: true,
+      costoUnitario: true,
       imagenUrl: true,
       disponible: true,
       categoria: { select: { slug: true } },
@@ -78,6 +86,8 @@ async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<C
       imagenUrl: product.imagenUrl,
       categoriaSlug: product.categoria.slug,
       cantidad: quantities.get(product.id) ?? requested.cantidad,
+      costoUnitario:
+        product.costoUnitario === null ? null : Number(product.costoUnitario),
     };
   });
 }
@@ -115,10 +125,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       subtotal,
       descuento,
       total,
-      estado:
-        input.metodoPago === "QR_TRANSFERENCIA"
-          ? "PENDIENTE_VERIFICACION"
-          : "PENDIENTE_PAGO",
+      estado: "PENDIENTE_PAGO",
       attribution: attribution
         ? {
             create: {
@@ -136,11 +143,14 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
           productoId: item.productoId,
           cantidad: item.cantidad,
           precioUnitario: item.precio,
+          costoUnitarioSnapshot: item.costoUnitario,
           subtotal: item.precio * item.cantidad,
         })),
       },
     },
   });
+
+  const seguimiento = await issueOrderTrackingAccess(pedido.id);
 
   if (input.metodoPago === "QR_TRANSFERENCIA") {
     await prisma.pago.create({
@@ -151,7 +161,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         monto: total,
       },
     });
-    return { pedido };
+    return { pedido, seguimiento };
   }
 
   if (input.metodoPago === "CRIPTO") {
@@ -189,6 +199,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     });
 
     return { pedido, cripto: { ...cargo, paymentIntent } };
+    return { pedido, cripto: cargo, seguimiento };
   }
 
   // TARJETA
@@ -201,7 +212,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     clienteEmail: input.cliente.email,
     clienteNombre: input.cliente.nombre,
     clienteTelefono: input.cliente.telefono,
-    redirectUrl: `${baseUrl}/pedidos/confirmacion?pedido=${pedido.id}`,
+    redirectUrl: `${baseUrl}${seguimiento.url}`,
     webhookUrl: `${baseUrl}/api/pagos/tarjeta/webhook`,
   });
 
@@ -217,5 +228,5 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     },
   });
 
-  return { pedido, tarjeta: resultado };
+  return { pedido, tarjeta: resultado, seguimiento };
 }

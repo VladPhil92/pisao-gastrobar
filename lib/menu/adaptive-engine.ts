@@ -7,6 +7,7 @@ export interface AdaptiveMenuProduct {
   slug: string;
   precio: number;
   disponible: boolean;
+  inventarioBajo?: boolean;
   categoriaSlug?: string;
   imagenUrl?: string | null;
 }
@@ -190,6 +191,10 @@ export function rankAdaptiveMenu<T extends AdaptiveMenuProduct>(
   const ranked = products.map((product, index) => {
     const category = categoryOf(product.categoriaSlug);
     let score = product.disponible ? 100 : -1000;
+
+    // Low stock remains directly purchasable, but is deliberately pushed
+    // out of proactive discovery surfaces until operations normalize it.
+    if (product.inventarioBajo) score -= 60;
 
     score += scoreDaypart(category, context);
 

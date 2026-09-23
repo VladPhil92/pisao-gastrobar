@@ -18,6 +18,7 @@ export type PisaoGovernanceEventType =
   | "pisao.order.created"
   | "pisao.order.confirmed"
   | "pisao.order.cancelled"
+  | "pisao.order.status_changed"
   | "pisao.payment.crypto.confirmed_onchain"
   | "pisao.revenue.actions_generated"
   | "pisao.revenue.action_approved"
@@ -36,7 +37,9 @@ export type PisaoGovernanceEventType =
   | "pisao.revenue.policy_rolled_back"
   | "pisao.revenue.policy_auto_rolled_back"
   | "pisao.revenue.policies_measured"
-  | "pisao.revenue.policy_assigned";
+  | "pisao.revenue.policy_assigned"
+  | "pisao.catalog.economics_updated"
+  | "pisao.revenue.policy_inventory_blocked";
 
 type GovernanceScalar = string | number | boolean | null;
 type GovernancePayload = Record<

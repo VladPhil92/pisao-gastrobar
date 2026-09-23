@@ -9,6 +9,7 @@ export type PolicyPaidOrderInput = {
   sessionId: string;
   total: number;
   containsTargetPair?: boolean;
+  contribution?: number | null;
 };
 
 export type PolicyMetricArm = {
@@ -20,6 +21,10 @@ export type PolicyMetricArm = {
   averageOrderValue: number;
   targetPairOrders: number;
   targetPairRatePct: number;
+  marginKnownOrders: number;
+  contribution: number;
+  averageContribution: number;
+  contributionMarginPct: number | null;
 };
 
 export type AdaptiveCandidate = {
@@ -28,6 +33,7 @@ export type AdaptiveCandidate = {
   observedLiftPctPoints: number;
   productAName: string;
   productBName: string;
+  profitabilityAdjustment?: number;
 };
 
 export type PolicyHealthResult = {
@@ -138,8 +144,15 @@ export function scoreAdaptivePairingCandidate(
     0,
     Math.min(100, candidate.priorityScore),
   ) * 0.2;
+  const profitabilityScore = Math.max(
+    -10,
+    Math.min(10, candidate.profitabilityAdjustment ?? 0),
+  );
 
-  return round(directScore + intentScore + liftScore + priorityScore, 3);
+  return round(
+    directScore + intentScore + liftScore + priorityScore + profitabilityScore,
+    3,
+  );
 }
 
 export function selectAdaptivePairingCandidate(
@@ -181,6 +194,16 @@ function summarizeArm(
   const convertedSessions = new Set(armOrders.map((order) => order.sessionId));
   const revenue = armOrders.reduce((sum, order) => sum + order.total, 0);
   const targetPairOrders = armOrders.filter((order) => order.containsTargetPair).length;
+  const marginOrders = armOrders.filter(
+    (order) =>
+      typeof order.contribution === "number" &&
+      Number.isFinite(order.contribution),
+  );
+  const contribution = marginOrders.reduce(
+    (sum, order) => sum + (order.contribution ?? 0),
+    0,
+  );
+  const marginRevenue = marginOrders.reduce((sum, order) => sum + order.total, 0);
 
   return {
     assignments: sessionIds.size,
@@ -195,6 +218,15 @@ function summarizeArm(
     targetPairRatePct: armOrders.length
       ? round((targetPairOrders / armOrders.length) * 100)
       : 0,
+    marginKnownOrders: marginOrders.length,
+    contribution: Math.round(contribution),
+    averageContribution: marginOrders.length
+      ? Math.round(contribution / marginOrders.length)
+      : 0,
+    contributionMarginPct:
+      marginOrders.length && marginRevenue > 0
+        ? round((contribution / marginRevenue) * 100)
+        : null,
   };
 }
 

@@ -1,12 +1,24 @@
 import { prisma } from "@/lib/prisma";
-import { formatCurrency } from "@/lib/utils";
+import { ProductEconomicsManager } from "@/components/admin/ProductEconomicsManager";
 
 async function getProductos() {
   try {
-    return await prisma.producto.findMany({
-      orderBy: { orden: "asc" },
+    const products = await prisma.producto.findMany({
+      orderBy: [{ categoria: { orden: "asc" } }, { orden: "asc" }],
       include: { categoria: true },
     });
+
+    return products.map((product) => ({
+      id: product.id,
+      nombre: product.nombre,
+      categoria: product.categoria.nombre,
+      precio: Number(product.precio),
+      costoUnitario:
+        product.costoUnitario === null ? null : Number(product.costoUnitario),
+      disponible: product.disponible,
+      inventarioBajo: product.inventarioBajo,
+      costoActualizadoAt: product.costoActualizadoAt?.toISOString() ?? null,
+    }));
   } catch {
     return null;
   }
@@ -16,60 +28,27 @@ export default async function AdminMenuPage() {
   const productos = await getProductos();
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-pisao-cream text-2xl">Menú</h1>
-        {/* TODO: modal/formulario de creación y edición de productos y categorías */}
-        <button className="bg-pisao-gold text-pisao-carbon rounded-full px-4 py-2 text-sm font-medium">
-          Nuevo producto
-        </button>
+    <div className="mx-auto max-w-7xl pb-12">
+      <div className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-pisao-gold">
+          Profit Intelligence V5
+        </p>
+        <h1 className="font-display mt-2 text-4xl text-pisao-cream">
+          Menú, margen y disponibilidad
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-pisao-cream-muted">
+          Configura costos reales sin alterar precios. Los costos son privados y
+          se usan para medir margen de contribución y gobernar recomendaciones.
+          No inventamos costos faltantes.
+        </p>
       </div>
 
-      {productos === null && (
-        <p className="text-pisao-cream-muted mt-2 text-sm">
-          No hay conexión a la base de datos. Configura DATABASE_URL en .env.
+      {productos === null ? (
+        <p className="rounded-2xl border border-red-400/20 bg-red-400/5 p-5 text-sm text-red-200">
+          No fue posible consultar el catálogo en la base de datos.
         </p>
-      )}
-
-      {productos !== null && (
-        <div className="border-pisao-gold/10 mt-6 overflow-x-auto rounded-xl border">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-pisao-carbon-soft text-pisao-cream-muted">
-              <tr>
-                <th className="px-4 py-3">Producto</th>
-                <th className="px-4 py-3">Categoría</th>
-                <th className="px-4 py-3">Precio</th>
-                <th className="px-4 py-3">Disponible</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productos.map((p) => (
-                <tr key={p.id} className="border-pisao-gold/10 border-t">
-                  <td className="text-pisao-cream px-4 py-3">{p.nombre}</td>
-                  <td className="text-pisao-cream-muted px-4 py-3">
-                    {p.categoria.nombre}
-                  </td>
-                  <td className="text-pisao-cream px-4 py-3">
-                    {formatCurrency(Number(p.precio))}
-                  </td>
-                  <td className="text-pisao-cream-muted px-4 py-3">
-                    {p.disponible ? "Sí" : "No"}
-                  </td>
-                </tr>
-              ))}
-              {productos.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="text-pisao-cream-muted px-4 py-6 text-center"
-                  >
-                    Aún no hay productos.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      ) : (
+        <ProductEconomicsManager products={productos} />
       )}
     </div>
   );

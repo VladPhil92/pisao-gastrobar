@@ -19,14 +19,30 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const tables = await prisma.mesaReservable.findMany({
-      select: {
-        codigo: true,
-        capacidad: true,
-        activa: true,
-      },
-      orderBy: { codigo: "asc" },
-    });
+    const [tables, products] = await Promise.all([
+      prisma.mesaReservable.findMany({
+        select: {
+          codigo: true,
+          capacidad: true,
+          activa: true,
+        },
+        orderBy: { codigo: "asc" },
+      }),
+      prisma.producto.findMany({
+        select: {
+          costoUnitario: true,
+          disponible: true,
+          inventarioBajo: true,
+        },
+      }),
+    ]);
+
+    const costConfiguredProducts = products.filter(
+      (product) => product.costoUnitario !== null,
+    ).length;
+    const costCoveragePct = products.length
+      ? Math.round((costConfiguredProducts / products.length) * 100)
+      : 0;
 
     const inventoryReady =
       tables.length === EXPECTED_TABLE_CODES.length &&
@@ -49,6 +65,17 @@ export async function GET() {
         seatsPerTable: RESERVABLE_TABLE_SEATS,
         maxCombinedTables: MAX_COMBINED_TABLES,
         maxAutomaticGroup: MAX_AUTOMATIC_RESERVATION_PEOPLE,
+      },
+      customerExperience: {
+        orderTracking: {
+          mode: "private_token_polling",
+          engineVersion: "order_tracking_v12",
+          refreshSeconds: 8,
+          tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+          crossDeviceRecovery: "order_number_plus_phone",
+          whatsappDependency: false,
+          publicPiiLookup: false,
+        },
       },
       payments: {
         activeMethod: "QR_TRANSFERENCIA",
@@ -118,6 +145,21 @@ export async function GET() {
           autoRollback: true,
           sensitiveMutationAuthority: false,
         },
+        profitAwareRevenue: {
+          mode: "contribution_margin_with_inventory_guardrails",
+          engineVersion: "profit_aware_revenue_v5",
+          costCoveragePct,
+          costConfiguredProducts,
+          totalProducts: products.length,
+          unavailableProducts: products.filter((product) => !product.disponible)
+            .length,
+          lowInventoryProducts: products.filter(
+            (product) => product.inventarioBajo,
+          ).length,
+          historicalCostSnapshot: true,
+          proactiveLowInventoryPromotion: false,
+          sensitiveMutationAuthority: false,
+        },
       },
       ai: {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
@@ -158,6 +200,17 @@ export async function GET() {
         app: "pisao-gastrobar",
         database: "unavailable",
         reservations: { inventory: "unknown" },
+        customerExperience: {
+          orderTracking: {
+            mode: "private_token_polling",
+            engineVersion: "order_tracking_v12",
+            refreshSeconds: 8,
+            tokenTtlDays: Number(process.env.ORDER_TRACKING_TTL_DAYS ?? 90),
+            crossDeviceRecovery: "order_number_plus_phone",
+            whatsappDependency: false,
+            publicPiiLookup: false,
+          },
+        },
         payments: {
           activeMethod: "QR_TRANSFERENCIA",
           availableMethods:
@@ -224,6 +277,18 @@ export async function GET() {
             maxConcurrentPolicies: 3,
             guardrailIntervalMinutes: 15,
             autoRollback: true,
+            sensitiveMutationAuthority: false,
+          },
+          profitAwareRevenue: {
+            mode: "contribution_margin_with_inventory_guardrails",
+            engineVersion: "profit_aware_revenue_v5",
+            costCoveragePct: null,
+            costConfiguredProducts: null,
+            totalProducts: null,
+            unavailableProducts: null,
+            lowInventoryProducts: null,
+            historicalCostSnapshot: true,
+            proactiveLowInventoryPromotion: false,
             sensitiveMutationAuthority: false,
           },
         },

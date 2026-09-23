@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { CheckCircle2, CreditCard, MapPin, ShoppingBag } from "lucide-react";
+import { Activity, CheckCircle2, CreditCard, MapPin, ShoppingBag } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { CheckoutWizard } from "@/components/checkout/CheckoutWizard";
 import { Reveal } from "@/components/visual/VisualMotion";
+import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "Tu pedido | PISÁO",
@@ -34,6 +35,14 @@ export default function PedidosPage() {
               <span className="block text-pisao-gold">Ahora ciérrala sin perderla de vista.</span>
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-pisao-cream sm:text-lg">La compra mantiene continuidad visual: lo que elegiste sigue presente mientras defines cómo recibirlo y cómo pagar.</p>
+            <Button
+              href="/pedidos/seguimiento"
+              variant="outline"
+              className="mt-6"
+            >
+              <Activity className="size-4" />
+              Seguir un pedido existente
+            </Button>
           </div>
 
           <div className="relative hidden min-h-[430px] lg:block">

@@ -38,6 +38,9 @@ export type RevenueActionInputs = {
     units: number;
     revenue: number;
     featured: boolean;
+    available?: boolean;
+    lowInventory?: boolean;
+    contributionMarginPct?: number | null;
   }>;
   pairs: Array<{
     productAId: string;
@@ -45,6 +48,10 @@ export type RevenueActionInputs = {
     productBId: string;
     productBName: string;
     orders: number;
+    promotable?: boolean;
+    costCoverage?: "COMPLETE" | "PARTIAL";
+    contributionMarginPct?: number | null;
+    profitabilityAdjustment?: number;
   }>;
 };
 
@@ -58,7 +65,13 @@ export function buildRevenueActionCandidates(
   const candidates: RevenueActionCandidate[] = [];
 
   const topUnfeatured = [...input.products]
-    .filter((product) => !product.featured && product.units >= 3)
+    .filter(
+      (product) =>
+        !product.featured &&
+        product.units >= 3 &&
+        product.available !== false &&
+        product.lowInventory !== true,
+    )
     .sort((a, b) => b.revenue - a.revenue || b.units - a.units)[0];
 
   if (topUnfeatured && input.paidOrders >= 3) {
@@ -67,7 +80,16 @@ export function buildRevenueActionCandidates(
       fingerprintKey: `feature-product:${topUnfeatured.id}`,
       riskLevel: "LOW",
       executionMode: "SYSTEM_AFTER_APPROVAL",
-      priorityScore: clampScore(55 + Math.min(25, topUnfeatured.units * 2)),
+      priorityScore: clampScore(
+        55 +
+          Math.min(25, topUnfeatured.units * 2) +
+          (topUnfeatured.contributionMarginPct == null
+            ? 0
+            : Math.max(
+                -8,
+                Math.min(8, (topUnfeatured.contributionMarginPct - 45) / 4),
+              )),
+      ),
       title: `Destacar ${topUnfeatured.name} en la carta`,
       rationale: `${topUnfeatured.name} acumula ${topUnfeatured.units} unidades vendidas y ${Math.round(topUnfeatured.revenue).toLocaleString("es-CO")} COP de ingreso pagado observado en la ventana, pero todavía no está marcado como destacado.`,
       recommendedAction:
@@ -87,14 +109,23 @@ export function buildRevenueActionCandidates(
     });
   }
 
-  const topPair = [...input.pairs].sort((a, b) => b.orders - a.orders)[0];
+  const topPair = [...input.pairs]
+    .filter((pair) => pair.promotable !== false)
+    .sort(
+      (a, b) =>
+        b.orders - a.orders ||
+        (b.profitabilityAdjustment ?? 0) -
+          (a.profitabilityAdjustment ?? 0),
+    )[0];
   if (topPair && topPair.orders >= 2 && input.paidOrders >= 4) {
     candidates.push({
       type: "CONCIERGE_PAIRING",
       fingerprintKey: `concierge-pair:${[topPair.productAId, topPair.productBId].sort().join(":")}`,
       riskLevel: "LOW",
       executionMode: "SYSTEM_AFTER_APPROVAL",
-      priorityScore: clampScore(60 + topPair.orders * 5),
+      priorityScore: clampScore(
+        60 + topPair.orders * 5 + (topPair.profitabilityAdjustment ?? 0),
+      ),
       title: `Activar maridaje: ${topPair.productAName} + ${topPair.productBName}`,
       rationale: `La combinación aparece en ${topPair.orders} pedidos pagados observados. Es una señal de afinidad real de cesta, no una recomendación inventada por el modelo.`,
       recommendedAction:
@@ -104,6 +135,8 @@ export function buildRevenueActionCandidates(
         pairOrders30d: topPair.orders,
         paidOrders30d: input.paidOrders,
         baselineDailyPairOrders: Number((topPair.orders / 30).toFixed(3)),
+        costCoverage: topPair.costCoverage ?? "PARTIAL",
+        contributionMarginPct: topPair.contributionMarginPct ?? null,
       },
       payload: {
         productAId: topPair.productAId,

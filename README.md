@@ -249,6 +249,38 @@ preparar experimentos desde acciones ejecutadas, iniciar, pausar, medir y cerrar
 una prueba. Gerencia IA y Revenue IA reciben los resultados con reglas explícitas
 para no convertir correlaciones observacionales en afirmaciones causales.
 
+## Profit-Aware Revenue Optimization V5
+
+V5 agrega una capa financiera y operativa sobre V2–V4 sin convertir PISÁO en un
+ERP ficticio. La unidad económica inicial es el producto terminado.
+
+- `Producto.costoUnitario` es opcional y solo lo configura ADMIN.
+- Ningún costo faltante se estima o inventa.
+- Cada `ItemPedido` guarda `costoUnitarioSnapshot` al crear el pedido, usando
+  exclusivamente el costo vigente del catálogo en servidor.
+- Los pedidos anteriores o ítems sin snapshot quedan fuera de las métricas de
+  contribución; nunca se extrapola rentabilidad sobre cobertura incompleta.
+- `disponible=false` sigue siendo el hard gate de venta.
+- `inventarioBajo=true` permite venta directa pero bloquea merchandising y
+  Next Best Actions proactivas.
+- Una política adaptativa activa se pausa automáticamente si cualquiera de sus
+  productos deja de estar disponible o pasa a inventario bajo.
+- La reactivación después de una pausa de inventario vuelve a exigir una acción
+  explícita de ADMIN.
+- El margen de contribución solo es un ajuste secundario de ranking. Relevancia
+  contextual, evidencia experimental y guardrails conservan prioridad.
+- V5 no puede cambiar precio, costo, descuento, disponibilidad, inventario ni
+  pagos por decisión autónoma de la IA.
+
+La consola de costos y disponibilidad vive en `/admin/menu`. El centro de
+políticas `/admin/politicas` muestra, cuando hay snapshots completos, margen
+de contribución observado por SERVE y HOLDOUT.
+
+La primera versión de inventario es deliberadamente operativa a nivel de
+producto. Recetas, insumos, rendimientos, mermas y stock por ingrediente quedan
+fuera de V5 y deben incorporarse en una fase posterior antes de automatizar
+abastecimiento o producción.
+
 ## Adaptive Revenue Optimization V4
 
 V4 promueve únicamente experimentos V3 completados con `sampleReady=true` e

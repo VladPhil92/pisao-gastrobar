@@ -75,8 +75,14 @@ jobs:
       - name: Adaptive revenue policy tests
         run: npm run test:revenue-policies
 
+      - name: Profit and inventory guardrail tests
+        run: npm run test:profit
+
       - name: Payment integrity tests
         run: npm run test:payments
+
+      - name: Customer order tracking tests
+        run: npm run test:tracking
 
       - name: Production build
         run: npm run build

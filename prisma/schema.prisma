@@ -109,11 +109,14 @@ model Producto {
   nombre      String
   slug        String  @unique
   descripcion String
-  precio      Decimal @db.Decimal(10, 2)
-  imagenUrl   String?
-  disponible  Boolean @default(true)
-  destacado   Boolean @default(false)
-  orden       Int     @default(0)
+  precio          Decimal  @db.Decimal(10, 2)
+  costoUnitario   Decimal? @db.Decimal(10, 2)
+  imagenUrl       String?
+  disponible      Boolean  @default(true)
+  inventarioBajo  Boolean  @default(false)
+  destacado       Boolean  @default(false)
+  orden           Int      @default(0)
+  costoActualizadoAt DateTime?
 
   categoriaId String
   categoria   Categoria @relation(fields: [categoriaId], references: [id])
@@ -124,6 +127,7 @@ model Producto {
   updatedAt DateTime @updatedAt
 
   @@index([categoriaId])
+  @@index([disponible, inventarioBajo])
   @@map("productos")
 }
 
@@ -147,8 +151,9 @@ model Pedido {
 
   estado EstadoPedido @default(PENDIENTE_PAGO)
 
-  pago        Pago?
-  attribution RevenueAttribution?
+  pago          Pago?
+  attribution   RevenueAttribution?
+  seguimientos  PedidoSeguimiento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,12 +161,30 @@ model Pedido {
   @@map("pedidos")
 }
 
+/// Acceso privado para seguimiento de pedidos desde dispositivos del cliente.
+/// El token nunca se almacena en claro; únicamente se persiste su hash SHA-256.
+model PedidoSeguimiento {
+  id           String    @id @default(cuid())
+  tokenHash    String    @unique @db.VarChar(64)
+  pedidoId     String
+  pedido       Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  lastAccessAt DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([pedidoId, createdAt])
+  @@index([expiresAt])
+  @@map("pedidos_seguimiento")
+}
+
 model ItemPedido {
   id       String @id @default(cuid())
   cantidad Int
 
-  precioUnitario Decimal @db.Decimal(10, 2)
-  subtotal       Decimal @db.Decimal(10, 2)
+  precioUnitario       Decimal  @db.Decimal(10, 2)
+  costoUnitarioSnapshot Decimal? @db.Decimal(10, 2)
+  subtotal              Decimal  @db.Decimal(10, 2)
 
   pedidoId String
   pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
@@ -395,7 +418,7 @@ model RevenueExperimentAssignment {
 model RevenuePolicy {
   id            String @id @default(cuid())
   key           String @unique @db.VarChar(64)
-  engineVersion String @default("adaptive_revenue_v4") @db.VarChar(48)
+  engineVersion String @default("profit_aware_revenue_v5") @db.VarChar(48)
   status        String @default("DRAFT") @db.VarChar(24)
   surface       String @default("CONCIERGE") @db.VarChar(32)
 
@@ -421,7 +444,8 @@ model RevenuePolicy {
   rolledBackAt DateTime?
   lastMeasuredAt DateTime?
   lastGuardrailCheckAt DateTime?
-  rollbackReason String? @db.VarChar(180)
+  rollbackReason         String? @db.VarChar(180)
+  operationalPauseReason String? @db.VarChar(180)
   outcome Json?
 
   assignments RevenuePolicyAssignment[]
