@@ -52,8 +52,8 @@ export function buildKevGovernanceEnvelope(
     event_type: eventType,
     occurred_at: Date.now() / 1000,
     payload: {
-      source_event_id: randomUUID(),
       ...payload,
+      source_event_id: randomUUID(),
     },
   };
 }
