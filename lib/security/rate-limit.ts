@@ -1,3 +1,5 @@
+import { canonicalOriginEnforced } from "@/lib/security/edge-origin";
+
 type Bucket = {
   count: number;
   resetAt: number;
@@ -21,7 +23,10 @@ function cleanup(now: number) {
 }
 
 export function cloudflareProxyTrusted() {
-  return process.env.CLOUDFLARE_TRUST_PROXY === "true";
+  return (
+    process.env.CLOUDFLARE_TRUST_PROXY === "true" &&
+    canonicalOriginEnforced()
+  );
 }
 
 export function requestIdentity(request: Request) {
