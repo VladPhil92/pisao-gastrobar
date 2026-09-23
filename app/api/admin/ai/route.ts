@@ -98,6 +98,8 @@ async function getBusinessContext() {
     revenueActions,
     revenueExperiments,
     revenuePolicies,
+    inventoryIngredients,
+    recipeLinks,
   ] = await Promise.all([
     prisma.pedido.findMany({
       where: { createdAt: { gte: since30Days } },
@@ -198,6 +200,21 @@ async function getBusinessContext() {
       orderBy: [{ status: "asc" }, { priorityScore: "desc" }],
       take: 12,
     }),
+    prisma.inventarioInsumo.findMany({
+      where: { activo: true },
+      orderBy: { nombre: "asc" },
+      select: {
+        id: true,
+        nombre: true,
+        unidadBase: true,
+        stockActual: true,
+        stockMinimo: true,
+        costoUnidadBase: true,
+      },
+    }),
+    prisma.recetaInsumo.findMany({
+      select: { productoId: true },
+    }),
   ]);
 
   const validOrders = orders.filter((order) => order.estado !== "CANCELADO");
@@ -231,8 +248,34 @@ async function getBusinessContext() {
     ? Math.round((costConfiguredProducts.length / catalogProducts.length) * 100)
     : 0;
   const lowInventoryProducts = catalogProducts.filter(
-    (product) => product.inventarioBajo,
+    (product) => product.inventarioBajo || product.inventarioBajoReceta,
   ).length;
+  const recipeRiskProducts = catalogProducts.filter(
+    (product) => product.inventarioBajoReceta,
+  ).length;
+  const recipeProductCount = new Set(recipeLinks.map((line) => line.productoId)).size;
+  const recipeCoveragePct = catalogProducts.length
+    ? Math.round((recipeProductCount / catalogProducts.length) * 100)
+    : 0;
+  const ingredientCostConfigured = inventoryIngredients.filter(
+    (ingredient) => ingredient.costoUnidadBase !== null,
+  ).length;
+  const ingredientCostCoveragePct = inventoryIngredients.length
+    ? Math.round(
+        (ingredientCostConfigured / inventoryIngredients.length) * 100,
+      )
+    : 0;
+  const criticalIngredients = inventoryIngredients.filter(
+    (ingredient) =>
+      Number(ingredient.stockActual) <= 0 ||
+      Number(ingredient.stockActual) <= Number(ingredient.stockMinimo),
+  );
+  const inventoryLines = inventoryIngredients
+    .map(
+      (ingredient) =>
+        `- ${ingredient.nombre}: stock ${Number(ingredient.stockActual)} ${ingredient.unidadBase} | mínimo ${Number(ingredient.stockMinimo)} | costo base ${ingredient.costoUnidadBase === null ? "N/D" : Number(ingredient.costoUnidadBase)}`,
+    )
+    .join("\n");
   const unavailableProducts = catalogProducts.filter(
     (product) => !product.disponible,
   ).length;
@@ -299,7 +342,7 @@ async function getBusinessContext() {
               cost === null || price <= 0
                 ? null
                 : Number((((price - cost) / price) * 100).toFixed(1));
-            return `- ${product.nombre} | precio ${price.toLocaleString("es-CO")} | costo ${cost === null ? "SIN CONFIGURAR" : "$" + cost.toLocaleString("es-CO")} | margen contrib. ${margin === null ? "N/D" : margin + "%"} | ${product.disponible ? "disponible" : "NO disponible"} | ${product.inventarioBajo ? "INVENTARIO BAJO" : "stock operativo normal"} | ${product.destacado ? "destacado" : "normal"}`;
+            return `- ${product.nombre} | precio ${price.toLocaleString("es-CO")} | costo ${cost === null ? "SIN CONFIGURAR" : "$" + cost.toLocaleString("es-CO")} | margen contrib. ${margin === null ? "N/D" : margin + "%"} | ${product.disponible ? "disponible" : "NO disponible"} | ${product.inventarioBajo || product.inventarioBajoReceta ? "INVENTARIO BAJO" : "stock operativo normal"} | ${product.destacado ? "destacado" : "normal"}`;
           },
         )
         .join("\n");
@@ -410,6 +453,14 @@ async function getBusinessContext() {
     `Contribución observada con cobertura completa: ${Math.round(observedContribution).toLocaleString("es-CO")} COP`,
     `Margen de contribución observado: ${observedContributionMarginPct === null ? "N/D" : observedContributionMarginPct + "%"}`,
     "NOTA DE MARGEN: estas métricas solo incluyen pedidos cuyos ítems tienen snapshot de costo completo; no extrapoles el margen a pedidos sin cobertura.",
+    "RECIPE & INVENTORY INTELLIGENCE V6:",
+    `Cobertura de recetas: ${recipeCoveragePct}% (${recipeProductCount}/${catalogProducts.length} productos)`,
+    `Cobertura de costo de insumos: ${ingredientCostCoveragePct}% (${ingredientCostConfigured}/${inventoryIngredients.length} insumos activos)`,
+    `Insumos críticos por conteo actual: ${criticalIngredients.length}`,
+    `Productos con riesgo derivado de receta: ${recipeRiskProducts}`,
+    "INSUMOS ACTIVOS Y CONTEO ACTUAL:",
+    inventoryLines || "Sin insumos configurados todavía.",
+    "NOTA V6: el stock cambia solo por movimientos administrativos auditables. El consumo por receta sirve para costo teórico y pronóstico; no equivale a una salida física automática de inventario.",
     `Reservas futuras observadas: ${reservations.length}`,
     `Ejecuciones Concierge IA observadas: ${aiRuns.length}`,
     `Fallbacks IA observados: ${aiFallbacks}`,
@@ -484,6 +535,8 @@ REGLAS OPERATIVAS
 - Las POLÍTICAS ADAPTATIVAS son producción gobernada basada en experimentos previos. Su holdout continuo sirve como guardrail; no lo presentes como un nuevo A/B fijo equivalente al experimento original.
 - PROFIT INTELLIGENCE V5 usa costos configurados y snapshots históricos. Si la cobertura no es completa, limita cualquier conclusión de rentabilidad a los pedidos/productos cubiertos.
 - Un producto con INVENTARIO BAJO puede seguir vendiéndose si está disponible, pero no debe recomendarse proactivamente como Next Best Action hasta normalizar existencias.
+- RECIPE & INVENTORY INTELLIGENCE V6 distingue conteo físico, costo teórico por receta y riesgo de insumos. No confundas consumo teórico con una salida real de stock.
+- Puedes recomendar conteos, reposición, revisión de merma o completar recetas, pero nunca afirmes que un movimiento de inventario ocurrió si no aparece registrado en los datos.
 - Si una política aparece ROLLED_BACK, no recomiendes reactivarla sin un nuevo experimento o revisión humana explícita.
 - Prioriza acciones concretas, medibles y ordenadas por impacto/esfuerzo.
 - Puedes proponer cambios de menú, campañas, promociones o procesos, pero NO afirmes que fueron ejecutados.

@@ -30,11 +30,11 @@
     "test:revenue-experiments": "tsx --test lib/revenue/revenue-experiment-core.test.ts",
     "test:revenue-policies": "tsx --test lib/revenue/revenue-policy-core.test.ts",
     "test:profit": "tsx --test lib/revenue/profit-core.test.ts lib/revenue/profit-surface.test.ts",
-    "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-intent.test.ts",
-    "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-treasury-core.test.ts",
+    "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-intent.test.ts lib/payments/crypto-treasury-core.test.ts",
     "test:tracking": "tsx --test lib/orders/tracking.test.ts lib/orders/status.test.ts",
     "security:audit-baseline": "node scripts/audit-security-baseline.mjs",
-    "test:whatsapp": "tsx --test lib/whatsapp/coexistence.test.ts"
+    "test:whatsapp": "tsx --test lib/whatsapp/coexistence.test.ts",
+    "test:inventory": "tsx --test lib/inventory/core.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

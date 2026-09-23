@@ -6,6 +6,7 @@ export const PERMISOS_ADMIN: Record<string, Rol[]> = {
   "/admin/dashboard": ["ADMIN", "CAJERO", "COCINA"],
   "/admin/pedidos": ["ADMIN", "CAJERO", "COCINA"],
   "/admin/menu": ["ADMIN"],
+  "/admin/inventario": ["ADMIN"],
   "/admin/reservas": ["ADMIN", "CAJERO"],
   "/admin/reportes": ["ADMIN"],
   "/admin/ia": ["ADMIN"],

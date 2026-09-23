@@ -249,6 +249,43 @@ preparar experimentos desde acciones ejecutadas, iniciar, pausar, medir y cerrar
 una prueba. Gerencia IA y Revenue IA reciben los resultados con reglas explícitas
 para no convertir correlaciones observacionales en afirmaciones causales.
 
+## Recipe & Inventory Intelligence V6
+
+V6 extiende la rentabilidad V5 desde producto terminado hacia insumos y recetas,
+manteniendo una separación estricta entre **conteo físico**, **consumo teórico**
+y **decisiones comerciales**.
+
+- `/admin/inventario` es ADMIN-only y concentra insumos, conteos, movimientos
+  físicos, costos de compra, stock mínimo y recetario.
+- Los insumos usan una unidad base explícita: `GRAMO`, `MILILITRO` o
+  `UNIDAD`. V6 no hace conversiones implícitas entre unidades.
+- El costo por unidad base se deriva únicamente cuando existen costo y cantidad
+  de compra válidos. Los costos faltantes siguen siendo desconocidos.
+- Cada receta especifica cantidad por producto y porcentaje de merma. El costo
+  teórico solo se publica internamente cuando toda la receta tiene cobertura de
+  costos.
+- El stock físico solo cambia mediante movimientos ADMIN auditables:
+  `CONTEO`, `ENTRADA`, `SALIDA`, `MERMA` o `AJUSTE`.
+- Cada movimiento conserva stock anterior, stock posterior, delta, motivo,
+  usuario y fecha.
+- Los pedidos `ENTREGADO` alimentan una señal de consumo teórico para estimar
+  demanda diaria y días de cobertura. Esa señal **no descuenta stock**.
+- `Producto.inventarioBajoReceta` se calcula a partir del conteo actual,
+  stock mínimo y receta. Se mantiene separado de `inventarioBajo`, que sigue
+  siendo la decisión manual de V5.
+- Carta, Modo Plan, Concierge, Revenue Action Engine y políticas adaptativas
+  usan como guardrail proactivo el riesgo efectivo
+  `inventarioBajo || inventarioBajoReceta`.
+- Un producto con riesgo puede seguir comprándose directamente si
+  `disponible=true`; V6 evita empujarlo proactivamente.
+- V6 no crea órdenes de compra, no modifica precios, no altera automáticamente
+  el costo manual V5 y no tiene autoridad autónoma de abastecimiento.
+
+Esta fase crea la infraestructura necesaria para una futura conciliación entre
+consumo teórico y stock físico. El descuento automático de insumos por producción
+debe ser idempotente y vincularse a un evento operacional explícito antes de
+activarse.
+
 ## Profit-Aware Revenue Optimization V5
 
 V5 agrega una capa financiera y operativa sobre V2–V4 sin convertir PISÁO en un
