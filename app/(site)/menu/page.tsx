@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { ArrowDown } from "lucide-react";
 import { Container } from "@/components/ui/Container";
+import { prisma } from "@/lib/prisma";
 import { MenuBrowser } from "./MenuBrowser";
 import {
   categoriasPlaceholder,
   productosPlaceholder,
 } from "@/lib/menu/placeholder-data";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Carta PISÁO",
@@ -14,12 +17,58 @@ export const metadata: Metadata = {
     "Explora la carta de PISÁO Gastrobar: patacones insignia, burgers, cayeye, entradas, bebidas, cerveza artesanal y cócteles en Cartagena.",
 };
 
+async function loadPublicMenu() {
+  try {
+    const categories = await prisma.categoria.findMany({
+      where: { activa: true },
+      orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+      include: {
+        productos: {
+          orderBy: [{ destacado: "desc" }, { orden: "asc" }, { nombre: "asc" }],
+        },
+      },
+    });
+
+    const products = categories.flatMap((category) =>
+      category.productos.map((product) => ({
+        id: product.id,
+        nombre: product.nombre,
+        slug: product.slug,
+        descripcion: product.descripcion,
+        precio: Number(product.precio),
+        imagenUrl: product.imagenUrl,
+        disponible: product.disponible,
+        inventarioBajo: product.inventarioBajo,
+        categoriaSlug: category.slug,
+      })),
+    );
+
+    if (!categories.length || !products.length) {
+      throw new Error("CATALOG_EMPTY");
+    }
+
+    return {
+      categorias: categories.map((category) => ({
+        id: category.id,
+        nombre: category.nombre,
+        slug: category.slug,
+      })),
+      productos: products,
+    };
+  } catch (error) {
+    console.error(
+      "[PISAO MENU] Catálogo dinámico no disponible; usando fallback verificado.",
+      error,
+    );
+    return {
+      categorias: categoriasPlaceholder,
+      productos: productosPlaceholder,
+    };
+  }
+}
+
 export default async function MenuPage() {
-  // TODO: sustituir por consulta a Prisma:
-  // const categorias = await prisma.categoria.findMany({ where: { activa: true }, orderBy: { orden: "asc" } });
-  // const productos = await prisma.producto.findMany({ where: { disponible: true } });
-  const categorias = categoriasPlaceholder;
-  const productos = productosPlaceholder;
+  const { categorias, productos } = await loadPublicMenu();
 
   return (
     <>
