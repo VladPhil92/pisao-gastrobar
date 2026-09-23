@@ -440,28 +440,19 @@ export async function getConciergeExperimentContext(params: {
     experiment.treatmentPct,
   );
 
-  const existing = await prisma.revenueExperimentAssignment.findUnique({
+  const assignment = await prisma.revenueExperimentAssignment.upsert({
     where: {
       experimentId_sessionId: {
         experimentId: experiment.id,
         sessionId: params.behaviorSessionId,
       },
     },
-  });
-
-  const assignment =
-    existing ??
-    (await prisma.revenueExperimentAssignment.create({
-      data: {
-        experimentId: experiment.id,
-        sessionId: params.behaviorSessionId,
-        arm: calculatedArm,
-      },
-    }));
-
-  await prisma.revenueExperimentAssignment.update({
-    where: { id: assignment.id },
-    data: { lastSeenAt: new Date() },
+    update: { lastSeenAt: new Date() },
+    create: {
+      experimentId: experiment.id,
+      sessionId: params.behaviorSessionId,
+      arm: calculatedArm,
+    },
   });
 
   const productAName = jsonString(experiment.action.payload, "productAName");
