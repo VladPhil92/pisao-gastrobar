@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
 import { cryptoAmountSufficiency } from "@/lib/payments/crypto-quote";
+import { settlementState } from "@/lib/payments/crypto-intent";
 import {
   OnchainVerificationError,
   verifyCryptoTransaction,
@@ -65,14 +66,6 @@ function notificationRetryAllowed(reconciliation: JsonObject, now: Date) {
   return now.getTime() - last >= retryMs;
 }
 
-function stateFromVerification(input: {
-  status: "OBSERVED" | "CONFIRMED";
-  sufficient: boolean | null;
-}) {
-  if (input.sufficient === false) return "UNDERPAID";
-  return input.status;
-}
-
 async function persistReconciliationError(input: {
   paymentId: string;
   payload: JsonObject;
@@ -89,7 +82,7 @@ async function persistReconciliationError(input: {
         ...input.payload,
         reconciliation: {
           ...previous,
-          engine: "PISAO_CRYPTO_ORCHESTRATOR_V11",
+          engine: "PISAO_CRYPTO_PAYMENT_RAIL_V3",
           state: input.retryable ? "RETRY_PENDING" : "ERROR",
           checkedAt: input.checkedAt,
           lastError: {
@@ -184,18 +177,20 @@ export async function reconcilePendingCryptoPayments(
         expectedAmount,
         receivedAmount: verification.amount,
       });
-      const state = stateFromVerification({
-        status: verification.status,
+      const state = settlementState({
+        confirmations: verification.confirmations,
+        requiredConfirmations: verification.requiredConfirmations,
         sufficient: sufficiency.sufficient,
+        variancePercent: sufficiency.variancePercent,
       });
 
-      if (state === "CONFIRMED") summary.confirmed += 1;
+      if (state === "PAID") summary.confirmed += 1;
       else if (state === "UNDERPAID") summary.underpaid += 1;
       else summary.observed += 1;
 
       const reconciliation: JsonObject = {
         ...previousReconciliation,
-        engine: "PISAO_CRYPTO_ORCHESTRATOR_V11",
+        engine: "PISAO_CRYPTO_PAYMENT_RAIL_V3",
         state,
         checkedAt,
         network: verification.red,
@@ -248,7 +243,7 @@ export async function reconcilePendingCryptoPayments(
       });
 
       const readyForAdmin =
-        state === "CONFIRMED" && sufficiency.sufficient !== false;
+        state === "PAID" && sufficiency.sufficient !== false;
 
       if (
         readyForAdmin &&
@@ -261,10 +256,10 @@ export async function reconcilePendingCryptoPayments(
         });
       }
 
-      if (readyForAdmin && previousState !== "CONFIRMED") {
+      if (readyForAdmin && previousState !== "PAID") {
         void emitKevGovernanceEvent("pisao.payment.crypto.confirmed_onchain", {
           order_ref: governanceRef(payment.pedido.id),
-          source: "crypto_orchestrator_v11",
+          source: "crypto_payment_rail_v3",
           asset: destination.moneda,
           network: verification.red,
           confirmations: verification.confirmations,
