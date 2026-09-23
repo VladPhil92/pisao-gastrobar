@@ -260,7 +260,8 @@ export async function getRevenueActionCenter() {
       measuredAt: true,
       outcome: true,
       createdAt: true,
-      approvedBy: { select: { nombre: true } },
+      decidedBy: { select: { nombre: true } },
+      executedBy: { select: { nombre: true } },
     },
   });
 
@@ -280,7 +281,7 @@ export async function approveRevenueAction(id: string, userId: string) {
     where: { id, status: "PENDING" },
     data: {
       status: "APPROVED",
-      approvedById: userId,
+      decidedById: userId,
       approvedAt: new Date(),
       rejectedAt: null,
     },
@@ -298,7 +299,7 @@ export async function rejectRevenueAction(id: string, userId: string) {
     where: { id, status: "PENDING" },
     data: {
       status: "REJECTED",
-      approvedById: userId,
+      decidedById: userId,
       rejectedAt: new Date(),
     },
   });
@@ -310,7 +311,7 @@ export async function rejectRevenueAction(id: string, userId: string) {
   return prisma.revenueAction.findUniqueOrThrow({ where: { id } });
 }
 
-export async function executeRevenueAction(id: string) {
+export async function executeRevenueAction(id: string, userId: string) {
   const action = await prisma.revenueAction.findUnique({ where: { id } });
   if (!action || action.status !== "APPROVED") {
     throw new Error("ACTION_NOT_APPROVED");
@@ -329,6 +330,7 @@ export async function executeRevenueAction(id: string) {
         where: { id },
         data: {
           status: "EXECUTED",
+          executedById: userId,
           executedAt: new Date(),
           measurementStartedAt: new Date(),
         },
@@ -342,6 +344,7 @@ export async function executeRevenueAction(id: string) {
       where: { id },
       data: {
         status: "EXECUTED",
+        executedById: userId,
         executedAt: new Date(),
         measurementStartedAt: new Date(),
       },
