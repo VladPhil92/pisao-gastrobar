@@ -72,6 +72,9 @@ jobs:
       - name: Revenue experimentation tests
         run: npm run test:revenue-experiments
 
+      - name: Adaptive revenue policy tests
+        run: npm run test:revenue-policies
+
       - name: Payment integrity tests
         run: npm run test:payments
 
