@@ -145,7 +145,7 @@ export function OrderTrackingClient() {
         const response = await fetch("/api/pedidos/seguimiento", {
           method: "GET",
           headers: {
-            Authorization: \`Bearer \${currentToken}\`,
+            Authorization: `Bearer ${currentToken}`,
             Accept: "application/json",
           },
           cache: "no-store",
@@ -242,7 +242,7 @@ export function OrderTrackingClient() {
     if (!token) return;
 
     try {
-      const link = \`\${window.location.origin}/pedidos/seguimiento#token=\${encodeURIComponent(token)}\`;
+      const link = `${window.location.origin}/pedidos/seguimiento#token=${encodeURIComponent(token)}`;
       await navigator.clipboard.writeText(link);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
@@ -375,7 +375,7 @@ export function OrderTrackingClient() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
       <div className="space-y-6">
-        <div className={\`rounded-[2rem] border p-6 sm:p-8 \${toneClass[snapshot.stage.tone]}\`}>
+        <div className={`rounded-[2rem] border p-6 sm:p-8 ${toneClass[snapshot.stage.tone]}`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-semibold tracking-[.18em] text-pisao-gold uppercase">
@@ -401,7 +401,7 @@ export function OrderTrackingClient() {
           <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/8">
             <div
               className="h-full rounded-full bg-pisao-gold transition-[width] duration-500"
-              style={{ width: \`\${Math.max(5, snapshot.progress)}%\` }}
+              style={{ width: `${Math.max(5, snapshot.progress)}%` }}
             />
           </div>
           <div className="mt-2 flex items-center justify-between text-[10px] text-pisao-cream-muted">
@@ -443,13 +443,13 @@ export function OrderTrackingClient() {
                 <div key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
                   {index < snapshot.timeline.length - 1 && (
                     <div
-                      className={\`absolute left-[15px] top-8 h-[calc(100%-1rem)] w-px \${
+                      className={`absolute left-[15px] top-8 h-[calc(100%-1rem)] w-px ${
                         complete ? "bg-pisao-gold/50" : "bg-white/10"
-                      }\`}
+                      }`}
                     />
                   )}
                   <div
-                    className={\`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border \${
+                    className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border ${
                       complete
                         ? "border-pisao-gold bg-pisao-gold text-pisao-carbon"
                         : issue
@@ -457,19 +457,19 @@ export function OrderTrackingClient() {
                           : active
                             ? "border-pisao-gold/60 bg-pisao-gold/10 text-pisao-gold"
                             : "border-white/10 bg-pisao-noche text-pisao-cream-muted"
-                    }\`}
+                    }`}
                   >
                     {timelineIcon(item.state)}
                   </div>
                   <div className="pt-0.5">
                     <p
-                      className={\`text-sm font-semibold \${
+                      className={`text-sm font-semibold ${
                         issue
                           ? "text-red-300"
                           : complete || active
                             ? "text-pisao-cream"
                             : "text-pisao-cream-muted"
-                      }\`}
+                      }`}
                     >
                       {item.label}
                     </p>
@@ -525,7 +525,7 @@ export function OrderTrackingClient() {
               <p className="font-semibold text-pisao-cream">
                 {snapshot.payment.crypto.moneda || "Cripto"}
                 {snapshot.payment.crypto.network
-                  ? \` · \${snapshot.payment.crypto.network}\`
+                  ? ` · ${snapshot.payment.crypto.network}`
                   : ""}
               </p>
               {snapshot.payment.crypto.txHash && (
@@ -536,7 +536,7 @@ export function OrderTrackingClient() {
               <p className="mt-2 text-pisao-cream-muted">
                 Confirmaciones: {snapshot.payment.crypto.confirmations}
                 {snapshot.payment.crypto.requiredConfirmations !== null
-                  ? \` / \${snapshot.payment.crypto.requiredConfirmations}\`
+                  ? ` / ${snapshot.payment.crypto.requiredConfirmations}`
                   : ""}
               </p>
               {snapshot.payment.crypto.receivedAmount &&
