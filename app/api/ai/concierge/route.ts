@@ -51,6 +51,10 @@ import {
   isExplicitTableMutationIntent,
   type NativeToolOutput,
 } from "@/lib/ai/native-tools";
+import {
+  prepareTransactionCommand,
+  type PreparedTransactionCommand,
+} from "@/lib/ai/transaction-command-bus";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -209,6 +213,78 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
       source: "fallback",
     };
   }
+}
+
+async function prepareClientCommands(params: {
+  sessionKey: unknown;
+  proposal: ReturnType<typeof buildConversationalProposal>;
+  reservation: {
+    draft: ReturnType<typeof analyzeReservationConversation> extends infer T
+      ? NonNullable<T>
+      : never;
+    canSubmit: boolean;
+  } | null;
+}) {
+  const commands: PreparedTransactionCommand[] = [];
+
+  if (params.proposal) {
+    const command = await prepareTransactionCommand({
+      sessionKey: params.sessionKey,
+      type: "cart.commit",
+      payload: {
+        proposalId: params.proposal.id,
+        items: params.proposal.items.map((item) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+        })),
+      },
+    });
+
+    if (command) {
+      commands.push(command);
+      void emitKevGovernanceEvent("pisao.concierge.command_prepared", {
+        source: "concierge_api",
+        command: command.type,
+        contains_pii: false,
+      });
+    }
+  }
+
+  const draft = params.reservation?.draft;
+  if (
+    params.reservation?.canSubmit &&
+    draft?.nombre &&
+    draft.telefono &&
+    draft.fecha &&
+    draft.hora &&
+    draft.personas
+  ) {
+    const command = await prepareTransactionCommand({
+      sessionKey: params.sessionKey,
+      type: "reservation.commit",
+      payload: {
+        nombre: draft.nombre,
+        telefono: draft.telefono,
+        email: draft.email ?? "",
+        fecha: draft.fecha,
+        hora: draft.hora,
+        personas: draft.personas,
+        notas: draft.notas,
+      },
+      containsPii: true,
+    });
+
+    if (command) {
+      commands.push(command);
+      void emitKevGovernanceEvent("pisao.concierge.command_prepared", {
+        source: "concierge_api",
+        command: command.type,
+        contains_pii: true,
+      });
+    }
+  }
+
+  return commands;
 }
 
 function availabilityContext(
@@ -487,11 +563,18 @@ export async function POST(request: Request) {
         lastTool: commerceTool.tool,
       });
 
+      const commands = await prepareClientCommands({
+        sessionKey: body.sessionKey,
+        proposal: responseProposal,
+        reservation: reservationPayload,
+      });
+
       return Response.json({
         text: fallbackText,
         proposal: responseProposal,
         reservation: reservationPayload,
         action,
+        commands,
         fallback: true,
         agent: agent.id,
         agentLabel: agent.label,
@@ -688,11 +771,18 @@ REGLAS ADICIONALES
       lastTool: lastToolName,
     });
 
+    const commands = await prepareClientCommands({
+      sessionKey: body.sessionKey,
+      proposal: responseProposal,
+      reservation: reservationPayload,
+    });
+
     return Response.json({
       text,
       proposal: responseProposal,
       reservation: reservationPayload,
       action,
+      commands,
       fallback: !modelText,
       agent: agent.id,
       agentLabel: agent.label,
