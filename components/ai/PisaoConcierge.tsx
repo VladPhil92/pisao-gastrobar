@@ -27,6 +27,10 @@ import {
   loadHospitalityProfile,
   saveHospitalityProfile,
 } from "@/lib/ai/hospitality-profile-client";
+import {
+  loadConciergeIdentity,
+  type ConciergeIdentity,
+} from "@/lib/ai/concierge-identity-client";
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 
@@ -108,12 +112,15 @@ export function PisaoConcierge() {
   const [addedProposals, setAddedProposals] = useState<Record<string, boolean>>({});
   const [hospitalityProfile, setHospitalityProfile] =
     useState<HospitalityProfile | null>(null);
+  const [conciergeIdentity, setConciergeIdentity] =
+    useState<ConciergeIdentity | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const addItems = useCartStore((state) => state.addItems);
   const openCart = useCartStore((state) => state.open);
 
   useEffect(() => {
     setHospitalityProfile(loadHospitalityProfile());
+    setConciergeIdentity(loadConciergeIdentity());
   }, []);
 
   useEffect(() => {
@@ -143,6 +150,8 @@ export function PisaoConcierge() {
             content: messageContent,
           })),
           guestProfile: hospitalityProfile,
+          guestKey: conciergeIdentity?.guestKey,
+          sessionKey: conciergeIdentity?.sessionKey,
         }),
       });
 
