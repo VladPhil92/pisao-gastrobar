@@ -96,6 +96,10 @@ export function AdaptiveRevenuePolicyCenter({
           POLICY_NOT_ACTIVATABLE:
             "Esta política no puede activarse desde su estado actual.",
           POLICY_NOT_ACTIVE: "La política ya no está activa.",
+          POLICY_INVALID_PRODUCTS:
+            "La política no contiene productos válidos.",
+          POLICY_PRODUCT_UNAVAILABLE_OR_LOW:
+            "La política no puede activarse mientras alguno de sus productos esté agotado o con inventario bajo.",
           POLICY_NOT_ROLLBACKABLE:
             "La política no admite rollback desde su estado actual.",
         };
@@ -240,6 +244,14 @@ export function AdaptiveRevenuePolicyCenter({
           const productionLift = numeric(
             policy.outcome?.observedConversionLiftPctPoints,
           );
+          const serveMargin =
+            typeof serve.contributionMarginPct === "number"
+              ? serve.contributionMarginPct
+              : null;
+          const holdoutMargin =
+            typeof holdout.contributionMarginPct === "number"
+              ? holdout.contributionMarginPct
+              : null;
 
           return (
             <article
@@ -293,6 +305,9 @@ export function AdaptiveRevenuePolicyCenter({
                   <p className="mt-1 text-xs text-pisao-cream-muted">
                     Expuestas {exposures} · conversión{" "}
                     {numeric(serve.conversionRatePct)}%
+                    {serveMargin === null
+                      ? ""
+                      : " · margen contrib. " + serveMargin + "%"}
                   </p>
                 </div>
 
@@ -305,6 +320,9 @@ export function AdaptiveRevenuePolicyCenter({
                   </p>
                   <p className="mt-1 text-xs text-pisao-cream-muted">
                     Conversión {numeric(holdout.conversionRatePct)}%
+                    {holdoutMargin === null
+                      ? ""
+                      : " · margen contrib. " + holdoutMargin + "%"}
                   </p>
                 </div>
 
