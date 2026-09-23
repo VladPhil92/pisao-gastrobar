@@ -52,11 +52,22 @@ export async function GET() {
       },
       payments: {
         activeMethod: "QR_TRANSFERENCIA",
+        availableMethods:
+          process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+            ? ["QR_TRANSFERENCIA"]
+            : ["QR_TRANSFERENCIA", "CRIPTO"],
         receiptStorage: "postgresql",
         cardAndPse:
           process.env.CARD_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
         crypto:
-          process.env.CRYPTO_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+          process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+            ? "disabled"
+            : "enabled_manual_onchain_precheck",
+        onchainPrecheck:
+          process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+            ? "disabled"
+            : "enabled",
+        cryptoGatewayWebhook: "disabled",
         adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
           process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
           ? "whatsapp_cloud"
@@ -70,12 +81,6 @@ export async function GET() {
           source: "first_party_behavior",
           windowHours: 12,
           priceIntegrity: "server_catalog_revalidation",
-        },
-        revenueActionEngine: {
-          mode: "human_governed",
-          engineVersion: "revenue_action_engine_v2",
-          lifecycle: "observe_propose_approve_execute_measure",
-          autonomousSensitiveMutations: false,
         },
       },
       ai: {
@@ -119,11 +124,22 @@ export async function GET() {
         reservations: { inventory: "unknown" },
         payments: {
           activeMethod: "QR_TRANSFERENCIA",
+          availableMethods:
+            process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+              ? ["QR_TRANSFERENCIA"]
+              : ["QR_TRANSFERENCIA", "CRIPTO"],
           receiptStorage: "unknown",
           cardAndPse:
             process.env.CARD_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
           crypto:
-            process.env.CRYPTO_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+            process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+              ? "disabled"
+              : "enabled_manual_onchain_precheck",
+          onchainPrecheck:
+            process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+              ? "disabled"
+              : "enabled",
+          cryptoGatewayWebhook: "disabled",
           adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
             process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
             ? "whatsapp_cloud"
@@ -137,12 +153,6 @@ export async function GET() {
             source: "first_party_behavior",
             windowHours: 12,
             priceIntegrity: "server_catalog_revalidation",
-          },
-          revenueActionEngine: {
-            mode: "human_governed",
-            engineVersion: "revenue_action_engine_v2",
-            lifecycle: "observe_propose_approve_execute_measure",
-            autonomousSensitiveMutations: false,
           },
         },
         ai: {
