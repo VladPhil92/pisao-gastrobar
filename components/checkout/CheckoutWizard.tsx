@@ -20,7 +20,10 @@ import type { CrearCargoCriptoResult } from "@/lib/payments/crypto";
 import type { CrearLinkPagoResult } from "@/lib/payments/types";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
 import { VisualOrderRail } from "@/components/cart/VisualOrderRail";
-import { trackBehavior } from "@/lib/analytics/behavioral-client";
+import {
+  getBehaviorSessionId,
+  trackBehavior,
+} from "@/lib/analytics/behavioral-client";
 
 interface PedidoCreadoResponse {
   pedido: { id: string; numero: number; total: string | number };
@@ -83,6 +86,7 @@ export function CheckoutWizard() {
           notas: state.cliente.notas || undefined,
           items,
           metodoPago,
+          attributionSessionId: getBehaviorSessionId() ?? undefined,
         }),
       });
 
