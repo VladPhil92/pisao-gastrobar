@@ -90,9 +90,16 @@ export function CheckoutWizard() {
         }),
       });
 
-      if (!res.ok) throw new Error("No se pudo crear el pedido");
+      const payload = (await res.json()) as PedidoCreadoResponse & {
+        error?: string;
+        code?: string;
+      };
 
-      const data: PedidoCreadoResponse = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "No se pudo crear el pedido");
+      }
+
+      const data: PedidoCreadoResponse = payload;
       const orderedCount = cartItemCount(items);
       setPedidoData(data);
       setOrderedItems(items);
