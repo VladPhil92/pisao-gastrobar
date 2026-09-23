@@ -593,6 +593,14 @@ REGLAS ADICIONALES
       finalPayload = payload;
       const calls = extractNativeToolCalls(payload);
       if (!calls.length) break;
+      if (round === 2) {
+        nativeToolFailure = true;
+        console.warn("[PISAO AI] Native tool loop reached safety cap", {
+          clientRequestId,
+          calls: calls.length,
+        });
+        break;
+      }
 
       const outputs: NativeToolOutput[] = [];
       for (const call of calls) {
