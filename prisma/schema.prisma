@@ -77,9 +77,7 @@ model Usuario {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  pagosVerificados       Pago[]          @relation("PagoVerificadoPor")
-  revenueActionsDecided  RevenueAction[] @relation("RevenueActionDecidedBy")
-  revenueActionsExecuted RevenueAction[] @relation("RevenueActionExecutedBy")
+  pagosVerificados Pago[] @relation("PagoVerificadoPor")
 
   @@map("usuarios")
 }
@@ -192,7 +190,7 @@ model Pago {
   // Método criptomonedas
   criptoMoneda          String? // ej. USDT, BTC, ETH
   walletDireccion       String?
-  txHash                String? // hash de la transacción on-chain
+  txHash                String? @unique // hash de la transacción on-chain; no reutilizable entre pedidos
   descuentoAplicadoPct  Decimal? @db.Decimal(5, 2) // % de descuento configurable aplicado
   confirmacionesOnchain Int?
 
@@ -284,49 +282,6 @@ model Evento {
 /// Se resuelve exclusivamente en servidor a partir de EventoAnalitico; el
 /// navegador solo aporta el sessionId efímero. "assists" describe señales
 /// observadas y no implica causalidad comercial.
-/// Acción comercial propuesta por Revenue Action Engine.
-/// Toda acción sensible requiere aprobación humana. Algunas acciones LOW_RISK
-/// pueden ejecutarse por el sistema solo después de esa aprobación.
-model RevenueAction {
-  id              String   @id @default(cuid())
-  fingerprint     String   @unique @db.VarChar(64)
-  engineVersion   String   @default("revenue_action_engine_v2") @db.VarChar(48)
-  type            String   @db.VarChar(48)
-  status          String   @default("PENDING") @db.VarChar(24)
-  riskLevel       String   @db.VarChar(16)
-  executionMode   String   @db.VarChar(24)
-  priorityScore   Int      @default(50)
-
-  title             String @db.VarChar(180)
-  rationale         String
-  recommendedAction String
-  objectiveMetric   String @db.VarChar(96)
-
-  evidence Json
-  payload  Json?
-
-  decidedById String?
-  decidedBy   Usuario? @relation("RevenueActionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  approvedAt  DateTime?
-  rejectedAt  DateTime?
-
-  executedById String?
-  executedBy   Usuario? @relation("RevenueActionExecutedBy", fields: [executedById], references: [id], onDelete: SetNull)
-  executedAt   DateTime?
-
-  measurementStartedAt DateTime?
-  measurementWindowDays Int      @default(7)
-  measuredAt            DateTime?
-  outcome               Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status, priorityScore, createdAt])
-  @@index([type, createdAt])
-  @@map("revenue_actions")
-}
-
 model RevenueAttribution {
   id         String   @id @default(cuid())
   pedidoId   String   @unique
