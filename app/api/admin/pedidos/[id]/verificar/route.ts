@@ -38,6 +38,13 @@ export async function POST(
       estado: true,
       total: true,
       tipoEntrega: true,
+      attribution: {
+        select: {
+          assists: true,
+          lastAssist: true,
+          touchCount: true,
+        },
+      },
       items: { select: { cantidad: true } },
     },
   });
@@ -51,6 +58,10 @@ export async function POST(
       item_count: pedido.items.reduce((sum, item) => sum + item.cantidad, 0),
       tipo_entrega: pedido.tipoEntrega,
       estado: pedido.estado,
+      attribution_tracked: Boolean(pedido.attribution),
+      assist_surfaces: pedido.attribution?.assists ?? [],
+      last_assist: pedido.attribution?.lastAssist ?? null,
+      assist_touch_count: pedido.attribution?.touchCount ?? 0,
     },
   );
 
