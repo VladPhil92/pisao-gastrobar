@@ -12,6 +12,10 @@ export type PaymentAdminOrder = {
   direccionEntrega?: string | null;
   notas?: string | null;
   total: number;
+  paymentMethod?: "QR_TRANSFERENCIA" | "CRIPTO" | "TARJETA";
+  cryptoMoneda?: string | null;
+  cryptoRed?: string | null;
+  walletDireccion?: string | null;
   items: Array<{
     nombre: string;
     cantidad: number;
@@ -48,6 +52,17 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
       ? `Domicilio: ${order.direccionEntrega || "Dirección no informada"}`
       : "Entrega: recogida en PISÁO";
 
+  const paymentDetails =
+    order.paymentMethod === "CRIPTO"
+      ? [
+          `Pago: Criptomoneda · ${order.cryptoMoneda || "Sin especificar"}`,
+          order.cryptoRed ? `Red: ${order.cryptoRed}` : "",
+          order.walletDireccion ? `Wallet: ${order.walletDireccion}` : "",
+        ]
+      : order.paymentMethod === "QR_TRANSFERENCIA"
+        ? ["Pago: QR · Bre-B · Bancolombia"]
+        : [];
+
   return [
     `🧾 PISÁO · Pago por validar · Pedido #${order.numero}`,
     "",
@@ -55,6 +70,7 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
     `Teléfono: ${order.clienteTelefono}`,
     order.clienteEmail ? `Email: ${order.clienteEmail}` : "",
     delivery,
+    ...paymentDetails,
     "",
     "Pedido:",
     items,
