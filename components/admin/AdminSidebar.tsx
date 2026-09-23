@@ -14,6 +14,7 @@ import {
   FlaskConical,
   Radar,
   WalletCards,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -77,6 +78,12 @@ const items = [
     href: "/admin/cripto",
     label: "Cripto",
     icon: WalletCards,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
     roles: ["ADMIN"],
   },
   {
