@@ -17,6 +17,7 @@ export type PaymentAdminOrder = {
   cryptoRed?: string | null;
   walletDireccion?: string | null;
   cryptoTxHash?: string | null;
+  cryptoAmount?: string | null;
   cryptoConfirmations?: number | null;
   cryptoExplorerUrl?: string | null;
   items: Array<{
@@ -62,6 +63,9 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
           order.cryptoRed ? `Red: ${order.cryptoRed}` : "",
           order.walletDireccion ? `Wallet: ${order.walletDireccion}` : "",
           order.cryptoTxHash ? `TxID/TxHash: ${order.cryptoTxHash}` : "",
+          order.cryptoAmount && order.cryptoMoneda
+            ? `Recibido on-chain: ${order.cryptoAmount} ${order.cryptoMoneda}`
+            : "",
           order.cryptoConfirmations !== null &&
           order.cryptoConfirmations !== undefined
             ? `Confirmaciones on-chain al recibir evidencia: ${order.cryptoConfirmations}`
