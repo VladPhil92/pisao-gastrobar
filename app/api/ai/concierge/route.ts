@@ -315,27 +315,29 @@ export async function POST(request: Request) {
       reservationFallbackText(reservationDraft) ??
       deterministicCommerceReply(commerceAnalysis, activeProposal);
 
-    if (oversizedGroup && reservationDraft?.personas) {
-      fallbackText =
-        `Para ${reservationDraft.personas} personas necesitamos una distribución especial. La reserva automática une como máximo 3 mesas y admite hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas en una sola mesa grupal. Podemos coordinar el grupo por WhatsApp.`;
-    } else if (reservationAvailabilityError && reservationDraft?.ready) {
-      fallbackText =
-        "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
-    } else if (
-      reservationAvailability &&
-      !reservationAvailability.available &&
-      reservationDraft
-    ) {
-      const alternatives = reservationAvailability.alternatives.length
-        ? ` Puedo revisar estas horas cercanas: ${reservationAvailability.alternatives.join(", ")}.`
-        : "";
-      fallbackText = `La franja de ${reservationDraft.hora} no tiene capacidad suficiente para ${reservationDraft.personas} personas.${alternatives}`;
-    } else if (
-      reservationAvailability?.available &&
-      reservationDraft?.ready
-    ) {
-      fallbackText =
-        "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la ventana completa de ocupación y, si sigue disponible, la reserva quedará confirmada al instante.";
+    if (!commerceTool.handled) {
+      if (oversizedGroup && reservationDraft?.personas) {
+        fallbackText =
+          `Para ${reservationDraft.personas} personas necesitamos una distribución especial. La reserva automática une como máximo 3 mesas y admite hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas en una sola mesa grupal. Podemos coordinar el grupo por WhatsApp.`;
+      } else if (reservationAvailabilityError && reservationDraft?.ready) {
+        fallbackText =
+          "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
+      } else if (
+        reservationAvailability &&
+        !reservationAvailability.available &&
+        reservationDraft
+      ) {
+        const alternatives = reservationAvailability.alternatives.length
+          ? ` Puedo revisar estas horas cercanas: ${reservationAvailability.alternatives.join(", ")}.`
+          : "";
+        fallbackText = `La franja de ${reservationDraft.hora} no tiene capacidad suficiente para ${reservationDraft.personas} personas.${alternatives}`;
+      } else if (
+        reservationAvailability?.available &&
+        reservationDraft?.ready
+      ) {
+        fallbackText =
+          "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la ventana completa de ocupación y, si sigue disponible, la reserva quedará confirmada al instante.";
+      }
     }
 
     const hoursContext = [
@@ -589,8 +591,12 @@ REGLAS ADICIONALES
       fallback: !modelText,
       latencyMs: Date.now() - startedAt,
       reservationIntent,
-      proposalCreated: Boolean(proposal),
+      proposalCreated: Boolean(activeProposal),
       messageCount: messages.length,
+      commerceState: activeProposal
+        ? serializeCommerceProposal(activeProposal)
+        : undefined,
+      lastTool: commerceTool.tool,
     });
 
     return Response.json({
