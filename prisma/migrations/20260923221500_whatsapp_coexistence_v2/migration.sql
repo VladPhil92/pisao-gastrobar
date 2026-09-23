@@ -18,6 +18,7 @@ CREATE TABLE "whatsapp_integrations" (
 
 CREATE TABLE "whatsapp_conversations" (
     "id" TEXT NOT NULL,
+    "conversationKey" VARCHAR(96) NOT NULL,
     "customerKey" VARCHAR(64) NOT NULL,
     "integrationId" TEXT,
     "phoneNumberId" VARCHAR(32),
@@ -46,7 +47,8 @@ CREATE UNIQUE INDEX "whatsapp_integrations_wabaId_key" ON "whatsapp_integrations
 CREATE UNIQUE INDEX "whatsapp_integrations_phoneNumberId_key" ON "whatsapp_integrations"("phoneNumberId");
 CREATE INDEX "whatsapp_integrations_status_updatedAt_idx" ON "whatsapp_integrations"("status", "updatedAt");
 
-CREATE UNIQUE INDEX "whatsapp_conversations_customerKey_key" ON "whatsapp_conversations"("customerKey");
+CREATE UNIQUE INDEX "whatsapp_conversations_conversationKey_key" ON "whatsapp_conversations"("conversationKey");
+CREATE INDEX "whatsapp_conversations_customerKey_updatedAt_idx" ON "whatsapp_conversations"("customerKey", "updatedAt");
 CREATE INDEX "whatsapp_conversations_integrationId_updatedAt_idx" ON "whatsapp_conversations"("integrationId", "updatedAt");
 CREATE INDEX "whatsapp_conversations_humanHandoffUntil_idx" ON "whatsapp_conversations"("humanHandoffUntil");
 
