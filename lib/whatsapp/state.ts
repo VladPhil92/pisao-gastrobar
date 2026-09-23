@@ -9,6 +9,10 @@ function handoffMinutes() {
   return Math.min(120, Math.max(5, Math.round(parsed)));
 }
 
+function conversationKey(customerKey: string, phoneNumberId?: string) {
+  return `${customerKey}:${phoneNumberId?.slice(0, 32) || "default"}`.slice(0, 96);
+}
+
 async function integrationIdForPhone(phoneNumberId?: string) {
   if (!phoneNumberId) return null;
   const integration = await prisma.whatsAppIntegration.findUnique({
@@ -39,7 +43,28 @@ export async function claimWhatsAppWebhookEvent(params: {
       "code" in error &&
       (error as { code?: string }).code === "P2002"
     ) {
-      return false;
+      const existing = await prisma.whatsAppWebhookEvent.findUnique({
+        where: { eventKey: params.eventKey.slice(0, 128) },
+        select: { processedAt: true, receivedAt: true },
+      });
+
+      if (!existing || existing.processedAt) return false;
+
+      // Permite que Meta recupere un evento abandonado tras fallo/crash,
+      // pero evita procesamiento concurrente de reintentos inmediatos.
+      const staleBefore = new Date(Date.now() - 2 * 60 * 1000);
+      if (existing.receivedAt > staleBefore) return false;
+
+      const reclaimed = await prisma.whatsAppWebhookEvent.updateMany({
+        where: {
+          eventKey: params.eventKey.slice(0, 128),
+          processedAt: null,
+          receivedAt: { lte: staleBefore },
+        },
+        data: { receivedAt: new Date() },
+      });
+
+      return reclaimed.count > 0;
     }
     throw error;
   }
@@ -59,9 +84,12 @@ export async function recordWhatsAppInbound(params: {
   const { identity } = deriveWhatsAppIdentity(params.waId);
   const integrationId = await integrationIdForPhone(params.phoneNumberId);
 
+  const key = conversationKey(identity, params.phoneNumberId);
+
   await prisma.whatsAppConversation.upsert({
-    where: { customerKey: identity },
+    where: { conversationKey: key },
     create: {
+      conversationKey: key,
       customerKey: identity,
       integrationId,
       phoneNumberId: params.phoneNumberId?.slice(0, 32),
@@ -84,9 +112,12 @@ export async function recordWhatsAppAiOutbound(params: {
   const { identity } = deriveWhatsAppIdentity(params.waId);
   const integrationId = await integrationIdForPhone(params.phoneNumberId);
 
+  const key = conversationKey(identity, params.phoneNumberId);
+
   await prisma.whatsAppConversation.upsert({
-    where: { customerKey: identity },
+    where: { conversationKey: key },
     create: {
+      conversationKey: key,
       customerKey: identity,
       integrationId,
       phoneNumberId: params.phoneNumberId?.slice(0, 32),
@@ -113,9 +144,12 @@ export async function recordWhatsAppHumanEcho(params: {
     now.getTime() + handoffMinutes() * 60 * 1000,
   );
 
+  const key = conversationKey(identity, params.phoneNumberId);
+
   await prisma.whatsAppConversation.upsert({
-    where: { customerKey: identity },
+    where: { conversationKey: key },
     create: {
+      conversationKey: key,
       customerKey: identity,
       integrationId,
       phoneNumberId: params.phoneNumberId?.slice(0, 32),
@@ -135,10 +169,13 @@ export async function recordWhatsAppHumanEcho(params: {
   return humanHandoffUntil;
 }
 
-export async function whatsappHumanHandoffActive(waId: string) {
+export async function whatsappHumanHandoffActive(
+  waId: string,
+  phoneNumberId?: string,
+) {
   const { identity } = deriveWhatsAppIdentity(waId);
   const conversation = await prisma.whatsAppConversation.findUnique({
-    where: { customerKey: identity },
+    where: { conversationKey: conversationKey(identity, phoneNumberId) },
     select: { humanHandoffUntil: true },
   });
 
