@@ -12,6 +12,9 @@ export type PisaoGovernanceEventType =
   | "pisao.concierge.provider_error"
   | "pisao.concierge.action_planned"
   | "pisao.concierge.tool_executed"
+  | "pisao.concierge.command_rejected"
+  | "pisao.concierge.command_executed"
+  | "pisao.concierge.command_prepared"
   | "pisao.order.created"
   | "pisao.order.confirmed"
   | "pisao.order.cancelled";

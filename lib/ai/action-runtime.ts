@@ -91,8 +91,8 @@ export function buildConciergeAction(params: {
   ) {
     return {
       type: "reservation.confirm",
-      execution: "client_auto",
-      label: "Confirmando reserva",
+      execution: "user_tap",
+      label: "Confirmar reserva",
       reason:
         "El huésped dio una orden explícita de confirmar una reserva cuyos datos y disponibilidad ya fueron validados.",
     };
@@ -101,8 +101,8 @@ export function buildConciergeAction(params: {
   if (params.proposal && explicitlyRequestsCart(text)) {
     return {
       type: "cart.add_proposal",
-      execution: "client_auto",
-      label: "Añadiendo a Mesa Visual",
+      execution: "user_tap",
+      label: "Confirmar en Mesa Visual",
       reason:
         "El huésped dio una orden explícita de añadir la propuesta calculada al carrito.",
     };
@@ -125,8 +125,6 @@ export function actionContextForModel(action: ConciergeActionPlan | null) {
     `Acción: ${action.type}`,
     `Ejecución: ${action.execution}`,
     `Motivo: ${action.reason}`,
-    action.execution === "client_auto"
-      ? "La interfaz ejecutará la acción porque el usuario la autorizó explícitamente. Puedes indicar que vas a ejecutarla, pero no declares éxito final hasta que el backend o la interfaz lo confirme."
-      : "La interfaz mostrará una acción explícita para que el usuario decida continuar. No declares que ya fue ejecutada.",
+    "La interfaz exigirá una confirmación explícita antes de ejecutar cualquier escritura. No declares que la acción ya fue ejecutada.",
   ].join("\n");
 }

@@ -362,3 +362,27 @@ model AiConciergeRun {
   @@index([sessionId, createdAt])
   @@map("ai_concierge_runs")
 }
+
+
+/// Comandos transaccionales de corta vida originados por el Concierge.
+/// Los tokens de confirmación nunca se almacenan en claro.
+model AiTransactionCommand {
+  id              String   @id @default(cuid())
+  sessionKey      String   @db.VarChar(96)
+  type            String   @db.VarChar(48)
+  status          String   @default("PENDING") @db.VarChar(24)
+  tokenHash       String   @db.VarChar(64)
+  idempotencyKey  String   @unique @db.VarChar(64)
+  payload         Json
+  containsPii     Boolean  @default(false)
+  expiresAt       DateTime
+  confirmedAt     DateTime?
+  executedAt      DateTime?
+  failureCode     String?  @db.VarChar(64)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sessionKey, status, createdAt])
+  @@index([expiresAt])
+  @@map("ai_transaction_commands")
+}
