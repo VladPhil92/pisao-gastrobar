@@ -66,5 +66,8 @@ jobs:
       - name: Revenue attribution tests
         run: npm run test:revenue
 
+      - name: Revenue action engine tests
+        run: npm run test:revenue-actions
+
       - name: Production build
         run: npm run build

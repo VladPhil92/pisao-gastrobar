@@ -17,7 +17,12 @@ export type PisaoGovernanceEventType =
   | "pisao.concierge.command_prepared"
   | "pisao.order.created"
   | "pisao.order.confirmed"
-  | "pisao.order.cancelled";
+  | "pisao.order.cancelled"
+  | "pisao.revenue.actions_generated"
+  | "pisao.revenue.action_approved"
+  | "pisao.revenue.action_rejected"
+  | "pisao.revenue.action_executed"
+  | "pisao.revenue.actions_measured";
 
 type GovernanceScalar = string | number | boolean | null;
 type GovernancePayload = Record<

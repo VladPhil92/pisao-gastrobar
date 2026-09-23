@@ -59,6 +59,7 @@ import {
 } from "@/lib/ai/transaction-command-bus";
 import { captureServerError } from "@/lib/observability/sentry-transport";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
+import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -596,6 +597,7 @@ export async function POST(request: Request) {
       });
     }
 
+    const revenuePlaybook = await getActiveRevenuePlaybook();
     const clientRequestId = crypto.randomUUID();
     const nativeTools = buildNativeToolDefinitions({
       allowTableMutation:
@@ -620,6 +622,12 @@ ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
+
+REVENUE PLAYBOOK APROBADO
+${revenuePlaybook}
+- Estas reglas provienen de acciones comerciales aprobadas por administración y de evidencia transaccional observada.
+- Úsalas solo cuando sean relevantes para la intención del visitante.
+- No fuerces cross-sell, no inventes promociones y no presentes la correlación histórica como causalidad.
 
 ${actionContextForModel(action)}
 

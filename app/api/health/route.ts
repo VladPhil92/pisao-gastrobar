@@ -71,6 +71,12 @@ export async function GET() {
           windowHours: 12,
           priceIntegrity: "server_catalog_revalidation",
         },
+        revenueActionEngine: {
+          mode: "human_governed",
+          engineVersion: "revenue_action_engine_v2",
+          lifecycle: "observe_propose_approve_execute_measure",
+          autonomousSensitiveMutations: false,
+        },
       },
       ai: {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
@@ -131,6 +137,12 @@ export async function GET() {
             source: "first_party_behavior",
             windowHours: 12,
             priceIntegrity: "server_catalog_revalidation",
+          },
+          revenueActionEngine: {
+            mode: "human_governed",
+            engineVersion: "revenue_action_engine_v2",
+            lifecycle: "observe_propose_approve_execute_measure",
+            autonomousSensitiveMutations: false,
           },
         },
         ai: {
