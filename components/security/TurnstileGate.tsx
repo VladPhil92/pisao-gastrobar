@@ -1,13 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type TurnstileApi = {
   render(
@@ -23,7 +17,6 @@ type TurnstileApi = {
     },
   ): string;
   reset(widgetId?: string): void;
-  remove(widgetId?: string): void;
 };
 
 declare global {
@@ -32,27 +25,21 @@ declare global {
   }
 }
 
-export type TurnstileGateHandle = {
-  token(): string | null;
-  reset(): void;
-  required(): boolean;
-  ready(): boolean;
-};
-
-export const TurnstileGate = forwardRef<
-  TurnstileGateHandle,
-  { action: string; className?: string; onReadyChange?: (ready: boolean) => void }
->(function TurnstileGate({ action, className, onReadyChange }, ref) {
+export function TurnstileGate({
+  action,
+  className,
+  resetKey = 0,
+  onTokenChange,
+}: {
+  action: string;
+  className?: string;
+  resetKey?: number;
+  onTokenChange: (token: string | null) => void;
+}) {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const tokenRef = useRef<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-
-  const notify = useCallback(
-    (ready: boolean) => onReadyChange?.(ready),
-    [onReadyChange],
-  );
 
   const renderWidget = useCallback(() => {
     if (!siteKey || !containerRef.current || !window.turnstile) return;
@@ -63,40 +50,22 @@ export const TurnstileGate = forwardRef<
       action,
       theme: "dark",
       appearance: "interaction-only",
-      callback: (token) => {
-        tokenRef.current = token;
-        notify(true);
-      },
+      callback: (token) => onTokenChange(token),
       "expired-callback": () => {
-        tokenRef.current = null;
-        notify(false);
+        onTokenChange(null);
         if (widgetIdRef.current) {
           window.turnstile?.reset(widgetIdRef.current);
         }
       },
-      "error-callback": () => {
-        tokenRef.current = null;
-        notify(false);
-      },
+      "error-callback": () => onTokenChange(null),
     });
-  }, [action, notify, siteKey]);
+  }, [action, onTokenChange, siteKey]);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      token: () => tokenRef.current,
-      required: () => Boolean(siteKey),
-      ready: () => !siteKey || Boolean(tokenRef.current),
-      reset: () => {
-        tokenRef.current = null;
-        notify(!siteKey);
-        if (widgetIdRef.current) {
-          window.turnstile?.reset(widgetIdRef.current);
-        }
-      },
-    }),
-    [notify, siteKey],
-  );
+  useEffect(() => {
+    if (!siteKey || !widgetIdRef.current || !window.turnstile) return;
+    onTokenChange(null);
+    window.turnstile.reset(widgetIdRef.current);
+  }, [onTokenChange, resetKey, siteKey]);
 
   return (
     <>
@@ -118,4 +87,4 @@ export const TurnstileGate = forwardRef<
       />
     </>
   );
-});
+}
