@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import {
   sanitizeHospitalityProfile,
   type HospitalityAnalysis,
@@ -43,6 +44,26 @@ export function mergeHospitalityProfiles(
     lastIntent: client.lastIntent ?? persistent.lastIntent,
     lastGuestState: client.lastGuestState ?? persistent.lastGuestState,
   });
+}
+
+export async function loadPersistentCommerceState(
+  sessionKey: unknown,
+): Promise<unknown | null> {
+  if (!validKey(sessionKey)) return null;
+
+  try {
+    const session = await prisma.aiConversationSession.findUnique({
+      where: { sessionKey },
+      select: { commerceState: true },
+    });
+
+    return session?.commerceState ?? null;
+  } catch (error) {
+    console.warn("[PISAO AI MEMORY] commerce state read degraded", {
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+    return null;
+  }
 }
 
 export async function loadPersistentHospitalityProfile(
@@ -89,6 +110,8 @@ export async function persistConciergeState(params: {
   reservationIntent: boolean;
   proposalCreated: boolean;
   messageCount: number;
+  commerceState?: Prisma.InputJsonValue;
+  lastTool?: string | null;
 }) {
   if (!validKey(params.guestKey) || !validKey(params.sessionKey)) {
     return { persisted: false as const, reason: "identity_unavailable" as const };
@@ -131,6 +154,8 @@ export async function persistConciergeState(params: {
           lastAgent: params.agent,
           lastIntent: params.analysis.intent,
           lastOutcome: params.outcome,
+          lastTool: params.lastTool?.slice(0, 48),
+          commerceState: params.commerceState,
           lastSeenAt: new Date(),
         },
         update: {
@@ -139,6 +164,10 @@ export async function persistConciergeState(params: {
           lastAgent: params.agent,
           lastIntent: params.analysis.intent,
           lastOutcome: params.outcome,
+          lastTool: params.lastTool?.slice(0, 48),
+          ...(params.commerceState !== undefined
+            ? { commerceState: params.commerceState }
+            : {}),
           lastSeenAt: new Date(),
         },
       });
