@@ -400,7 +400,7 @@ model RevenueExperimentAssignment {
 model RevenuePolicy {
   id            String @id @default(cuid())
   key           String @unique @db.VarChar(64)
-  engineVersion String @default("adaptive_revenue_v4") @db.VarChar(48)
+  engineVersion String @default("profit_aware_revenue_v5") @db.VarChar(48)
   status        String @default("DRAFT") @db.VarChar(24)
   surface       String @default("CONCIERGE") @db.VarChar(32)
 
