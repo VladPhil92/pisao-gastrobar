@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -14,10 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { AvailabilityCalendar } from "@/components/reservas/AvailabilityCalendar";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
 import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
-import {
-  TurnstileGate,
-  type TurnstileGateHandle,
-} from "@/components/security/TurnstileGate";
+import { TurnstileGate } from "@/components/security/TurnstileGate";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-pisao-gold/15 bg-pisao-carbon px-4 py-3 text-sm text-pisao-cream outline-none transition placeholder:text-pisao-cream-muted/45 focus:border-pisao-gold/70 focus:ring-2 focus:ring-pisao-gold/10";
@@ -32,10 +29,11 @@ type SubmitState =
 export function ReservaForm() {
   const [status, setStatus] = useState<SubmitState>({ kind: "idle" });
   const [started, setStarted] = useState(false);
-  const [securityReady, setSecurityReady] = useState(
-    !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   );
-  const turnstileRef = useRef<TurnstileGateHandle>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   const {
     register,
@@ -62,10 +60,7 @@ export function ReservaForm() {
   const onSubmit = async (values: ReservaFormValues) => {
     setStatus({ kind: "idle" });
 
-    if (
-      turnstileRef.current?.required() &&
-      !turnstileRef.current.ready()
-    ) {
+    if (turnstileRequired && !turnstileToken) {
       setStatus({
         kind: "error",
         message:
@@ -74,8 +69,6 @@ export function ReservaForm() {
       });
       return;
     }
-
-    const turnstileToken = turnstileRef.current?.token();
 
     try {
       const res = await fetch("/api/reservas", {
@@ -126,7 +119,8 @@ export function ReservaForm() {
         alternatives: [],
       });
     } finally {
-      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
     }
   };
 
@@ -258,9 +252,9 @@ export function ReservaForm() {
       </div>
 
       <TurnstileGate
-        ref={turnstileRef}
         action="reservation"
-        onReadyChange={setSecurityReady}
+        resetKey={turnstileResetKey}
+        onTokenChange={setTurnstileToken}
         className="min-h-0"
       />
 
@@ -268,7 +262,12 @@ export function ReservaForm() {
         <Button
           type="submit"
           variant="primary"
-          disabled={isSubmitting || !fecha || !hora || !securityReady}
+          disabled={
+            isSubmitting ||
+            !fecha ||
+            !hora ||
+            (turnstileRequired && !turnstileToken)
+          }
           className="w-full sm:w-auto"
         >
           <Send className="size-4" />
