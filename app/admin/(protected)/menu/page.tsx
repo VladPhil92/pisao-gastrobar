@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProductEconomicsManager } from "@/components/admin/ProductEconomicsManager";
 
@@ -25,6 +27,12 @@ async function getProductos() {
 }
 
 export default async function AdminMenuPage() {
+  const session = await auth();
+  const user = session?.user as { rol?: string } | undefined;
+  if (!session?.user || user?.rol !== "ADMIN") {
+    redirect("/admin/dashboard");
+  }
+
   const productos = await getProductos();
 
   return (
