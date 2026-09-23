@@ -361,6 +361,9 @@ export async function getActiveRevenuePlaybook() {
       status: "EXECUTED",
       type: "CONCIERGE_PAIRING",
       executedAt: { gte: since30 },
+      experiments: {
+        none: { status: "RUNNING" },
+      },
     },
     orderBy: [{ priorityScore: "desc" }, { executedAt: "desc" }],
     take: 3,
