@@ -78,7 +78,8 @@ model Usuario {
   updatedAt    DateTime   @updatedAt
 
   pagosVerificados       Pago[]          @relation("PagoVerificadoPor")
-  revenueActionsApproved RevenueAction[] @relation("RevenueActionApprovedBy")
+  revenueActionsDecided  RevenueAction[] @relation("RevenueActionDecidedBy")
+  revenueActionsExecuted RevenueAction[] @relation("RevenueActionExecutedBy")
 
   @@map("usuarios")
 }
@@ -304,10 +305,13 @@ model RevenueAction {
   evidence Json
   payload  Json?
 
-  approvedById String?
-  approvedBy   Usuario? @relation("RevenueActionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
+  decidedById String?
+  decidedBy   Usuario? @relation("RevenueActionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+
+  executedById String?
+  executedBy   Usuario? @relation("RevenueActionExecutedBy", fields: [executedById], references: [id], onDelete: SetNull)
   executedAt   DateTime?
 
   measurementStartedAt DateTime?
