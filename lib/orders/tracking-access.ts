@@ -59,6 +59,7 @@ export async function resolveOrderTrackingAccess(token: string) {
     include: {
       pedido: {
         select: {
+          id: true,
           numero: true,
           total: true,
           tipoEntrega: true,
