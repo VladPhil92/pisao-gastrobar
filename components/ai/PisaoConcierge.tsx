@@ -408,12 +408,33 @@ export function PisaoConcierge() {
     const key = reservationKey(draft);
     if (createdReservations[key]) return;
 
+    if (
+      turnstileRef.current?.required() &&
+      !turnstileRef.current.ready()
+    ) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            "La verificación de seguridad todavía no está lista. Intenta confirmar nuevamente en un momento.",
+        },
+      ]);
+      return;
+    }
+
+    const turnstileToken = turnstileRef.current?.token();
     setReservationSubmitting(true);
 
     try {
       const response = await fetch("/api/reservas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify({
           nombre: draft.nombre,
           telefono: draft.telefono,
@@ -472,6 +493,7 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
+      turnstileRef.current?.reset();
       setReservationSubmitting(false);
     }
   }
