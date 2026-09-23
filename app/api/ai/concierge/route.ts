@@ -7,6 +7,7 @@ import {
   sanitizeHospitalityProfile,
 } from "@/lib/ai/hospitality-brain";
 import {
+  loadPersistentCommerceState,
   loadPersistentHospitalityProfile,
   mergeHospitalityProfiles,
   persistConciergeState,
@@ -36,6 +37,13 @@ import {
   actionContextForModel,
   buildConciergeAction,
 } from "@/lib/ai/action-runtime";
+import {
+  applyCommerceTool,
+  commerceToolContextForModel,
+  hydrateCommerceProposal,
+  isCommercePlanningTurn,
+  serializeCommerceProposal,
+} from "@/lib/ai/tool-orchestrator";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -260,38 +268,76 @@ export async function POST(request: Request) {
 
     const catalog = await getMenuCatalog();
     const commerceAnalysis = analyzeCommerceRequest(userTranscript);
-    const proposal =
+    const persistentCommerceState = await loadPersistentCommerceState(
+      body.sessionKey,
+    );
+    const restoredProposal = hydrateCommerceProposal(
+      persistentCommerceState,
+      catalog.products,
+    );
+    const commerceTool = applyCommerceTool({
+      latestUserMessage: latestUserMessage.content,
+      activeProposal: restoredProposal,
+      products: catalog.products,
+    });
+
+    let activeProposal = commerceTool.proposal;
+    let proposalForDisplay = commerceTool.handled
+      ? commerceTool.proposal
+      : null;
+
+    if (
+      !commerceTool.handled &&
       !reservationDraft &&
-      (agent.id === "ventas" ||
-        (agent.id === "anfitrion" && commerceAnalysis.foodIntent))
-        ? buildConversationalProposal(catalog.products, commerceAnalysis)
-        : null;
+      isCommercePlanningTurn(latestUserMessage.content)
+    ) {
+      const freshProposal = buildConversationalProposal(
+        catalog.products,
+        commerceAnalysis,
+      );
+      if (freshProposal) {
+        activeProposal = freshProposal;
+        proposalForDisplay = freshProposal;
+      }
+    }
+
+    if (commerceTool.handled && commerceTool.tool) {
+      void emitKevGovernanceEvent("pisao.concierge.tool_executed", {
+        source: "concierge_api",
+        tool: commerceTool.tool,
+        agent: agent.id,
+        active_items: activeProposal?.items.length ?? 0,
+      });
+    }
 
     let fallbackText =
+      commerceTool.summary ??
       reservationFallbackText(reservationDraft) ??
-      deterministicCommerceReply(commerceAnalysis, proposal);
+      deterministicCommerceReply(commerceAnalysis, activeProposal);
 
-    if (oversizedGroup && reservationDraft?.personas) {
-      fallbackText =
-        `Para ${reservationDraft.personas} personas necesitamos una distribución especial. La reserva automática une como máximo 3 mesas y admite hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas en una sola mesa grupal. Podemos coordinar el grupo por WhatsApp.`;
-    } else if (reservationAvailabilityError && reservationDraft?.ready) {
-      fallbackText =
-        "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
-    } else if (
-      reservationAvailability &&
-      !reservationAvailability.available &&
-      reservationDraft
-    ) {
-      const alternatives = reservationAvailability.alternatives.length
-        ? ` Puedo revisar estas horas cercanas: ${reservationAvailability.alternatives.join(", ")}.`
-        : "";
-      fallbackText = `La franja de ${reservationDraft.hora} no tiene capacidad suficiente para ${reservationDraft.personas} personas.${alternatives}`;
-    } else if (
-      reservationAvailability?.available &&
-      reservationDraft?.ready
-    ) {
-      fallbackText =
-        "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la ventana completa de ocupación y, si sigue disponible, la reserva quedará confirmada al instante.";
+    if (!commerceTool.handled) {
+      if (oversizedGroup && reservationDraft?.personas) {
+        fallbackText =
+          `Para ${reservationDraft.personas} personas necesitamos una distribución especial. La reserva automática une como máximo 3 mesas y admite hasta ${MAX_AUTOMATIC_RESERVATION_PEOPLE} personas en una sola mesa grupal. Podemos coordinar el grupo por WhatsApp.`;
+      } else if (reservationAvailabilityError && reservationDraft?.ready) {
+        fallbackText =
+          "Ya tengo tus datos, pero no puedo verificar el cupo del restaurante en este momento. No registraré una reserva a ciegas; puedes intentar nuevamente o continuar por WhatsApp.";
+      } else if (
+        reservationAvailability &&
+        !reservationAvailability.available &&
+        reservationDraft
+      ) {
+        const alternatives = reservationAvailability.alternatives.length
+          ? ` Puedo revisar estas horas cercanas: ${reservationAvailability.alternatives.join(", ")}.`
+          : "";
+        fallbackText = `La franja de ${reservationDraft.hora} no tiene capacidad suficiente para ${reservationDraft.personas} personas.${alternatives}`;
+      } else if (
+        reservationAvailability?.available &&
+        reservationDraft?.ready
+      ) {
+        fallbackText =
+          "Hay capacidad para la franja solicitada y ya tengo los datos mínimos. Revisa la tarjeta debajo y pulsa “Confirmar reserva”. El calendario volverá a validar la ventana completa de ocupación y, si sigue disponible, la reserva quedará confirmada al instante.";
+      }
     }
 
     const hoursContext = [
@@ -314,7 +360,7 @@ export async function POST(request: Request) {
 
     const action = buildConciergeAction({
       latestUserMessage: latestUserMessage.content,
-      proposal,
+      proposal: activeProposal,
       reservation: reservationPayload,
       requiresHumanValidation: commerceAnalysis.requiresHumanValidation,
       oversizedGroup,
@@ -340,6 +386,10 @@ export async function POST(request: Request) {
           "Claro. Esta solicitud necesita atención del equipo; te dejo el acceso directo para continuar con una persona.";
       }
     }
+
+    const responseProposal =
+      proposalForDisplay ??
+      (action?.type === "cart.add_proposal" ? activeProposal : null);
 
     const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
     const reservationIntent = Boolean(reservationDraft);
@@ -384,13 +434,17 @@ export async function POST(request: Request) {
         fallback: true,
         latencyMs: Date.now() - startedAt,
         reservationIntent,
-        proposalCreated: Boolean(proposal),
+        proposalCreated: Boolean(activeProposal),
         messageCount: messages.length,
+        commerceState: activeProposal
+          ? serializeCommerceProposal(activeProposal)
+          : undefined,
+        lastTool: commerceTool.tool,
       });
 
       return Response.json({
         text: fallbackText,
-        proposal,
+        proposal: responseProposal,
         reservation: reservationPayload,
         action,
         fallback: true,
@@ -423,7 +477,9 @@ export async function POST(request: Request) {
         })}
 
 COMERCIO CONVERSACIONAL
-${proposalContextForModel(proposal)}
+${proposalContextForModel(activeProposal)}
+
+${commerceToolContextForModel(commerceTool)}
 
 RESERVAS TRANSACCIONALES
 ${reservationContextForModel(reservationDraft)}
@@ -483,13 +539,17 @@ REGLAS ADICIONALES
         fallback: true,
         latencyMs: Date.now() - startedAt,
         reservationIntent,
-        proposalCreated: Boolean(proposal),
+        proposalCreated: Boolean(activeProposal),
         messageCount: messages.length,
+        commerceState: activeProposal
+          ? serializeCommerceProposal(activeProposal)
+          : undefined,
+        lastTool: commerceTool.tool,
       });
 
       return Response.json({
         text: fallbackText,
-        proposal,
+        proposal: responseProposal,
         reservation: reservationPayload,
         action,
         fallback: true,
@@ -531,13 +591,17 @@ REGLAS ADICIONALES
       fallback: !modelText,
       latencyMs: Date.now() - startedAt,
       reservationIntent,
-      proposalCreated: Boolean(proposal),
+      proposalCreated: Boolean(activeProposal),
       messageCount: messages.length,
+      commerceState: activeProposal
+        ? serializeCommerceProposal(activeProposal)
+        : undefined,
+      lastTool: commerceTool.tool,
     });
 
     return Response.json({
       text,
-      proposal,
+      proposal: responseProposal,
       reservation: reservationPayload,
       action,
       fallback: !modelText,
