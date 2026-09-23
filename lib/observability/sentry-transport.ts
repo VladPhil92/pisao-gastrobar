@@ -84,12 +84,10 @@ export async function captureServerError(
         {
           type: normalized.type,
           value: normalized.value,
-          stacktrace: normalized.stack
-            ? { frames: [{ filename: "server", function: normalized.stack }] }
-            : undefined,
         },
       ],
     },
+    extra: normalized.stack ? { stack: normalized.stack } : undefined,
     tags: {
       app: "pisao-gastrobar",
       runtime: "render-nextjs",
