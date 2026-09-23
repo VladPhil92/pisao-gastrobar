@@ -83,7 +83,12 @@ export async function processWhatsAppInbound(
     phoneNumberId: message.phoneNumberId,
   });
 
-  if (await whatsappHumanHandoffActive(message.from)) {
+  if (
+    await whatsappHumanHandoffActive(
+      message.from,
+      message.phoneNumberId,
+    )
+  ) {
     await markWhatsAppWebhookProcessed(eventKey);
     return;
   }
