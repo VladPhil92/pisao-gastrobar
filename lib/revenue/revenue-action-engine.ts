@@ -79,6 +79,7 @@ async function collectInputs(): Promise<RevenueActionInputs> {
                 costoUnitario: true,
                 disponible: true,
                 inventarioBajo: true,
+                inventarioBajoReceta: true,
               },
             },
           },
@@ -152,7 +153,8 @@ async function collectInputs(): Promise<RevenueActionInputs> {
         revenue: 0,
         featured: item.producto.destacado,
         available: item.producto.disponible,
-        lowInventory: item.producto.inventarioBajo,
+        lowInventory:
+          item.producto.inventarioBajo || item.producto.inventarioBajoReceta,
         price: Number(item.producto.precio),
         cost:
           item.producto.costoUnitario === null
@@ -188,7 +190,8 @@ async function collectInputs(): Promise<RevenueActionInputs> {
                 ? null
                 : Number(item.producto.costoUnitario),
             available: item.producto.disponible,
-            lowInventory: item.producto.inventarioBajo,
+            lowInventory:
+          item.producto.inventarioBajo || item.producto.inventarioBajoReceta,
           },
         ]),
       ).values(),
