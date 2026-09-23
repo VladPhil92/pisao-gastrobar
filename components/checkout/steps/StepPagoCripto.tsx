@@ -438,6 +438,13 @@ export function StepPagoCripto({
                     ? " · visible en la red, aún confirmándose"
                     : " · confirmación mínima alcanzada"}
                 </p>
+                {txInfo.status === "OBSERVED" && (
+                  <p className="mt-1 text-pisao-cream-muted">
+                    No necesitas volver a verificar manualmente: PISÁO seguirá
+                    consultando la blockchain y avisará al administrador cuando
+                    alcance el mínimo de confirmaciones.
+                  </p>
+                )}
                 <a
                   href={txInfo.explorerUrl}
                   target="_blank"
