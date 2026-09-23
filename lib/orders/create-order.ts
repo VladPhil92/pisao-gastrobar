@@ -3,6 +3,7 @@ import { calcularTotalesPedido } from "./calculations";
 import type { CrearPedidoInput } from "./types";
 import { getCardPaymentProvider } from "@/lib/payments/providers";
 import { crearCargoCripto } from "@/lib/payments/crypto";
+import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 
 /**
  * Crea el Pedido + ItemPedido + Pago inicial, y dispara la parte
@@ -21,6 +22,10 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     input.metodoPago,
   );
 
+  const attribution = input.attributionSessionId
+    ? await resolveRevenueAttribution(input.attributionSessionId)
+    : null;
+
   const pedido = await prisma.pedido.create({
     data: {
       clienteNombre: input.cliente.nombre,
@@ -36,6 +41,18 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         input.metodoPago === "QR_TRANSFERENCIA"
           ? "PENDIENTE_VERIFICACION"
           : "PENDIENTE_PAGO",
+      attribution: attribution
+        ? {
+            create: {
+              sessionId: attribution.sessionId,
+              assists: attribution.assists,
+              lastAssist: attribution.lastAssist,
+              touchCount: attribution.touchCount,
+              observedFrom: attribution.observedFrom,
+              observedTo: attribution.observedTo,
+            },
+          }
+        : undefined,
       items: {
         create: input.items.map((item) => ({
           productoId: item.productoId,
