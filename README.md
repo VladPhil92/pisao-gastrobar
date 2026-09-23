@@ -249,6 +249,75 @@ preparar experimentos desde acciones ejecutadas, iniciar, pausar, medir y cerrar
 una prueba. Gerencia IA y Revenue IA reciben los resultados con reglas explícitas
 para no convertir correlaciones observacionales en afirmaciones causales.
 
+## Adaptive Revenue Optimization V4
+
+V4 promueve únicamente experimentos V3 completados con `sampleReady=true` e
+`interpretation=TREATMENT_OBSERVED_HIGHER` a políticas adaptativas de
+producción.
+
+```text
+Revenue Action aprobada
+        |
+        v
+Experimento V3 CONTROL / TREATMENT
+        |
+        v
+Resultado favorable + muestra suficiente
+        |
+        v
+Política V4 DRAFT
+        |
+        v
+ADMIN activa
+        |
+        +--> 90% SERVE -> Next Best Action contextual
+        |
+        +--> 10% HOLDOUT -> comportamiento normal
+        |
+        v
+Pagos aprobados + Revenue Attribution
+        |
+        v
+Guardrail periódico
+        |
+        +--> saludable / inconcluso -> continúa
+        |
+        +--> daño con IC 95% más allá del margen -> AUTO ROLLBACK
+```
+
+Principios de seguridad y gobierno:
+
+- La activación inicial sigue requiriendo un ADMIN.
+- Solo pueden existir hasta tres políticas `ACTIVE` al mismo tiempo.
+- La selección contextual usa intención del turno, coincidencia con productos,
+  lift experimental previo y prioridad de la acción.
+- La asignación `SERVE/HOLDOUT` es estable por sesión first-party.
+- El holdout se preserva incluso después de promover una política para detectar
+  degradación en producción.
+- El guardrail se evalúa como máximo una vez cada 15 minutos por política cuando
+  existe tráfico.
+- Antes de interpretar daño exige al menos 40 sesiones SERVE y 20 HOLDOUT.
+- El rollback automático se dispara solo cuando el límite superior del intervalo
+  normal aproximado del 95% para la diferencia de conversión está por debajo de
+  -2 puntos porcentuales.
+- Un rollback retira la política del Concierge y la mantiene fuera del playbook
+  general.
+- Un experimento V3 elegible tiene precedencia sobre V4 para evitar contaminación
+  entre capas.
+- V4 nunca obtiene autoridad sobre precio, descuento, reembolso, inventario,
+  disponibilidad ni pagos.
+- Kev recibe eventos de observación del ciclo de políticas, pero continúa sin
+  autoridad de mutación.
+
+El centro administrativo está en `/admin/politicas`, donde ADMIN puede preparar
+políticas desde experimentos exitosos, activar, pausar, medir y ejecutar rollback
+manual. El motor también puede ejecutar rollback automático por guardrail.
+
+La métrica de seguridad principal es conversión pagada por sesión elegible. El
+holdout continuo es un mecanismo de monitoreo de producción y no debe tratarse
+como sustituto del experimento A/B fijo original: la selección contextual y los
+cambios en composición de tráfico pueden limitar la interpretación causal.
+
 ## Instalación
 
 ### Requisitos
