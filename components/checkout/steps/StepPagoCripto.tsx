@@ -36,6 +36,10 @@ type TxVerificationResponse = {
     red: string;
     txHash: string;
     amount: string;
+    expectedAmount?: string | null;
+    minimumAcceptedAmount?: string | null;
+    amountSufficient?: boolean | null;
+    quoteAvailable?: boolean;
     confirmations: number;
     requiredConfirmations: number;
     explorerUrl: string;
@@ -294,6 +298,26 @@ export function StepPagoCripto({
               Red obligatoria:{" "}
               <strong className="text-pisao-cream">{destino.red}</strong>
             </p>
+            {destino.quote ? (
+              <div className="mt-3 rounded-xl border border-pisao-gold/20 bg-pisao-gold/5 p-3">
+                <p className="text-[10px] font-semibold tracking-[0.12em] text-pisao-gold uppercase">
+                  Monto cotizado para este pedido
+                </p>
+                <p className="font-display mt-1 text-xl text-pisao-cream">
+                  {destino.quote.amount} {destino.moneda}
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-pisao-cream-muted">
+                  Cotización fijada al crear el pedido. El sistema comparará el
+                  valor recibido on-chain con este monto antes de permitir la
+                  aprobación administrativa.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs leading-relaxed text-amber-300">
+                No fue posible fijar una cotización automática. El administrador
+                deberá validar manualmente el equivalente recibido.
+              </p>
+            )}
           </div>
 
           <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-2xl bg-white p-3">
@@ -396,6 +420,17 @@ export function StepPagoCripto({
                     {txInfo.amount} {txInfo.moneda}
                   </strong>
                 </p>
+                {txInfo.expectedAmount && (
+                  <p>
+                    Monto esperado:{" "}
+                    <strong className="text-pisao-cream">
+                      {txInfo.expectedAmount} {txInfo.moneda}
+                    </strong>
+                    {txInfo.amountSufficient === true
+                      ? " · monto suficiente"
+                      : ""}
+                  </p>
+                )}
                 <p>
                   Confirmaciones: {txInfo.confirmations} /{" "}
                   {txInfo.requiredConfirmations}
