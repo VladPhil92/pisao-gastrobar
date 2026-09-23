@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Bot,
   CalendarDays,
   Check,
   ChevronRight,
@@ -20,6 +19,14 @@ import { whatsappLink } from "@/lib/site-config";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
 import { useCartStore } from "@/lib/cart/store";
 import type { ConversationalProposal } from "@/lib/ai/conversational-commerce";
+import type {
+  HospitalityAnalysis,
+  HospitalityProfile,
+} from "@/lib/ai/hospitality-brain";
+import {
+  loadHospitalityProfile,
+  saveHospitalityProfile,
+} from "@/lib/ai/hospitality-profile-client";
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 
@@ -30,17 +37,23 @@ type ReservationState = {
   canSubmit: boolean;
 };
 
+type HospitalityState = {
+  analysis: HospitalityAnalysis;
+  profile: HospitalityProfile;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
   proposal?: ConversationalProposal | null;
   reservation?: ReservationState | null;
+  hospitality?: HospitalityState | null;
 };
 
 const quickPrompts = [
-  "Quiero reservar una mesa",
+  "Cuádrame una mesa",
   "Somos 4, tenemos $180.000 y queremos compartir sin alcohol",
-  "¿Qué me recomiendas para comer?",
+  "Recomiéndame algo bien PISÁO",
   "Quiero pedir a domicilio",
 ];
 
@@ -48,9 +61,30 @@ const initialMessages: Message[] = [
   {
     role: "assistant",
     content:
-      "¡Hola! Soy PISÁO Concierge. Puedo ayudarte a reservar una mesa, elegir qué comer o preparar un pedido. ¿Qué plan tienes?",
+      "¡Qué bueno tenerte por acá! ¿Vienes buscando mesa, algo rico para comer o quieres que te recomiende qué pedir?",
   },
 ];
+
+function hospitalityHeadline(analysis?: HospitalityAnalysis) {
+  if (!analysis) return "Hospitalidad caribeña, a la orden";
+
+  if (analysis.visitStage === "in_restaurant") return "Tu anfitrión mientras estás en PISÁO";
+
+  switch (analysis.guestState) {
+    case "ready_to_book":
+      return "Te cuadramos la reserva";
+    case "ready_to_order":
+      return "Vamos armando tu pedido";
+    case "deciding":
+      return "Te ayudo a escoger";
+    case "celebrating":
+      return "Armemos un buen plan";
+    case "needs_help":
+      return "Vamos a resolverlo";
+    default:
+      return "Hospitalidad caribeña, a la orden";
+  }
+}
 
 function money(value: number) {
   return `$${Math.round(value).toLocaleString("es-CO")}`;
@@ -72,13 +106,23 @@ export function PisaoConcierge() {
   const [reservationSubmitting, setReservationSubmitting] = useState(false);
   const [createdReservations, setCreatedReservations] = useState<Record<string, string>>({});
   const [addedProposals, setAddedProposals] = useState<Record<string, boolean>>({});
+  const [hospitalityProfile, setHospitalityProfile] =
+    useState<HospitalityProfile | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const addItems = useCartStore((state) => state.addItems);
   const openCart = useCartStore((state) => state.open);
 
   useEffect(() => {
+    setHospitalityProfile(loadHospitalityProfile());
+  }, []);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending, reservationSubmitting]);
+
+  const latestHospitality = [...messages]
+    .reverse()
+    .find((message) => message.hospitality)?.hospitality?.analysis;
 
   async function sendMessage(raw: string) {
     const content = raw.trim();
@@ -98,6 +142,7 @@ export function PisaoConcierge() {
             role,
             content: messageContent,
           })),
+          guestProfile: hospitalityProfile,
         }),
       });
 
@@ -106,6 +151,7 @@ export function PisaoConcierge() {
         error?: string;
         proposal?: ConversationalProposal | null;
         reservation?: ReservationState | null;
+        hospitality?: HospitalityState | null;
       };
 
       if (!response.ok || !payload.text) {
@@ -129,6 +175,11 @@ export function PisaoConcierge() {
         });
       }
 
+      if (payload.hospitality?.profile) {
+        setHospitalityProfile(payload.hospitality.profile);
+        saveHospitalityProfile(payload.hospitality.profile);
+      }
+
       setMessages((current) => [
         ...current,
         {
@@ -136,6 +187,7 @@ export function PisaoConcierge() {
           content: payload.text!,
           proposal: payload.proposal,
           reservation: payload.reservation,
+          hospitality: payload.hospitality,
         },
       ]);
     } catch (error) {
@@ -290,7 +342,7 @@ export function PisaoConcierge() {
             <div className="min-w-0 flex-1">
               <p className="text-pisao-cream text-sm font-semibold">PISÁO Concierge</p>
               <p className="text-pisao-cream-muted mt-0.5 text-xs">
-                Reservas, carta y pedidos en una conversación
+                {hospitalityHeadline(latestHospitality)}
               </p>
             </div>
             <button
@@ -523,7 +575,7 @@ export function PisaoConcierge() {
               <div className="flex justify-start">
                 <div className="bg-pisao-noche border-pisao-gold/10 text-pisao-cream-muted flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm">
                   <LoaderCircle className="size-4 animate-spin" />
-                  Consultando PISÁO…
+                  Ya te ayudo…
                 </div>
               </div>
             )}
@@ -594,13 +646,13 @@ export function PisaoConcierge() {
           aria-label="Abrir asistente de PISÁO"
         >
           <span className="relative flex size-9 items-center justify-center rounded-full bg-black/10">
-            <Bot className="size-5" />
+            <Sparkles className="size-5" />
             <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-[#c79a3a]" />
           </span>
           <span className="hidden text-left sm:block">
             <span className="block text-xs font-bold">PISÁO Concierge</span>
             <span className="block text-[10px] font-medium opacity-70">
-              Reserva · Menú · Pedidos
+              Caribe · Mesa · Carta
             </span>
           </span>
           <MessageCircle className="size-4 sm:hidden" />
