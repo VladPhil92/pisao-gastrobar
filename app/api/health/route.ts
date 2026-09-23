@@ -8,6 +8,7 @@ import { kevGovernanceEnabled } from "@/lib/governance/kev-bridge";
 import { transactionCommandHealth } from "@/lib/ai/transaction-command-bus";
 import { turnstileHealth } from "@/lib/security/turnstile";
 import { observabilityHealth } from "@/lib/observability/sentry-transport";
+import { cloudflareProxyTrusted } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,10 @@ export async function GET() {
       },
       security: {
         cloudflare: {
-          clientIpHeader: "cf-connecting-ip",
+          clientIpHeader: cloudflareProxyTrusted()
+            ? "cf-connecting-ip"
+            : "x-forwarded-for",
+          proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
           turnstile: turnstileHealth(),
         },
       },
@@ -90,7 +94,10 @@ export async function GET() {
         },
         security: {
           cloudflare: {
-            clientIpHeader: "cf-connecting-ip",
+            clientIpHeader: cloudflareProxyTrusted()
+            ? "cf-connecting-ip"
+            : "x-forwarded-for",
+          proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
             turnstile: turnstileHealth(),
           },
         },
