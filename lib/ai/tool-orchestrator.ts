@@ -25,6 +25,13 @@ export type StoredCommerceState = {
   }>;
 };
 
+export type StructuredCommerceMutation = {
+  operation: "add" | "remove" | "replace" | "set_quantity";
+  source: string | null;
+  target: string | null;
+  quantity: number | null;
+};
+
 export type CommerceToolResult = {
   handled: boolean;
   tool: CommerceToolName | null;
@@ -317,6 +324,154 @@ export function isCommercePlanningTurn(message: string) {
     /(presupuesto|\$|\b\d{2,4}\s*(mil|k)\b)/.test(text) ||
     /(compart|rapido|completa|cerveza|coctel|limonada|sin alcohol)/.test(text)
   );
+}
+
+export function applyStructuredCommerceTool(params: {
+  mutation: StructuredCommerceMutation;
+  activeProposal: ConversationalProposal | null;
+  products: CommerceProduct[];
+}): CommerceToolResult {
+  const active = params.activeProposal;
+  if (!active) {
+    return { handled: false, tool: null, proposal: null, summary: null };
+  }
+
+  const mutation = params.mutation;
+
+  if (mutation.operation === "add" && mutation.target) {
+    const target = targetProduct(params.products, mutation.target);
+    if (!target) {
+      return { handled: false, tool: null, proposal: active, summary: null };
+    }
+    const quantity = mutation.quantity ?? 1;
+    const proposal = recalculateProposal(
+      active,
+      addOrMerge(active.items, target, quantity),
+    );
+    return {
+      handled: true,
+      tool: "table.add_item",
+      proposal,
+      summary: `Agregué ${quantity} × ${target.nombre}. La mesa queda en ${proposal.total.toLocaleString("es-CO")} COP.`,
+    };
+  }
+
+  if (mutation.operation === "remove" && mutation.source) {
+    const sources = sourceMatches(active, mutation.source);
+    if (!sources.length) {
+      return { handled: false, tool: null, proposal: active, summary: null };
+    }
+
+    let remainingToRemove = mutation.quantity ?? 1;
+    const sourceIds = new Set(sources.map((item) => item.product.id));
+    const next = active.items
+      .map((item) => {
+        if (!sourceIds.has(item.product.id) || remainingToRemove <= 0) {
+          return { ...item };
+        }
+        const removed = Math.min(item.quantity, remainingToRemove);
+        remainingToRemove -= removed;
+        return { ...item, quantity: item.quantity - removed };
+      })
+      .filter((item) => item.quantity > 0);
+
+    const proposal = next.length ? recalculateProposal(active, next) : null;
+    return {
+      handled: true,
+      tool: "table.remove_item",
+      proposal,
+      summary: proposal
+        ? `Actualicé la mesa. El nuevo total es ${proposal.total.toLocaleString("es-CO")} COP.`
+        : "Quité el último producto de la mesa activa.",
+    };
+  }
+
+  if (
+    mutation.operation === "replace" &&
+    mutation.source &&
+    mutation.target
+  ) {
+    const sources = sourceMatches(active, mutation.source);
+    if (!sources.length) {
+      return { handled: false, tool: null, proposal: active, summary: null };
+    }
+
+    const requestedQuantity =
+      mutation.quantity ??
+      sources.reduce((sum, item) => sum + item.quantity, 0);
+    const referencePrice =
+      sources.reduce(
+        (sum, item) => sum + item.product.precio * item.quantity,
+        0,
+      ) /
+      Math.max(
+        1,
+        sources.reduce((sum, item) => sum + item.quantity, 0),
+      );
+    const target = targetProduct(
+      params.products,
+      mutation.target,
+      referencePrice,
+    );
+    if (!target || sources.some((item) => item.product.id === target.id)) {
+      return { handled: false, tool: null, proposal: active, summary: null };
+    }
+
+    let remainingToRemove = requestedQuantity;
+    const sourceIds = new Set(sources.map((item) => item.product.id));
+    const remaining = active.items
+      .map((item) => {
+        if (!sourceIds.has(item.product.id) || remainingToRemove <= 0) {
+          return { ...item };
+        }
+        const removed = Math.min(item.quantity, remainingToRemove);
+        remainingToRemove -= removed;
+        return { ...item, quantity: item.quantity - removed };
+      })
+      .filter((item) => item.quantity > 0);
+
+    const role =
+      sources.every((item) => item.role === sources[0].role)
+        ? sources[0].role
+        : roleForProduct(target);
+    const proposal = recalculateProposal(
+      active,
+      addOrMerge(remaining, target, requestedQuantity, role),
+    );
+    return {
+      handled: true,
+      tool: "table.replace_item",
+      proposal,
+      summary: `Reemplacé ${requestedQuantity} unidad${requestedQuantity === 1 ? "" : "es"} por ${target.nombre}. La mesa queda en ${proposal.total.toLocaleString("es-CO")} COP.`,
+    };
+  }
+
+  if (
+    mutation.operation === "set_quantity" &&
+    mutation.source &&
+    mutation.quantity
+  ) {
+    const sources = sourceMatches(active, mutation.source);
+    if (sources.length !== 1) {
+      return { handled: false, tool: null, proposal: active, summary: null };
+    }
+
+    const sourceId = sources[0].product.id;
+    const next = active.items.map((item) =>
+      item.product.id === sourceId
+        ? { ...item, quantity: mutation.quantity! }
+        : { ...item },
+    );
+    const proposal = recalculateProposal(active, next);
+    return {
+      handled: true,
+      tool: "table.set_quantity",
+      proposal,
+      summary: `Dejé ${mutation.quantity} × ${sources[0].product.nombre}. La mesa queda en ${proposal.total.toLocaleString("es-CO")} COP.`,
+    };
+  }
+
+  return { handled: false, tool: null, proposal: active, summary: null };
 }
 
 export function applyCommerceTool(params: {
