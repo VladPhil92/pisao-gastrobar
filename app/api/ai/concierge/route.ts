@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { buildPisaoInstructions, routePisaoAgent } from "@/lib/ai/pisao-agents";
 import {
+  analyzeHospitalityConversation,
+  evolveHospitalityProfile,
+  hospitalityContextForModel,
+  sanitizeHospitalityProfile,
+} from "@/lib/ai/hospitality-brain";
+import {
   analyzeCommerceRequest,
   buildConversationalProposal,
   deterministicCommerceReply,
@@ -176,7 +182,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { messages?: unknown };
+    const body = (await request.json()) as {
+      messages?: unknown;
+      guestProfile?: unknown;
+    };
     const messages = sanitizeMessages(body.messages);
     const latestUserMessage = [...messages]
       .reverse()
@@ -193,6 +202,17 @@ export async function POST(request: Request) {
 
     // Se enruta con todo el contexto del usuario, no solo con el último turno.
     const agent = routePisaoAgent(userTranscript);
+    const incomingHospitalityProfile = sanitizeHospitalityProfile(
+      body.guestProfile,
+    );
+    const hospitalityAnalysis = analyzeHospitalityConversation(
+      messages,
+      incomingHospitalityProfile,
+    );
+    const hospitalityProfile = evolveHospitalityProfile(
+      incomingHospitalityProfile,
+      hospitalityAnalysis,
+    );
     const reservationDraft = analyzeReservationConversation(messages);
 
     let reservationAvailability: ReservationAvailability | null = null;
@@ -283,6 +303,15 @@ export async function POST(request: Request) {
           ? "available"
           : "unavailable"
         : "unknown";
+    const hospitalityGovernance = {
+      guest_state: hospitalityAnalysis.guestState,
+      visit_stage: hospitalityAnalysis.visitStage,
+      conversation_style: hospitalityAnalysis.conversationStyle,
+      hospitality_intent: hospitalityAnalysis.intent,
+      response_mode: hospitalityAnalysis.responseMode,
+      remembered_food_signals: hospitalityProfile.preferredFoodSignals.length,
+      remembered_drink_signals: hospitalityProfile.preferredDrinkSignals.length,
+    };
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -294,6 +323,7 @@ export async function POST(request: Request) {
         availability: availabilityState,
         message_count: messages.length,
         outcome: "openai_unconfigured",
+        ...hospitalityGovernance,
       });
 
       return Response.json({
@@ -304,6 +334,10 @@ export async function POST(request: Request) {
         agent: agent.id,
         agentLabel: agent.label,
         menuSource: catalog.source,
+        hospitality: {
+          analysis: hospitalityAnalysis,
+          profile: hospitalityProfile,
+        },
       });
     }
 
@@ -331,6 +365,9 @@ ${proposalContextForModel(proposal)}
 RESERVAS TRANSACCIONALES
 ${reservationContextForModel(reservationDraft)}
 ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
+
+HOSPITALITY INTELLIGENCE
+${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
 
 REGLAS ADICIONALES
 - Si hay intención de reserva, prioriza completar la reserva antes de vender comida.
@@ -367,6 +404,7 @@ REGLAS ADICIONALES
         message_count: messages.length,
         outcome: "fallback_served",
         error_code: String(upstream.status),
+        ...hospitalityGovernance,
       });
 
       return Response.json({
@@ -377,6 +415,10 @@ REGLAS ADICIONALES
         agent: agent.id,
         agentLabel: agent.label,
         menuSource: catalog.source,
+        hospitality: {
+          analysis: hospitalityAnalysis,
+          profile: hospitalityProfile,
+        },
       });
     }
 
@@ -393,6 +435,7 @@ REGLAS ADICIONALES
         availability: availabilityState,
         message_count: messages.length,
         outcome: modelText ? "model_response" : "empty_model_response",
+        ...hospitalityGovernance,
       },
     );
 
@@ -404,6 +447,10 @@ REGLAS ADICIONALES
       agent: agent.id,
       agentLabel: agent.label,
       menuSource: catalog.source,
+      hospitality: {
+        analysis: hospitalityAnalysis,
+        profile: hospitalityProfile,
+      },
     });
   } catch (error) {
     console.error("[PISAO AI] Error inesperado", error);
