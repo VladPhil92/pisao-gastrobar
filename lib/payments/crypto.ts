@@ -1,10 +1,12 @@
 /**
- * Pago manual con criptomonedas.
+ * Pago manual con criptomonedas con prevalidación on-chain y cotización COP.
  *
- * El cliente elige el activo, escanea el QR/copia la dirección y luego sube
- * el comprobante. El backend conserva la evidencia y notifica al equipo de
- * pagos por el mismo canal utilizado para QR/Bre-B.
+ * El cliente elige el activo, escanea el QR/copia la dirección, paga, verifica
+ * el TxID/TxHash y luego sube el comprobante. La aprobación final sigue siendo
+ * administrativa.
  */
+
+import { getCryptoQuotesCop, type CryptoQuote } from "@/lib/payments/crypto-quote";
 
 export type CriptoMoneda = "BNB" | "USDT" | "ETH" | "BTC";
 
@@ -13,6 +15,7 @@ export interface CryptoPaymentDestination {
   red: string;
   direccion: string;
   qrImageUrl: string;
+  quote?: CryptoQuote | null;
 }
 
 const EVM_WALLET = "0xf27f2ab291cb3fee22298b3169b119c6b854b21c";
@@ -65,6 +68,7 @@ export interface CrearCargoCriptoResult {
   proveedor: "BINANCE_MANUAL";
   modo: "MANUAL_RECEIPT";
   referencia: string;
+  quoteAvailable: boolean;
   opciones: CryptoPaymentDestination[];
 }
 
@@ -92,18 +96,24 @@ export function aplicarDescuentoCripto(subtotal: number) {
 export async function crearCargoCripto(
   input: CrearCargoCriptoInput,
 ): Promise<CrearCargoCriptoResult> {
+  const quotes = await getCryptoQuotesCop(input.montoTotalCop);
+
   return {
     proveedor: "BINANCE_MANUAL",
     modo: "MANUAL_RECEIPT",
     referencia: `pisao-cripto-${input.pedidoId}`,
-    opciones: CRYPTO_PAYMENT_DESTINATIONS,
+    quoteAvailable: Boolean(quotes),
+    opciones: CRYPTO_PAYMENT_DESTINATIONS.map((destination) => ({
+      ...destination,
+      quote: quotes?.[destination.moneda] ?? null,
+    })),
   };
 }
 
 /**
- * Mientras el flujo sea manual, la aprobación depende del comprobante y de la
- * validación administrativa. Esta interfaz se conserva para poder migrar a un
- * verificador on-chain sin alterar el contrato del resto de la aplicación.
+ * La aprobación final sigue dependiendo de la validación administrativa.
+ * La infraestructura on-chain y de cotización permite endurecer esa decisión
+ * sin delegar autoridad de aprobación a un tercero.
  */
 export async function consultarEstadoCargoCripto(
   referencia: string,
