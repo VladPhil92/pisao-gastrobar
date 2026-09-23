@@ -508,10 +508,10 @@ export async function POST(request: Request) {
 
       if (action.type === "cart.add_proposal") {
         fallbackText =
-          "Listo. Voy a añadir esta propuesta completa a Mesa Visual para que puedas revisarla y ajustarla antes del checkout.";
+          "La propuesta está lista. Pulsa “Confirmar en Mesa Visual” para autorizar que la agreguemos y puedas revisarla antes del checkout.";
       } else if (action.type === "reservation.confirm") {
         fallbackText =
-          "Perfecto. Voy a confirmar la reserva con los datos y la disponibilidad que acabamos de validar.";
+          "La reserva está lista y el cupo fue validado. Pulsa “Confirmar reserva” para autorizar el registro definitivo; el backend volverá a comprobar la capacidad antes de guardarla.";
       } else if (action.type === "human.handoff") {
         fallbackText =
           "Claro. Esta solicitud necesita atención del equipo; te dejo el acceso directo para continuar con una persona.";
