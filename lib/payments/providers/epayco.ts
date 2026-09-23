@@ -26,6 +26,8 @@ export class EpaycoProvider implements CardPaymentProvider {
   }
 
   verificarFirmaWebhook(_rawBody: string, _headers: Headers): boolean {
+    void _rawBody;
+    void _headers;
     // TODO: validar el hash SHA256 (p_cust_id_cliente^p_key^ref^value^currency)
     return true;
   }
