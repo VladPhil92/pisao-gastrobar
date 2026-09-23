@@ -155,7 +155,9 @@ function sanitizeMessages(value: unknown): ClientMessage[] {
 function menuContextFromProducts(products: CommerceProduct[]) {
   const byCategory = new Map<string, CommerceProduct[]>();
 
-  for (const product of products.filter((item) => item.disponible)) {
+  for (const product of products.filter(
+    (item) => item.disponible && item.inventarioBajo !== true,
+  )) {
     const category = product.categoriaSlug ?? "otros";
     const entries = byCategory.get(category) ?? [];
     entries.push(product);
@@ -197,6 +199,8 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
         precio: Number(product.precio),
         imagenUrl: product.imagenUrl,
         disponible: product.disponible,
+        inventarioBajo:
+          product.inventarioBajo || product.inventarioBajoReceta,
         categoriaSlug: category.slug,
       })),
     );
