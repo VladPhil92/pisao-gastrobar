@@ -7,6 +7,11 @@ import {
   sanitizeHospitalityProfile,
 } from "@/lib/ai/hospitality-brain";
 import {
+  loadPersistentHospitalityProfile,
+  mergeHospitalityProfiles,
+  persistConciergeState,
+} from "@/lib/ai/persistent-memory";
+import {
   analyzeCommerceRequest,
   buildConversationalProposal,
   deterministicCommerceReply,
@@ -164,6 +169,7 @@ function availabilityContext(
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const identity = requestIdentity(request);
   const rate = checkRateLimit({
     key: `concierge:${identity}`,
@@ -185,6 +191,8 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       messages?: unknown;
       guestProfile?: unknown;
+      guestKey?: unknown;
+      sessionKey?: unknown;
     };
     const messages = sanitizeMessages(body.messages);
     const latestUserMessage = [...messages]
@@ -202,8 +210,14 @@ export async function POST(request: Request) {
 
     // Se enruta con todo el contexto del usuario, no solo con el último turno.
     const agent = routePisaoAgent(userTranscript);
-    const incomingHospitalityProfile = sanitizeHospitalityProfile(
+    const clientHospitalityProfile = sanitizeHospitalityProfile(
       body.guestProfile,
+    );
+    const persistentHospitalityProfile =
+      await loadPersistentHospitalityProfile(body.guestKey);
+    const incomingHospitalityProfile = mergeHospitalityProfiles(
+      persistentHospitalityProfile,
+      clientHospitalityProfile,
     );
     const hospitalityAnalysis = analyzeHospitalityConversation(
       messages,
@@ -326,6 +340,21 @@ export async function POST(request: Request) {
         ...hospitalityGovernance,
       });
 
+      await persistConciergeState({
+        guestKey: body.guestKey,
+        sessionKey: body.sessionKey,
+        profile: hospitalityProfile,
+        analysis: hospitalityAnalysis,
+        agent: agent.id,
+        model: aiModel,
+        outcome: "openai_unconfigured",
+        fallback: true,
+        latencyMs: Date.now() - startedAt,
+        reservationIntent,
+        proposalCreated: Boolean(proposal),
+        messageCount: messages.length,
+      });
+
       return Response.json({
         text: fallbackText,
         proposal,
@@ -407,6 +436,21 @@ REGLAS ADICIONALES
         ...hospitalityGovernance,
       });
 
+      await persistConciergeState({
+        guestKey: body.guestKey,
+        sessionKey: body.sessionKey,
+        profile: hospitalityProfile,
+        analysis: hospitalityAnalysis,
+        agent: agent.id,
+        model: aiModel,
+        outcome: "provider_error",
+        fallback: true,
+        latencyMs: Date.now() - startedAt,
+        reservationIntent,
+        proposalCreated: Boolean(proposal),
+        messageCount: messages.length,
+      });
+
       return Response.json({
         text: fallbackText,
         proposal,
@@ -438,6 +482,21 @@ REGLAS ADICIONALES
         ...hospitalityGovernance,
       },
     );
+
+    await persistConciergeState({
+      guestKey: body.guestKey,
+      sessionKey: body.sessionKey,
+      profile: hospitalityProfile,
+      analysis: hospitalityAnalysis,
+      agent: agent.id,
+      model: aiModel,
+      outcome: modelText ? "model_response" : "empty_model_response",
+      fallback: !modelText,
+      latencyMs: Date.now() - startedAt,
+      reservationIntent,
+      proposalCreated: Boolean(proposal),
+      messageCount: messages.length,
+    });
 
     return Response.json({
       text,
