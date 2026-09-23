@@ -1,4 +1,5 @@
 
+import { redirect } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
@@ -8,6 +9,7 @@ import {
   ShieldCheck,
   WalletCards,
 } from "lucide-react";
+import { auth } from "@/lib/auth";
 import { getCryptoOperationsSummary } from "@/lib/payments/crypto-treasury";
 import { formatCurrency } from "@/lib/utils";
 
@@ -33,6 +35,10 @@ function maskHash(value: string | null) {
 }
 
 export default async function CryptoOperationsPage() {
+  const session = await auth();
+  const rol = (session?.user as { rol?: string } | undefined)?.rol;
+  if (rol !== "ADMIN") redirect("/admin/dashboard");
+
   const data = await getCryptoOperationsSummary(30);
 
   return (
