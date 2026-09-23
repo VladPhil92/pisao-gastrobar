@@ -343,7 +343,7 @@ model RevenueExperiment {
   surface          String   @default("CONCIERGE") @db.VarChar(32)
   primaryMetric    String   @default("paid_conversion_rate") @db.VarChar(64)
   treatmentPct     Int      @default(50)
-  minAssignmentsPerArm Int  @default(20)
+  minAssignmentsPerArm Int  @default(30)
 
   startedById String?
   startedBy   Usuario? @relation("RevenueExperimentStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
