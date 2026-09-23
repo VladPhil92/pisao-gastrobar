@@ -151,6 +151,43 @@ y compara el precio vigente. Si la carta cambió, el checkout devuelve conflicto
 el cliente debe actualizar su mesa. Esto evita que ingresos y atribución se basen
 en totales manipulados desde el frontend.
 
+## Revenue Action Engine V2
+
+La capa de atribución responde qué superficies participaron antes de una venta; el
+Revenue Action Engine convierte esas señales en un ciclo comercial gobernado:
+
+```text
+OBSERVAR -> PROPONER -> APROBAR/RECHAZAR -> EJECUTAR -> MEDIR
+```
+
+El motor usa reglas determinísticas y muestras mínimas. No permite que el modelo
+genere por sí solo una mutación de negocio. Las propuestas se persisten en
+`revenue_actions` con evidencia, prioridad, riesgo, métrica objetivo, responsable
+de decisión, responsable de ejecución y resultado observado.
+
+Acciones implementadas:
+
+- `FEATURE_PRODUCT`: propone destacar un producto con ventas pagadas suficientes.
+  Tras aprobación ADMIN, el sistema puede marcarlo `destacado=true` sin tocar
+  precio, disponibilidad o descuentos.
+- `CONCIERGE_PAIRING`: detecta combinaciones que aparecen juntas en pedidos
+  pagados. Tras aprobación y ejecución, Concierge puede usar esa afinidad como
+  sugerencia contextual durante 30 días. Nunca crea promociones ni descuentos.
+- `PAYMENT_FRICTION_REVIEW`, `RESERVATION_FRICTION_REVIEW` y
+  `ATTRIBUTION_COVERAGE_REVIEW`: acciones operativas que requieren intervención
+  humana.
+- `CONCIERGE_DISCOVERY`: propone una prueba controlada cuando el ticket observado
+  en sesiones asistidas supera al de sesiones directas con muestra mínima; la
+  diferencia se trata como asociación, no como causalidad.
+
+El centro operativo está en `/admin/acciones`. Solo ADMIN puede generar, aprobar,
+rechazar, ejecutar o actualizar mediciones.
+
+La medición posterior registra resultados observados después de ejecutar acciones
+de producto/maridaje, pero los etiqueta expresamente como
+`observed_after_execution_not_causal`. Esto evita atribuir incremento a una
+acción sin experimento o grupo de control.
+
 ## Instalación
 
 ### Requisitos
