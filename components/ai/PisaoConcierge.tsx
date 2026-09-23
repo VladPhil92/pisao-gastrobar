@@ -34,6 +34,7 @@ import {
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 import type { ConciergeActionPlan } from "@/lib/ai/action-runtime";
+import { TurnstileGate } from "@/components/security/TurnstileGate";
 
 type TransactionCommandClient = {
   id: string;
@@ -134,6 +135,11 @@ export function PisaoConcierge() {
   const [conciergeIdentity, setConciergeIdentity] =
     useState<ConciergeIdentity | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  );
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const addItems = useCartStore((state) => state.addItems);
   const openCart = useCartStore((state) => state.open);
 
@@ -243,12 +249,29 @@ export function PisaoConcierge() {
   ) {
     if (!conciergeIdentity?.sessionKey || commandSubmittingId) return;
 
+    if (turnstileRequired && !turnstileToken) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            "La verificación de seguridad todavía no está lista. Intenta confirmar nuevamente en un momento.",
+        },
+      ]);
+      return;
+    }
+
     setCommandSubmittingId(command.id);
 
     try {
       const response = await fetch("/api/ai/commands/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify({
           commandId: command.id,
           confirmationToken: command.confirmationToken,
@@ -360,6 +383,8 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
       setCommandSubmittingId(null);
     }
   }
@@ -381,12 +406,29 @@ export function PisaoConcierge() {
     const key = reservationKey(draft);
     if (createdReservations[key]) return;
 
+    if (turnstileRequired && !turnstileToken) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            "La verificación de seguridad todavía no está lista. Intenta confirmar nuevamente en un momento.",
+        },
+      ]);
+      return;
+    }
+
     setReservationSubmitting(true);
 
     try {
       const response = await fetch("/api/reservas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify({
           nombre: draft.nombre,
           telefono: draft.telefono,
@@ -445,6 +487,8 @@ export function PisaoConcierge() {
         },
       ]);
     } finally {
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
       setReservationSubmitting(false);
     }
   }
@@ -824,6 +868,13 @@ export function PisaoConcierge() {
                 WhatsApp
               </a>
             </div>
+
+            <TurnstileGate
+              action="concierge_command"
+              resetKey={turnstileResetKey}
+              onTokenChange={setTurnstileToken}
+              className="mb-2 min-h-0"
+            />
 
             <form onSubmit={handleSubmit} className="flex gap-2 pb-3">
               <label htmlFor="pisao-ai-input" className="sr-only">

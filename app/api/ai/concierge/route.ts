@@ -57,6 +57,7 @@ import {
   prepareTransactionCommand,
   type PreparedTransactionCommand,
 } from "@/lib/ai/transaction-command-bus";
+import { captureServerError } from "@/lib/observability/sentry-transport";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -651,11 +652,14 @@ REGLAS ADICIONALES
       });
 
       if (!upstream.ok) {
-        console.error(
-          "[PISAO AI] OpenAI error",
-          upstream.status,
-          payload.error,
-          { clientRequestId, round },
+        void captureServerError(
+          new Error(payload.error?.message || `OpenAI HTTP ${upstream.status}`),
+          {
+            surface: "concierge_api",
+            provider: "openai",
+            status: upstream.status,
+            round,
+          },
         );
         nativeToolFailure = true;
 
@@ -793,7 +797,10 @@ REGLAS ADICIONALES
       },
     });
   } catch (error) {
-    console.error("[PISAO AI] Error inesperado", error);
+    void captureServerError(error, {
+      surface: "concierge_api",
+      code: "REQUEST_FAILED",
+    });
 
     void emitKevGovernanceEvent("pisao.concierge.provider_error", {
       source: "concierge_api",

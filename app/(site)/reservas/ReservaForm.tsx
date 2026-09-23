@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckCircle2,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { AvailabilityCalendar } from "@/components/reservas/AvailabilityCalendar";
 import { trackBehavior } from "@/lib/analytics/behavioral-client";
 import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
+import { TurnstileGate } from "@/components/security/TurnstileGate";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-pisao-gold/15 bg-pisao-carbon px-4 py-3 text-sm text-pisao-cream outline-none transition placeholder:text-pisao-cream-muted/45 focus:border-pisao-gold/70 focus:ring-2 focus:ring-pisao-gold/10";
@@ -28,22 +29,27 @@ type SubmitState =
 export function ReservaForm() {
   const [status, setStatus] = useState<SubmitState>({ kind: "idle" });
   const [started, setStarted] = useState(false);
+  const turnstileRequired = Boolean(
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+  );
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({
     resolver: zodResolver(reservaSchema),
     defaultValues: { personas: 2 },
   });
 
-  const fecha = watch("fecha");
-  const hora = watch("hora");
-  const personas = watch("personas");
+  const fecha = useWatch({ control, name: "fecha" });
+  const hora = useWatch({ control, name: "hora" });
+  const personas = useWatch({ control, name: "personas" });
 
   const markStarted = () => {
     if (started) return;
@@ -54,10 +60,25 @@ export function ReservaForm() {
   const onSubmit = async (values: ReservaFormValues) => {
     setStatus({ kind: "idle" });
 
+    if (turnstileRequired && !turnstileToken) {
+      setStatus({
+        kind: "error",
+        message:
+          "La verificación de seguridad todavía no está lista. Intenta nuevamente en un momento.",
+        alternatives: [],
+      });
+      return;
+    }
+
     try {
       const res = await fetch("/api/reservas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify(values),
       });
 
@@ -97,6 +118,9 @@ export function ReservaForm() {
           "El servicio de reservas no está disponible en este momento. Intenta nuevamente.",
         alternatives: [],
       });
+    } finally {
+      setTurnstileToken(null);
+      setTurnstileResetKey((current) => current + 1);
     }
   };
 
@@ -227,11 +251,23 @@ export function ReservaForm() {
         )}
       </div>
 
+      <TurnstileGate
+        action="reservation"
+        resetKey={turnstileResetKey}
+        onTokenChange={setTurnstileToken}
+        className="min-h-0"
+      />
+
       <div className="border-t border-pisao-gold/10 pt-5">
         <Button
           type="submit"
           variant="primary"
-          disabled={isSubmitting || !fecha || !hora}
+          disabled={
+            isSubmitting ||
+            !fecha ||
+            !hora ||
+            (turnstileRequired && !turnstileToken)
+          }
           className="w-full sm:w-auto"
         >
           <Send className="size-4" />

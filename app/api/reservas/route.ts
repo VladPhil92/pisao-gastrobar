@@ -7,6 +7,8 @@ import {
 } from "@/lib/reservas/create-reservation";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
+import { verifyTurnstile } from "@/lib/security/turnstile";
+import { captureServerError } from "@/lib/observability/sentry-transport";
 
 export async function POST(request: Request) {
   const identity = requestIdentity(request);
@@ -31,6 +33,21 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    const security = await verifyTurnstile({
+      token: request.headers.get("x-turnstile-token"),
+      remoteIp: identity,
+      expectedAction: "reservation",
+    });
+
+    if (!security.ok) {
+      return NextResponse.json(
+        {
+          error: "No pudimos validar la verificación de seguridad. Intenta nuevamente.",
+          code: security.code,
+        },
+        { status: 403 },
+      );
+    }
     const parsed = reservaSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -95,7 +112,10 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("[PISAO RESERVAS] Error creando reserva", error);
+    void captureServerError(error, {
+      surface: "reservation_api",
+      code: "RESERVATION_SERVICE_UNAVAILABLE",
+    });
     return NextResponse.json(
       {
         error:

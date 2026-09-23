@@ -57,5 +57,8 @@ jobs:
       - name: Concierge native tool tests
         run: npm run test:native-tools
 
+      - name: Edge security tests
+        run: npm run test:security
+
       - name: Production build
         run: npm run build

@@ -23,7 +23,8 @@
     "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts",
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
-    "test:native-tools": "tsx --test lib/ai/native-tools.test.ts"
+    "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
+    "test:security": "tsx --test lib/security/rate-limit.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

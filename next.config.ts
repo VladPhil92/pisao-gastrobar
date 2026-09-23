@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-DNS-Prefetch-Control", value: "off" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  {
+    key: "Content-Security-Policy",
+    value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+  },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {

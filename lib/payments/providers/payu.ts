@@ -26,6 +26,8 @@ export class PayuProvider implements CardPaymentProvider {
   }
 
   verificarFirmaWebhook(_rawBody: string, _headers: Headers): boolean {
+    void _rawBody;
+    void _headers;
     // TODO: validar la firma MD5 de confirmación de PayU con PAYU_API_KEY
     return true;
   }

@@ -6,6 +6,9 @@ import {
 } from "@/lib/reservas/policy";
 import { kevGovernanceEnabled } from "@/lib/governance/kev-bridge";
 import { transactionCommandHealth } from "@/lib/ai/transaction-command-bus";
+import { turnstileHealth } from "@/lib/security/turnstile";
+import { observabilityHealth } from "@/lib/observability/sentry-transport";
+import { cloudflareProxyTrusted } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +54,16 @@ export async function GET() {
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
         transactionCommands: transactionCommandHealth(),
       },
+      security: {
+        cloudflare: {
+          clientIpHeader: cloudflareProxyTrusted()
+            ? "cf-connecting-ip"
+            : "x-forwarded-for",
+          proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
+          turnstile: turnstileHealth(),
+        },
+      },
+      observability: observabilityHealth(),
       governance: {
         kev: {
           mode: "observe_only",
@@ -79,6 +92,16 @@ export async function GET() {
           model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
           transactionCommands: transactionCommandHealth(),
         },
+        security: {
+          cloudflare: {
+            clientIpHeader: cloudflareProxyTrusted()
+            ? "cf-connecting-ip"
+            : "x-forwarded-for",
+          proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
+            turnstile: turnstileHealth(),
+          },
+        },
+        observability: observabilityHealth(),
         governance: {
           kev: {
             mode: "observe_only",
