@@ -28,7 +28,14 @@ export type PisaoGovernanceEventType =
   | "pisao.revenue.experiment_paused"
   | "pisao.revenue.experiment_completed"
   | "pisao.revenue.experiments_measured"
-  | "pisao.revenue.experiment_assigned";
+  | "pisao.revenue.experiment_assigned"
+  | "pisao.revenue.policies_synced"
+  | "pisao.revenue.policy_activated"
+  | "pisao.revenue.policy_paused"
+  | "pisao.revenue.policy_rolled_back"
+  | "pisao.revenue.policy_auto_rolled_back"
+  | "pisao.revenue.policies_measured"
+  | "pisao.revenue.policy_assigned";
 
 type GovernanceScalar = string | number | boolean | null;
 type GovernancePayload = Record<
