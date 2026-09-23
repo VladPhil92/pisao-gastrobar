@@ -10,6 +10,7 @@ export const PERMISOS_ADMIN: Record<string, Rol[]> = {
   "/admin/reportes": ["ADMIN"],
   "/admin/ia": ["ADMIN"],
   "/admin/acciones": ["ADMIN"],
+  "/admin/experimentos": ["ADMIN"],
   "/admin/comportamiento": ["ADMIN"],
 };
 
