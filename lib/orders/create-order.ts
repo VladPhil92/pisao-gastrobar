@@ -11,6 +11,10 @@ type ValidatedOrderItem = CartItem & {
   costoUnitario: number | null;
 };
 
+type ValidatedOrderItem = CartItem & {
+  costoUnitario: number | null;
+};
+
 export class OrderCatalogValidationError extends Error {
   constructor(
     public readonly code:
