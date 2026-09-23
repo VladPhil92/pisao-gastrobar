@@ -19,8 +19,7 @@ import type { MetodoPago } from "@/lib/payments/types";
 
 const cardPaymentsEnabled =
   process.env.NEXT_PUBLIC_CARD_PAYMENTS_ENABLED === "true";
-const cryptoPaymentsEnabled =
-  process.env.NEXT_PUBLIC_CRYPTO_PAYMENTS_ENABLED === "true";
+const cryptoPaymentsEnabled = true;
 
 const opciones: Array<{
   metodo: MetodoPago;
@@ -41,7 +40,7 @@ const opciones: Array<{
         {
           metodo: "CRIPTO" as const,
           titulo: "Criptomonedas",
-          descripcion: "Pago digital habilitado.",
+          descripcion: "BNB, USDT, ETH o BTC. Validación con comprobante.",
           icon: Coins,
           enabled: true,
         },
@@ -144,7 +143,7 @@ export function StepMetodoPago({
       formData.append("pedidoId", pedido.id);
       formData.append("comprobante", file);
 
-      const res = await fetch("/api/pagos/qr/comprobante", {
+      const res = await fetch("/api/pagos/comprobante", {
         method: "POST",
         body: formData,
       });
@@ -223,9 +222,9 @@ export function StepMetodoPago({
       </div>
 
       <div className="mt-4 rounded-xl border border-pisao-gold/10 bg-pisao-noche/60 px-4 py-3 text-xs leading-relaxed text-pisao-cream-muted">
-        <strong className="text-pisao-cream">Método vigente:</strong> todos los
-        pedidos se pagan actualmente mediante el QR oficial de PISÁO, Llave
-        Bre-B o transferencia directa a Bancolombia.
+        <strong className="text-pisao-cream">Métodos disponibles hoy:</strong>{" "}
+        QR oficial de PISÁO, Llave Bre-B, transferencia Bancolombia y
+        criptomonedas. Tarjeta y PSE se habilitarán en octubre.
       </div>
 
       <Modal
