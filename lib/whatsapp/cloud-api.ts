@@ -1,7 +1,10 @@
 import "server-only";
 
+import { getWhatsAppIntegrationCredentials } from "@/lib/whatsapp/integration-store";
+
 type WhatsAppTextSendResult = {
   messageId: string | null;
+  phoneNumberId: string;
 };
 
 type CloudApiPayload = {
@@ -12,9 +15,24 @@ type CloudApiPayload = {
   };
 };
 
-function config() {
+async function config(preferredPhoneNumberId?: string) {
+  const stored = await getWhatsAppIntegrationCredentials(
+    preferredPhoneNumberId,
+  );
+
+  if (stored?.token && stored.phoneNumberId) {
+    return {
+      token: stored.token,
+      phoneNumberId: stored.phoneNumberId,
+      version:
+        process.env.WHATSAPP_CLOUD_GRAPH_VERSION?.trim() || "v25.0",
+    };
+  }
+
   const token = process.env.WHATSAPP_CLOUD_API_TOKEN?.trim();
-  const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+  const phoneNumberId =
+    preferredPhoneNumberId ||
+    process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
   const version =
     process.env.WHATSAPP_CLOUD_GRAPH_VERSION?.trim() || "v25.0";
 
@@ -25,18 +43,21 @@ function config() {
   return { token, phoneNumberId, version };
 }
 
-export function whatsappCloudConfigured() {
-  return Boolean(
-    process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() &&
-      process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim(),
-  );
+export async function whatsappCloudConfigured() {
+  try {
+    await config();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function sendWhatsAppText(params: {
   to: string;
   body: string;
+  phoneNumberId?: string;
 }): Promise<WhatsAppTextSendResult> {
-  const { token, phoneNumberId, version } = config();
+  const { token, phoneNumberId, version } = await config(params.phoneNumberId);
   const body = params.body.trim().slice(0, 4096);
 
   if (!body) {
@@ -75,5 +96,6 @@ export async function sendWhatsAppText(params: {
 
   return {
     messageId: payload.messages?.[0]?.id ?? null,
+    phoneNumberId,
   };
 }
