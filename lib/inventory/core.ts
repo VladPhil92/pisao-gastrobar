@@ -35,7 +35,9 @@ export function effectiveRecipeQuantity(
 ) {
   const quantity = Math.max(0, quantityBase);
   const waste = Math.max(0, Math.min(100, wastePct));
-  return quantity * (1 + waste / 100);
+  // Normalize floating-point noise while preserving more precision than
+  // the persisted recipe quantity (3 decimals) and waste percentage (2 decimals).
+  return round(quantity * (1 + waste / 100), 6);
 }
 
 export function calculateRecipeCost(lines: RecipeLineInput[]): RecipeCost {
