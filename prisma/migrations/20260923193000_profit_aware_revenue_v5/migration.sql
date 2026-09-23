@@ -11,3 +11,6 @@ CREATE INDEX "productos_disponible_inventarioBajo_idx"
 
 ALTER TABLE "revenue_policies"
   ADD COLUMN "operationalPauseReason" VARCHAR(180);
+
+ALTER TABLE "revenue_policies"
+  ALTER COLUMN "engineVersion" SET DEFAULT 'profit_aware_revenue_v5';
