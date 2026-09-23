@@ -12,7 +12,8 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -118,22 +119,26 @@ export function OrderTrackingClient() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const tokenFromHash = params.get("token");
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const resolved = tokenFromHash || stored;
-
-    if (tokenFromHash) {
-      window.localStorage.setItem(STORAGE_KEY, tokenFromHash);
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search,
+    queueMicrotask(() => {
+      const params = new URLSearchParams(
+        window.location.hash.replace(/^#/, ""),
       );
-    }
+      const tokenFromHash = params.get("token");
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      const resolved = tokenFromHash || stored;
 
-    setToken(resolved);
-    setInitialized(true);
+      if (tokenFromHash) {
+        window.localStorage.setItem(STORAGE_KEY, tokenFromHash);
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+      }
+
+      setToken(resolved);
+      setInitialized(true);
+    });
   }, []);
 
   const loadTracking = useCallback(
@@ -185,7 +190,9 @@ export function OrderTrackingClient() {
   useEffect(() => {
     if (!initialized || !token) return;
 
-    void loadTracking(token);
+    queueMicrotask(() => {
+      void loadTracking(token);
+    });
   }, [initialized, token, loadTracking]);
 
   useEffect(() => {
