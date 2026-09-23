@@ -33,7 +33,8 @@
     "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-intent.test.ts",
     "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-treasury-core.test.ts",
     "test:tracking": "tsx --test lib/orders/tracking.test.ts lib/orders/status.test.ts",
-    "security:audit-baseline": "node scripts/audit-security-baseline.mjs"
+    "security:audit-baseline": "node scripts/audit-security-baseline.mjs",
+    "test:whatsapp": "tsx --test lib/whatsapp/coexistence.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

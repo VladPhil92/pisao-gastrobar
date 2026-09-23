@@ -2,14 +2,20 @@ import "server-only";
 
 import { POST as runConcierge } from "@/app/api/ai/concierge/route";
 import { captureServerError } from "@/lib/observability/sentry-transport";
+import type {
+  WhatsAppInboundMessage,
+  WhatsAppMessageEcho,
+} from "@/lib/whatsapp/coexistence";
 import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
+import {
+  claimWhatsAppWebhookEvent,
+  markWhatsAppWebhookProcessed,
+  recordWhatsAppAiOutbound,
+  recordWhatsAppHumanEcho,
+  recordWhatsAppInbound,
+  whatsappHumanHandoffActive,
+} from "@/lib/whatsapp/state";
 import { deriveWhatsAppIdentity } from "@/lib/whatsapp/webhook-security";
-
-type WhatsAppInboundMessage = {
-  id: string;
-  from: string;
-  text: string;
-};
 
 type ConciergePayload = {
   text?: string;
@@ -18,93 +24,6 @@ type ConciergePayload = {
     type?: string;
   } | null;
 };
-
-const globalWhatsAppState = globalThis as unknown as {
-  pisaoWhatsAppSeen?: Map<string, number>;
-};
-
-const seen = globalWhatsAppState.pisaoWhatsAppSeen ?? new Map<string, number>();
-globalWhatsAppState.pisaoWhatsAppSeen = seen;
-
-function cleanupSeen(now: number) {
-  if (seen.size < 1000) return;
-  for (const [id, expiresAt] of seen) {
-    if (expiresAt <= now) seen.delete(id);
-  }
-}
-
-function claimMessage(id: string) {
-  const now = Date.now();
-  cleanupSeen(now);
-  const current = seen.get(id);
-  if (current && current > now) return false;
-  seen.set(id, now + 15 * 60 * 1000);
-  return true;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object"
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function textFromMessage(message: Record<string, unknown>) {
-  const type = typeof message.type === "string" ? message.type : "";
-
-  if (type === "text") {
-    const text = asRecord(message.text);
-    return typeof text?.body === "string" ? text.body : null;
-  }
-
-  if (type === "button") {
-    const button = asRecord(message.button);
-    return typeof button?.text === "string" ? button.text : null;
-  }
-
-  if (type === "interactive") {
-    const interactive = asRecord(message.interactive);
-    const buttonReply = asRecord(interactive?.button_reply);
-    if (typeof buttonReply?.title === "string") return buttonReply.title;
-    const listReply = asRecord(interactive?.list_reply);
-    if (typeof listReply?.title === "string") return listReply.title;
-  }
-
-  return null;
-}
-
-export function extractWhatsAppInboundMessages(
-  payload: unknown,
-): WhatsAppInboundMessage[] {
-  const root = asRecord(payload);
-  const entries = Array.isArray(root?.entry) ? root.entry : [];
-  const inbound: WhatsAppInboundMessage[] = [];
-
-  for (const entryValue of entries) {
-    const entry = asRecord(entryValue);
-    const changes = Array.isArray(entry?.changes) ? entry.changes : [];
-
-    for (const changeValue of changes) {
-      const change = asRecord(changeValue);
-      const value = asRecord(change?.value);
-      const messages = Array.isArray(value?.messages) ? value.messages : [];
-
-      for (const messageValue of messages) {
-        const message = asRecord(messageValue);
-        if (!message) continue;
-
-        const id = typeof message.id === "string" ? message.id : "";
-        const from = typeof message.from === "string" ? message.from : "";
-        const text = textFromMessage(message)?.trim().slice(0, 1600) ?? "";
-
-        if (id && from && text) {
-          inbound.push({ id, from, text });
-        }
-      }
-    }
-  }
-
-  return inbound;
-}
 
 function whatsappReplyText(payload: ConciergePayload) {
   const base =
@@ -130,10 +49,49 @@ function whatsappReplyText(payload: ConciergePayload) {
   return base;
 }
 
+export async function processWhatsAppHumanEcho(
+  echo: WhatsAppMessageEcho,
+) {
+  const eventKey = `echo:${echo.id}`;
+  const claimed = await claimWhatsAppWebhookEvent({
+    eventKey,
+    field: "smb_message_echoes",
+    phoneNumberId: echo.phoneNumberId,
+  });
+  if (!claimed) return;
+
+  await recordWhatsAppHumanEcho({
+    customerWaId: echo.to,
+    phoneNumberId: echo.phoneNumberId,
+  });
+  await markWhatsAppWebhookProcessed(eventKey);
+}
+
 export async function processWhatsAppInbound(
   message: WhatsAppInboundMessage,
 ) {
-  if (!claimMessage(message.id)) return;
+  const eventKey = `message:${message.id}`;
+  const claimed = await claimWhatsAppWebhookEvent({
+    eventKey,
+    field: "messages",
+    phoneNumberId: message.phoneNumberId,
+  });
+  if (!claimed) return;
+
+  await recordWhatsAppInbound({
+    waId: message.from,
+    phoneNumberId: message.phoneNumberId,
+  });
+
+  if (
+    await whatsappHumanHandoffActive(
+      message.from,
+      message.phoneNumberId,
+    )
+  ) {
+    await markWhatsAppWebhookProcessed(eventKey);
+    return;
+  }
 
   const identity = deriveWhatsAppIdentity(message.from);
   const headers: Record<string, string> = {
@@ -170,7 +128,14 @@ export async function processWhatsAppInbound(
     await sendWhatsAppText({
       to: message.from,
       body: whatsappReplyText(payload),
+      phoneNumberId: message.phoneNumberId,
     });
+
+    await recordWhatsAppAiOutbound({
+      waId: message.from,
+      phoneNumberId: message.phoneNumberId,
+    });
+    await markWhatsAppWebhookProcessed(eventKey);
   } catch (error) {
     void captureServerError(error, {
       surface: "whatsapp_concierge",

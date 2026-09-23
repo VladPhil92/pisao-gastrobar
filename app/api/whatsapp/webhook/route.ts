@@ -1,9 +1,14 @@
 import { after } from "next/server";
 import { captureServerError } from "@/lib/observability/sentry-transport";
 import {
-  extractWhatsAppInboundMessages,
+  processWhatsAppHumanEcho,
   processWhatsAppInbound,
 } from "@/lib/whatsapp/concierge-adapter";
+import { parseWhatsAppWebhook } from "@/lib/whatsapp/coexistence";
+import {
+  claimWhatsAppWebhookEvent,
+  markWhatsAppWebhookProcessed,
+} from "@/lib/whatsapp/state";
 import {
   verifyWhatsAppChallengeToken,
   verifyWhatsAppSignature,
@@ -34,8 +39,31 @@ export async function GET(request: Request) {
   );
 }
 
+async function recordPrivacyPreservingSignal(signal: {
+  type: "history" | "smb_app_state_sync" | "account_update";
+  phoneNumberId?: string;
+  eventKey: string;
+}) {
+  const claimed = await claimWhatsAppWebhookEvent({
+    eventKey: signal.eventKey,
+    field: signal.type,
+    phoneNumberId: signal.phoneNumberId,
+  });
+  if (!claimed) return;
+
+  // V2 deliberadamente no persiste historial ni libreta de contactos.
+  // Solo registramos que Meta entregó el evento para observabilidad.
+  await markWhatsAppWebhookProcessed(signal.eventKey);
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
+
+  // Mientras el canal está desactivado, acusamos recepción sin procesar datos.
+  // Esto permite que Meta pruebe entrega sin exigir todavía el App Secret.
+  if (process.env.WHATSAPP_WEBHOOK_ENABLED !== "true") {
+    return new Response("EVENT_RECEIVED", { status: 200 });
+  }
 
   if (
     !verifyWhatsAppSignature({
@@ -56,17 +84,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid JSON payload." }, { status: 400 });
   }
 
-  if (process.env.WHATSAPP_WEBHOOK_ENABLED !== "true") {
-    return new Response("EVENT_RECEIVED", { status: 200 });
-  }
+  const parsed = parseWhatsAppWebhook(payload);
 
-  const messages = extractWhatsAppInboundMessages(payload);
-
-  if (messages.length) {
+  if (
+    parsed.inbound.length ||
+    parsed.echoes.length ||
+    parsed.signals.length
+  ) {
     after(async () => {
-      const results = await Promise.allSettled(
-        messages.map((message) => processWhatsAppInbound(message)),
-      );
+      const tasks = [
+        ...parsed.inbound.map((message) => processWhatsAppInbound(message)),
+        ...parsed.echoes.map((echo) => processWhatsAppHumanEcho(echo)),
+        ...parsed.signals.map((signal) =>
+          recordPrivacyPreservingSignal(signal),
+        ),
+      ];
+
+      const results = await Promise.allSettled(tasks);
 
       for (const result of results) {
         if (result.status === "rejected") {

@@ -614,3 +614,64 @@ model AiTransactionCommand {
   @@index([expiresAt])
   @@map("ai_transaction_commands")
 }
+
+
+/// Conexión WhatsApp Cloud API/Coexistence administrada por PISÁO.
+/// El token nunca se guarda en claro: se cifra con AES-256-GCM.
+model WhatsAppIntegration {
+  id                    String   @id @default(cuid())
+  wabaId                String   @unique @db.VarChar(32)
+  phoneNumberId         String   @unique @db.VarChar(32)
+  displayPhoneNumber    String?  @db.VarChar(32)
+  verifiedName          String?  @db.VarChar(128)
+  status                String   @default("PENDING") @db.VarChar(32)
+  coexistence           Boolean  @default(true)
+  accessTokenCiphertext String
+  accessTokenIv         String   @db.VarChar(32)
+  accessTokenTag        String   @db.VarChar(32)
+  lastVerifiedAt        DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  conversations WhatsAppConversation[]
+
+  @@index([status, updatedAt])
+  @@map("whatsapp_integrations")
+}
+
+/// Estado operacional por conversación sin almacenar el número en claro.
+/// customerKey es un HMAC estable derivado del wa_id.
+model WhatsAppConversation {
+  id                 String   @id @default(cuid())
+  conversationKey    String   @unique @db.VarChar(96)
+  customerKey        String   @db.VarChar(64)
+  integrationId      String?
+  phoneNumberId      String?  @db.VarChar(32)
+  humanHandoffUntil  DateTime?
+  lastHumanMessageAt DateTime?
+  lastInboundAt      DateTime?
+  lastAiMessageAt    DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  integration WhatsAppIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+
+  @@index([customerKey, updatedAt])
+  @@index([integrationId, updatedAt])
+  @@index([humanHandoffUntil])
+  @@map("whatsapp_conversations")
+}
+
+/// Idempotencia y telemetría mínima de webhooks.
+/// No conserva payloads, texto, contactos ni números de clientes.
+model WhatsAppWebhookEvent {
+  id            String    @id @default(cuid())
+  eventKey      String    @unique @db.VarChar(128)
+  field         String    @db.VarChar(48)
+  phoneNumberId String?   @db.VarChar(32)
+  receivedAt    DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@index([field, receivedAt])
+  @@map("whatsapp_webhook_events")
+}
