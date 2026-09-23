@@ -19,7 +19,8 @@ import type { MetodoPago } from "@/lib/payments/types";
 
 const cardPaymentsEnabled =
   process.env.NEXT_PUBLIC_CARD_PAYMENTS_ENABLED === "true";
-const cryptoPaymentsEnabled = true;
+const cryptoPaymentsEnabled =
+  process.env.NEXT_PUBLIC_CRYPTO_PAYMENTS_ENABLED !== "false";
 
 const opciones: Array<{
   metodo: MetodoPago;
