@@ -73,8 +73,6 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         metodo: "CRIPTO",
         estado: "PENDIENTE",
         monto: total,
-        criptoMoneda: cargo.criptoMoneda,
-        walletDireccion: cargo.direccionPago,
         descuentoAplicadoPct: descuento > 0 ? (descuento / subtotal) * 100 : 0,
         referenciaProveedor: cargo.referencia,
       },
