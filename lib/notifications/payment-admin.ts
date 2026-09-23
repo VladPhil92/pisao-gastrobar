@@ -33,6 +33,25 @@ export type PaymentAdminNotificationResult = {
   whatsappUrl: string;
 };
 
+export type CryptoConfirmationAdminInput = {
+  numero: number;
+  clienteNombre: string;
+  totalCop: number;
+  moneda: string;
+  red: string;
+  txHash: string;
+  amount: string;
+  confirmations: number;
+  requiredConfirmations: number;
+  explorerUrl: string;
+  evidenceReceived: boolean;
+};
+
+export type CryptoConfirmationNotificationResult = {
+  delivery: "automatic" | "pending";
+  provider: "whatsapp_cloud" | "webhook" | "unavailable";
+};
+
 function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
@@ -205,6 +224,112 @@ async function notifyViaWebhook(
   });
 
   return response.ok;
+}
+
+async function notifyTextViaWhatsAppCloud(message: string) {
+  const token = process.env.WHATSAPP_CLOUD_API_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+  if (!token || !phoneNumberId) return false;
+
+  const version =
+    process.env.WHATSAPP_CLOUD_GRAPH_VERSION?.trim() || "v23.0";
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: paymentAdminNumber(),
+        type: "text",
+        text: { preview_url: true, body: message.slice(0, 3900) },
+      }),
+      signal: AbortSignal.timeout(8_000),
+    },
+  );
+  return response.ok;
+}
+
+async function notifyCryptoConfirmationViaWebhook(
+  input: CryptoConfirmationAdminInput,
+  message: string,
+) {
+  const url = process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_URL?.trim();
+  if (!url?.startsWith("https://")) return false;
+
+  const secret = process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_SECRET?.trim();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (secret) headers.Authorization = `Bearer ${secret}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      event: "pisao.payment.crypto_confirmed",
+      adminWhatsapp: paymentAdminNumber(),
+      message,
+      payment: input,
+    }),
+    signal: AbortSignal.timeout(8_000),
+  });
+  return response.ok;
+}
+
+export function buildCryptoConfirmationAdminMessage(
+  input: CryptoConfirmationAdminInput,
+) {
+  return [
+    `✅ PISÁO · Cripto confirmada · Pedido #${input.numero}`,
+    "",
+    `Cliente: ${input.clienteNombre}`,
+    `Total pedido: ${Math.round(input.totalCop).toLocaleString("es-CO")} COP`,
+    `Activo: ${input.moneda}`,
+    `Red: ${input.red}`,
+    `Recibido: ${input.amount} ${input.moneda}`,
+    `Confirmaciones: ${input.confirmations}/${input.requiredConfirmations}`,
+    `TxID/TxHash: ${input.txHash}`,
+    `Explorador: ${input.explorerUrl}`,
+    "",
+    input.evidenceReceived
+      ? "El comprobante ya está almacenado. El pago está listo para revisión y aprobación humana en el panel."
+      : "La blockchain ya confirmó el pago. Aún falta recibir el comprobante del cliente antes de la aprobación administrativa.",
+  ].join("\n");
+}
+
+export async function notifyCryptoConfirmationAdmin(
+  input: CryptoConfirmationAdminInput,
+): Promise<CryptoConfirmationNotificationResult> {
+  const message = buildCryptoConfirmationAdminMessage(input);
+
+  try {
+    if (await notifyTextViaWhatsAppCloud(message)) {
+      return { delivery: "automatic", provider: "whatsapp_cloud" };
+    }
+  } catch (error) {
+    console.warn("[PISAO PAYMENTS] Crypto WhatsApp confirmation failed", {
+      order: input.numero,
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+  }
+
+  try {
+    if (await notifyCryptoConfirmationViaWebhook(input, message)) {
+      return { delivery: "automatic", provider: "webhook" };
+    }
+  } catch (error) {
+    console.warn("[PISAO PAYMENTS] Crypto confirmation webhook failed", {
+      order: input.numero,
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+  }
+
+  return { delivery: "pending", provider: "unavailable" };
 }
 
 export async function notifyPaymentAdmin(
