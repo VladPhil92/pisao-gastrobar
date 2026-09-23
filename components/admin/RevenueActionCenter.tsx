@@ -35,7 +35,8 @@ type RevenueActionView = {
   executedAt: string | null;
   measuredAt: string | null;
   outcome: JsonRecord | null;
-  approvedBy: { nombre: string } | null;
+  decidedBy: { nombre: string } | null;
+  executedBy: { nombre: string } | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -404,9 +405,11 @@ export function RevenueActionCenter({
                   <span className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 px-3 py-2 text-xs font-semibold text-emerald-300">
                     <BadgeCheck className="size-3" />
                     Ejecutada
-                    {action.approvedBy?.nombre
-                      ? ` · aprobó ${action.approvedBy.nombre}`
-                      : ""}
+                    {action.executedBy?.nombre
+                      ? ` · ejecutó ${action.executedBy.nombre}`
+                      : action.decidedBy?.nombre
+                        ? ` · decidió ${action.decidedBy.nombre}`
+                        : ""}
                   </span>
                 )}
               </div>
