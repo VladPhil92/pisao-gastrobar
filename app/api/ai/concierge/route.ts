@@ -328,6 +328,17 @@ export async function POST(request: Request) {
         execution: action.execution,
         agent: agent.id,
       });
+
+      if (action.type === "cart.add_proposal") {
+        fallbackText =
+          "Listo. Voy a añadir esta propuesta completa a Mesa Visual para que puedas revisarla y ajustarla antes del checkout.";
+      } else if (action.type === "reservation.confirm") {
+        fallbackText =
+          "Perfecto. Voy a confirmar la reserva con los datos y la disponibilidad que acabamos de validar.";
+      } else if (action.type === "human.handoff") {
+        fallbackText =
+          "Claro. Esta solicitud necesita atención del equipo; te dejo el acceso directo para continuar con una persona.";
+      }
     }
 
     const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
