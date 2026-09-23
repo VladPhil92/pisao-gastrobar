@@ -81,7 +81,6 @@ export async function verifyTurnstile(params: {
 
     if (
       params.expectedAction &&
-      payload.action &&
       payload.action !== params.expectedAction
     ) {
       return { ok: false, code: "TURNSTILE_ACTION_MISMATCH" };
