@@ -84,5 +84,8 @@ jobs:
       - name: Customer order tracking tests
         run: npm run test:tracking
 
+      - name: WhatsApp coexistence tests
+        run: npm run test:whatsapp
+
       - name: Production build
         run: npm run build
