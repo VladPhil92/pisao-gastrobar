@@ -226,7 +226,7 @@ async function verifyNativeEvm(
   }
 
   const value = BigInt(tx.value || "0x0");
-  if (value <= 0n) {
+  if (value <= BigInt(0)) {
     throw new OnchainVerificationError(
       "La transacción no contiene un valor recibido válido.",
       "NO_VALUE",
@@ -321,9 +321,9 @@ async function verifyUsdtBsc(
 
   const amountRaw = transfers.reduce(
     (sum, log) => sum + BigInt(log.data || "0x0"),
-    0n,
+    BigInt(0),
   );
-  if (amountRaw <= 0n) {
+  if (amountRaw <= BigInt(0)) {
     throw new OnchainVerificationError(
       "La transferencia USDT no contiene un monto válido.",
       "NO_VALUE",
