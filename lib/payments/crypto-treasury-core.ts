@@ -28,6 +28,7 @@ export type CryptoLedgerEntry = {
   receivedAmount: number | null;
   network: string | null;
   txHash: string | null;
+  explorerUrl: string | null;
   confirmations: number;
   reconciliationState: string | null;
   quoteCopPerUnit: number | null;
@@ -134,6 +135,11 @@ export function extractCryptoLedgerEntry(
   const reconciliationState =
     asString(reconciliation.state) ?? asString(payload.status);
 
+  const explorerUrl =
+    asString(treasury.explorerUrl) ??
+    asString(reconciliation.explorerUrl) ??
+    asString(payload.explorerUrl);
+
   const confirmations =
     asNumber(treasury.confirmations) ??
     asNumber(reconciliation.confirmations) ??
@@ -157,6 +163,7 @@ export function extractCryptoLedgerEntry(
       receivedAmount !== null && receivedAmount >= 0 ? receivedAmount : null,
     network,
     txHash,
+    explorerUrl,
     confirmations: Math.max(0, Math.trunc(confirmations)),
     reconciliationState,
     quoteCopPerUnit:
