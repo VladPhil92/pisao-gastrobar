@@ -454,29 +454,71 @@ export async function getActiveRevenuePlaybook() {
     },
   });
 
-  const eligibleActions = actions
-    .filter((action) => {
-      const latestPolicy = action.policies[0];
-      if (latestPolicy && latestPolicy.status !== "DRAFT") return false;
+  const eligibleActions = actions.filter((action) => {
+    const latestPolicy = action.policies[0];
+    if (latestPolicy && latestPolicy.status !== "DRAFT") return false;
 
-      const latestExperiment = action.experiments[0];
-      if (!latestExperiment) return true;
-      if (latestExperiment.status !== "COMPLETED") return false;
+    const latestExperiment = action.experiments[0];
+    if (!latestExperiment) return true;
+    if (latestExperiment.status !== "COMPLETED") return false;
 
-      return (
-        jsonBoolean(latestExperiment.result, "sampleReady") === true &&
-        jsonString(latestExperiment.result, "interpretation") ===
-          "TREATMENT_OBSERVED_HIGHER"
-      );
-    })
-    .slice(0, 3);
+    return (
+      jsonBoolean(latestExperiment.result, "sampleReady") === true &&
+      jsonString(latestExperiment.result, "interpretation") ===
+        "TREATMENT_OBSERVED_HIGHER"
+    );
+  });
+
+  const productIds = [
+    ...new Set(
+      eligibleActions.flatMap((action) =>
+        [
+          jsonString(action.payload, "productAId"),
+          jsonString(action.payload, "productBId"),
+        ].filter((value): value is string => Boolean(value)),
+      ),
+    ),
+  ];
+
+  const products = productIds.length
+    ? await prisma.producto.findMany({
+        where: { id: { in: productIds } },
+        select: {
+          id: true,
+          disponible: true,
+          inventarioBajo: true,
+          inventarioBajoReceta: true,
+        },
+      })
+    : [];
+  const productById = new Map(products.map((product) => [product.id, product]));
 
   const pairings = eligibleActions
     .map((action) => {
+      const productAId = jsonString(action.payload, "productAId");
+      const productBId = jsonString(action.payload, "productBId");
       const productAName = jsonString(action.payload, "productAName");
       const productBName = jsonString(action.payload, "productBName");
       const pairOrders = jsonNumber(action.evidence, "pairOrders30d");
-      if (!productAName || !productBName) return null;
+      if (!productAId || !productBId || !productAName || !productBName) {
+        return null;
+      }
+
+      const productA = productById.get(productAId);
+      const productB = productById.get(productBId);
+      if (
+        !productA ||
+        !productB ||
+        !productA.disponible ||
+        !productB.disponible ||
+        productA.inventarioBajo ||
+        productA.inventarioBajoReceta ||
+        productB.inventarioBajo ||
+        productB.inventarioBajoReceta
+      ) {
+        return null;
+      }
+
       return {
         productAName,
         productBName,
@@ -491,10 +533,11 @@ export async function getActiveRevenuePlaybook() {
         productBName: string;
         pairOrders: number;
       } => Boolean(item),
-    );
+    )
+    .slice(0, 3);
 
   if (!pairings.length) {
-    return "No hay reglas comerciales aprobadas y ejecutadas activas.";
+    return "No hay reglas comerciales aprobadas, ejecutadas y operativamente elegibles.";
   }
 
   return [
