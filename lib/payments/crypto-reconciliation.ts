@@ -14,7 +14,17 @@ import {
   governanceRef,
 } from "@/lib/governance/kev-bridge";
 
-type JsonObject = Record<string, unknown>;
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonObject
+  | JsonValue[];
+
+type JsonObject = {
+  [key: string]: JsonValue | undefined;
+};
 
 export type CryptoReconciliationSummary = {
   checked: number;
