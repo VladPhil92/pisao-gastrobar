@@ -643,7 +643,8 @@ model WhatsAppIntegration {
 /// customerKey es un HMAC estable derivado del wa_id.
 model WhatsAppConversation {
   id                 String   @id @default(cuid())
-  customerKey        String   @unique @db.VarChar(64)
+  conversationKey    String   @unique @db.VarChar(96)
+  customerKey        String   @db.VarChar(64)
   integrationId      String?
   phoneNumberId      String?  @db.VarChar(32)
   humanHandoffUntil  DateTime?
@@ -655,6 +656,7 @@ model WhatsAppConversation {
 
   integration WhatsAppIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
 
+  @@index([customerKey, updatedAt])
   @@index([integrationId, updatedAt])
   @@index([humanHandoffUntil])
   @@map("whatsapp_conversations")
