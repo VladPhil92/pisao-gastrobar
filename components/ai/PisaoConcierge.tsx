@@ -33,6 +33,7 @@ import {
 } from "@/lib/ai/concierge-identity-client";
 import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
+import type { ConciergeActionPlan } from "@/lib/ai/action-runtime";
 
 type ReservationState = {
   draft: ReservationDraft;
@@ -52,6 +53,7 @@ type Message = {
   proposal?: ConversationalProposal | null;
   reservation?: ReservationState | null;
   hospitality?: HospitalityState | null;
+  action?: ConciergeActionPlan | null;
 };
 
 const quickPrompts = [
@@ -161,6 +163,7 @@ export function PisaoConcierge() {
         proposal?: ConversationalProposal | null;
         reservation?: ReservationState | null;
         hospitality?: HospitalityState | null;
+        action?: ConciergeActionPlan | null;
       };
 
       if (!response.ok || !payload.text) {
@@ -197,8 +200,28 @@ export function PisaoConcierge() {
           proposal: payload.proposal,
           reservation: payload.reservation,
           hospitality: payload.hospitality,
+          action: payload.action,
         },
       ]);
+
+      if (payload.action?.execution === "client_auto") {
+        if (payload.action.type === "cart.add_proposal" && payload.proposal) {
+          addProposalToTable(payload.proposal);
+          trackBehavior("concierge_action_executed", {
+            surface: "concierge",
+            action: payload.action.type,
+          });
+        } else if (
+          payload.action.type === "reservation.confirm" &&
+          payload.reservation?.canSubmit
+        ) {
+          trackBehavior("concierge_action_executed", {
+            surface: "concierge",
+            action: payload.action.type,
+          });
+          void confirmReservation(payload.reservation);
+        }
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "No fue posible responder.";
@@ -484,6 +507,32 @@ export function PisaoConcierge() {
                       </div>
                     </div>
                   )}
+
+                  {message.role === "assistant" &&
+                    message.action?.type === "human.handoff" && (
+                      <div className="border-pisao-gold/20 bg-pisao-noche mt-2 rounded-2xl border p-3">
+                        <a
+                          href={whatsappLink(
+                            "Hola PISÁO, el Concierge me indicó continuar con una persona.",
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => {
+                            trackBehavior("concierge_action_executed", {
+                              surface: "concierge",
+                              action: "human.handoff",
+                            });
+                            trackBehavior("concierge_handoff_whatsapp", {
+                              surface: "concierge",
+                            });
+                          }}
+                          className="border-pisao-gold/25 text-pisao-gold flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-semibold"
+                        >
+                          <MessageCircle className="size-4" />
+                          {message.action.label}
+                        </a>
+                      </div>
+                    )}
 
                   {message.role === "assistant" && message.proposal && (
                     <div className="border-pisao-gold/20 bg-pisao-noche/95 mt-2 overflow-hidden rounded-2xl border">

@@ -10,6 +10,7 @@ export type PisaoGovernanceEventType =
   | "pisao.concierge.completed"
   | "pisao.concierge.fallback"
   | "pisao.concierge.provider_error"
+  | "pisao.concierge.action_planned"
   | "pisao.order.created"
   | "pisao.order.confirmed"
   | "pisao.order.cancelled";

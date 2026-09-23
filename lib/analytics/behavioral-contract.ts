@@ -26,6 +26,7 @@ export const BEHAVIOR_EVENT_NAMES = [
   "concierge_reservation_ready",
   "concierge_reservation_submit_success",
   "concierge_handoff_whatsapp",
+  "concierge_action_executed",
 ] as const;
 
 export const BEHAVIOR_SURFACES = [
@@ -65,6 +66,7 @@ export const behaviorEventSchema = z
     budgetTier: z.number().int().min(0).max(500_000).optional(),
     diners: z.number().int().min(1).max(30).optional(),
     itemCount: z.number().int().min(0).max(100).optional(),
+    action: z.enum(["cart.add_proposal", "reservation.confirm", "human.handoff"]).optional(),
   })
   .strict();
 
