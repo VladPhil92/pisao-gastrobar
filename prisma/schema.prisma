@@ -426,7 +426,8 @@ model RevenuePolicy {
   rolledBackAt DateTime?
   lastMeasuredAt DateTime?
   lastGuardrailCheckAt DateTime?
-  rollbackReason String? @db.VarChar(180)
+  rollbackReason         String? @db.VarChar(180)
+  operationalPauseReason String? @db.VarChar(180)
   outcome Json?
 
   assignments RevenuePolicyAssignment[]
