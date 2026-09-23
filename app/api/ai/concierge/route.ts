@@ -20,6 +20,7 @@ import { productosPlaceholder } from "@/lib/menu/placeholder-data";
 import { siteConfig } from "@/lib/site-config";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
+import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -273,8 +274,28 @@ export async function POST(request: Request) {
         }
       : null;
 
+    const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
+    const reservationIntent = Boolean(reservationDraft);
+    const availabilityState = reservationAvailabilityError
+      ? "error"
+      : reservationAvailability
+        ? reservationAvailability.available
+          ? "available"
+          : "unavailable"
+        : "unknown";
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
+      void emitKevGovernanceEvent("pisao.concierge.fallback", {
+        source: "concierge_api",
+        mode: "fallback",
+        model: aiModel,
+        reservation_intent: reservationIntent,
+        availability: availabilityState,
+        message_count: messages.length,
+        outcome: "openai_unconfigured",
+      });
+
       return Response.json({
         text: fallbackText,
         proposal,
@@ -295,7 +316,7 @@ export async function POST(request: Request) {
         "X-Client-Request-Id": clientRequestId,
       },
       body: JSON.stringify({
-        model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+        model: aiModel,
         store: false,
         max_output_tokens: 500,
         instructions: `${buildPisaoInstructions({
@@ -336,6 +357,18 @@ REGLAS ADICIONALES
         payload.error,
         { clientRequestId },
       );
+
+      void emitKevGovernanceEvent("pisao.concierge.provider_error", {
+        source: "concierge_api",
+        mode: "openai",
+        model: aiModel,
+        reservation_intent: reservationIntent,
+        availability: availabilityState,
+        message_count: messages.length,
+        outcome: "fallback_served",
+        error_code: String(upstream.status),
+      });
+
       return Response.json({
         text: fallbackText,
         proposal,
@@ -350,6 +383,19 @@ REGLAS ADICIONALES
     const modelText = extractOutputText(payload);
     const text = modelText || fallbackText;
 
+    void emitKevGovernanceEvent(
+      modelText ? "pisao.concierge.completed" : "pisao.concierge.fallback",
+      {
+        source: "concierge_api",
+        mode: modelText ? "openai" : "fallback",
+        model: aiModel,
+        reservation_intent: reservationIntent,
+        availability: availabilityState,
+        message_count: messages.length,
+        outcome: modelText ? "model_response" : "empty_model_response",
+      },
+    );
+
     return Response.json({
       text,
       proposal,
@@ -361,6 +407,18 @@ REGLAS ADICIONALES
     });
   } catch (error) {
     console.error("[PISAO AI] Error inesperado", error);
+
+    void emitKevGovernanceEvent("pisao.concierge.provider_error", {
+      source: "concierge_api",
+      mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
+      model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+      reservation_intent: false,
+      availability: "unknown",
+      message_count: 0,
+      outcome: "request_failed",
+      error_code: error instanceof Error ? error.name : "UnknownError",
+    });
+
     return Response.json(
       { error: "Ocurrió un error inesperado. Puedes continuar por WhatsApp." },
       { status: 500 },
