@@ -18,11 +18,13 @@ import {
   deterministicCommerceReply,
   proposalContextForModel,
   type CommerceProduct,
+  type ConversationalProposal,
 } from "@/lib/ai/conversational-commerce";
 import {
   analyzeReservationConversation,
   reservationContextForModel,
   reservationFallbackText,
+  type ReservationDraft,
 } from "@/lib/reservas/conversation";
 import {
   checkReservationAvailability,
@@ -217,11 +219,9 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
 
 async function prepareClientCommands(params: {
   sessionKey: unknown;
-  proposal: ReturnType<typeof buildConversationalProposal>;
+  proposal: ConversationalProposal | null;
   reservation: {
-    draft: ReturnType<typeof analyzeReservationConversation> extends infer T
-      ? NonNullable<T>
-      : never;
+    draft: ReservationDraft;
     canSubmit: boolean;
   } | null;
 }) {
