@@ -136,6 +136,130 @@ export default async function AdminReportesPage() {
         </article>
       </section>
 
+      <section className="mt-8 rounded-3xl border border-pisao-gold/15 bg-[linear-gradient(135deg,rgba(199,154,58,.10),rgba(17,17,17,.94))] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
+              Revenue Attribution · first-party
+            </p>
+            <h2 className="font-display mt-2 text-2xl text-pisao-cream sm:text-3xl">
+              Qué experiencias aparecen antes de una venta pagada
+            </h2>
+            <p className="mt-2 max-w-3xl text-xs leading-relaxed text-pisao-cream-muted">
+              La atribución se calcula en servidor usando la sesión efímera y eventos observados antes del pedido. Una asistencia indica participación en el recorrido; no demuestra que esa herramienta haya causado la compra.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/70 px-4 py-3 text-xs text-pisao-cream-muted">
+            <span className="font-semibold text-pisao-cream">Cobertura:</span>{" "}
+            {data.attribution.coveragePct}% de los pagos aprobados de la ventana ya tiene sesión atribuible.
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/70 p-4">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Ingreso asistido observado
+            </p>
+            <p className="font-display mt-2 text-2xl text-pisao-gold">
+              {formatCurrency(data.attribution.assistedRevenue)}
+            </p>
+            <p className="mt-1 text-xs text-pisao-cream-muted">
+              {data.attribution.assistedOrders} pedidos pagados con al menos una asistencia.
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/70 p-4">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Concierge asistió
+            </p>
+            <p className="font-display mt-2 text-2xl text-pisao-gold">
+              {formatCurrency(data.attribution.conciergeAssistedRevenue)}
+            </p>
+            <p className="mt-1 text-xs text-pisao-cream-muted">
+              {data.attribution.conciergeAssistedOrders} pedidos pagados con señal de Concierge.
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/70 p-4">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Ticket · sesiones asistidas
+            </p>
+            <p className="font-display mt-2 text-2xl text-pisao-cream">
+              {formatCurrency(data.attribution.assistedAverageTicket)}
+            </p>
+            <p className="mt-1 text-xs text-pisao-cream-muted">
+              Solo pedidos con pago aprobado y trazabilidad nueva.
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/70 p-4">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Ticket · sesiones directas
+            </p>
+            <p className="font-display mt-2 text-2xl text-pisao-cream">
+              {formatCurrency(data.attribution.directTrackedAverageTicket)}
+            </p>
+            <p className="mt-1 text-xs text-pisao-cream-muted">
+              {data.attribution.directTrackedOrders} pagos rastreados sin asistencia observada.
+            </p>
+          </article>
+        </div>
+
+        <div className="mt-6 border-t border-pisao-gold/10 pt-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold tracking-[.16em] text-pisao-cream-muted uppercase">
+                Asistencias por superficie
+              </p>
+              <p className="mt-1 text-xs text-pisao-cream-muted">
+                Multi-touch: un mismo pedido puede aparecer en varias superficies; estos ingresos no deben sumarse entre sí.
+              </p>
+            </div>
+            <p className="text-xs text-pisao-cream-muted">
+              {data.attribution.trackedOrders} pagos trazados · {formatCurrency(data.attribution.trackedRevenue)}
+            </p>
+          </div>
+
+          {data.attribution.assistBreakdown.length ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {data.attribution.assistBreakdown.map((assist) => {
+                const maxRevenue = Math.max(
+                  1,
+                  ...data.attribution.assistBreakdown.map((item) => item.revenue),
+                );
+                const width = Math.round((assist.revenue / maxRevenue) * 100);
+                return (
+                  <div
+                    key={assist.assist}
+                    className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/60 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-pisao-cream">{assist.label}</p>
+                        <p className="mt-1 text-[11px] text-pisao-cream-muted">{assist.orders} pedidos pagados asistidos</p>
+                      </div>
+                      <p className="text-xs font-semibold text-pisao-gold">{formatCurrency(assist.revenue)}</p>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className="h-full rounded-full bg-pisao-gold"
+                        style={{ width: `${Math.max(4, width)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <EmptyState>
+                La atribución empieza con los pedidos creados después de esta fase. Los pedidos históricos permanecen sin reclasificar para no inventar señales.
+              </EmptyState>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.05fr_.95fr]">
         <article className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-3xl border p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
