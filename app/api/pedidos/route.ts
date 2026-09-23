@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { crearPedidoSchema } from "@/lib/orders/schema";
-import { crearPedido } from "@/lib/orders/create-order";
+import {
+  crearPedido,
+  OrderCatalogValidationError,
+} from "@/lib/orders/create-order";
 import {
   emitKevGovernanceEvent,
   governanceRef,
@@ -77,6 +80,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json(resultado, { status: 201 });
   } catch (error) {
+    if (error instanceof OrderCatalogValidationError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+        },
+        { status: 409 },
+      );
+    }
+
     void captureServerError(error, {
       surface: "order_api",
       code: "ORDER_CREATE_FAILED",

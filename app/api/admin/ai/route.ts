@@ -89,6 +89,14 @@ async function getBusinessContext() {
       orderBy: { createdAt: "desc" },
       take: 120,
       include: {
+        pago: { select: { estado: true, metodo: true } },
+        attribution: {
+          select: {
+            assists: true,
+            lastAssist: true,
+            touchCount: true,
+          },
+        },
         items: {
           include: { producto: true },
         },
@@ -128,19 +136,34 @@ async function getBusinessContext() {
   ]);
 
   const validOrders = orders.filter((order) => order.estado !== "CANCELADO");
-  const revenue = validOrders.reduce((sum, order) => sum + Number(order.total), 0);
-  const todayOrders = validOrders.filter((order) => order.createdAt >= today);
+  const paidOrders = validOrders.filter((order) => order.pago?.estado === "APROBADO");
+  const revenue = paidOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  const todayOrders = paidOrders.filter((order) => order.createdAt >= today);
   const todayRevenue = todayOrders.reduce(
     (sum, order) => sum + Number(order.total),
     0,
   );
+  const trackedPaidOrders = paidOrders.filter((order) => order.attribution);
+  const assistedPaidOrders = trackedPaidOrders.filter(
+    (order) => (order.attribution?.assists.length ?? 0) > 0,
+  );
+  const assistedRevenue = assistedPaidOrders.reduce(
+    (sum, order) => sum + Number(order.total),
+    0,
+  );
+  const conciergeRevenue = assistedPaidOrders
+    .filter((order) => order.attribution?.assists.includes("CONCIERGE"))
+    .reduce((sum, order) => sum + Number(order.total), 0);
+  const attributionCoverage = paidOrders.length
+    ? Math.round((trackedPaidOrders.length / paidOrders.length) * 100)
+    : 0;
 
   const productStats = new Map<
     string,
     { name: string; quantity: number; revenue: number }
   >();
 
-  for (const order of validOrders) {
+  for (const order of paidOrders) {
     for (const item of order.items) {
       const current = productStats.get(item.productoId) ?? {
         name: item.producto.nombre,
@@ -189,10 +212,16 @@ async function getBusinessContext() {
     `NEGOCIO: ${siteConfig.name}`,
     `UBICACIÓN: ${siteConfig.location.address}`,
     `VENTANA DE DATOS: últimos 30 días (máximo 120 pedidos recientes)` ,
-    `Pedidos válidos observados: ${validOrders.length}`,
-    `Ventas brutas observadas: $${Math.round(revenue).toLocaleString("es-CO")} COP`,
-    `Pedidos de hoy observados: ${todayOrders.length}`,
-    `Ventas de hoy observadas: $${Math.round(todayRevenue).toLocaleString("es-CO")} COP`,
+    `Pedidos no cancelados observados: ${validOrders.length}`,
+    `Pedidos con pago aprobado observados: ${paidOrders.length}`,
+    `Ventas aprobadas observadas: ${Math.round(revenue).toLocaleString("es-CO")} COP`,
+    `Pedidos pagados de hoy observados: ${todayOrders.length}`,
+    `Ventas aprobadas de hoy observadas: ${Math.round(todayRevenue).toLocaleString("es-CO")} COP`,
+    `Cobertura de atribución sobre pagos aprobados: ${attributionCoverage}%`,
+    `Pedidos pagados con asistencia digital observada: ${assistedPaidOrders.length}`,
+    `Ingreso pagado asociado a alguna asistencia digital: ${Math.round(assistedRevenue).toLocaleString("es-CO")} COP`,
+    `Ingreso pagado asociado a señal de PISÁO Concierge: ${Math.round(conciergeRevenue).toLocaleString("es-CO")} COP`,
+    "NOTA DE ATRIBUCIÓN: las asistencias son señales observadas antes del pedido; no prueban causalidad ni ingreso incremental.",
     `Reservas futuras observadas: ${reservations.length}`,
     `Ejecuciones Concierge IA observadas: ${aiRuns.length}`,
     `Fallbacks IA observados: ${aiFallbacks}`,

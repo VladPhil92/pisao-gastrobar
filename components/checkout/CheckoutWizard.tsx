@@ -20,7 +20,10 @@ import type { CrearCargoCriptoResult } from "@/lib/payments/crypto";
 import type { CrearLinkPagoResult } from "@/lib/payments/types";
 import { MenuImageFallback } from "@/components/menu/MenuImageFallback";
 import { VisualOrderRail } from "@/components/cart/VisualOrderRail";
-import { trackBehavior } from "@/lib/analytics/behavioral-client";
+import {
+  getBehaviorSessionId,
+  trackBehavior,
+} from "@/lib/analytics/behavioral-client";
 
 interface PedidoCreadoResponse {
   pedido: { id: string; numero: number; total: string | number };
@@ -83,12 +86,20 @@ export function CheckoutWizard() {
           notas: state.cliente.notas || undefined,
           items,
           metodoPago,
+          attributionSessionId: getBehaviorSessionId() ?? undefined,
         }),
       });
 
-      if (!res.ok) throw new Error("No se pudo crear el pedido");
+      const payload = (await res.json()) as PedidoCreadoResponse & {
+        error?: string;
+        code?: string;
+      };
 
-      const data: PedidoCreadoResponse = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "No se pudo crear el pedido");
+      }
+
+      const data: PedidoCreadoResponse = payload;
       const orderedCount = cartItemCount(items);
       setPedidoData(data);
       setOrderedItems(items);

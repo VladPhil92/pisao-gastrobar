@@ -121,6 +121,36 @@ depender del click-to-chat.
 Los endpoints también aplican las feature flags en servidor, por lo que ocultar el
 método en UI no es la única barrera.
 
+## Revenue Attribution & AI Sales Intelligence
+
+Los pedidos nuevos pueden enlazarse a la sesión first-party efímera de Behavioral
+Intelligence. El navegador únicamente envía el `sessionId`; el backend consulta
+`eventos_analiticos` y resuelve qué asistencias ocurrieron antes del pedido dentro
+de una ventana de 12 horas.
+
+Superficies observadas:
+
+- `CONCIERGE` — interacción/propuesta/acción de PISÁO Concierge.
+- `PLAN` — Modo Plan.
+- `VISUAL_TABLE` — Mesa Visual.
+- `WHATSAPP` — intención o handoff hacia WhatsApp.
+
+La relación se guarda en `revenue_attributions`. Es **multi-touch y descriptiva**:
+una asistencia significa que la superficie participó en el recorrido, no que haya
+causado la venta. Los pedidos históricos no se reconstruyen retrospectivamente.
+
+`/admin/reportes` muestra ingreso pagado asistido, ingreso asociado al Concierge,
+ticket promedio asistido vs. directo, cobertura de atribución y desglose multi-touch.
+Revenue IA recibe estas métricas con la misma advertencia de no inferir causalidad.
+
+### Integridad de precio
+
+El backend no confía en el precio recibido desde el navegador. Antes de crear un
+pedido vuelve a leer PostgreSQL, exige que cada producto exista y esté disponible,
+y compara el precio vigente. Si la carta cambió, el checkout devuelve conflicto y
+el cliente debe actualizar su mesa. Esto evita que ingresos y atribución se basen
+en totales manipulados desde el frontend.
+
 ## Instalación
 
 ### Requisitos

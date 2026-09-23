@@ -56,6 +56,13 @@ const paymentLabels: Record<string, string> = {
   TARJETA: "Tarjeta",
 };
 
+const assistLabels: Record<string, string> = {
+  CONCIERGE: "PISÁO Concierge",
+  PLAN: "Modo Plan",
+  VISUAL_TABLE: "Mesa Visual",
+  WHATSAPP: "WhatsApp",
+};
+
 export async function getCommercialIntelligence() {
   const now = new Date();
   const since30 = new Date(now.getTime() - 30 * DAY_MS);
@@ -75,6 +82,14 @@ export async function getCommercialIntelligence() {
           total: true,
           createdAt: true,
           pago: { select: { metodo: true, estado: true } },
+          attribution: {
+            select: {
+              sessionId: true,
+              assists: true,
+              lastAssist: true,
+              touchCount: true,
+            },
+          },
           items: {
             select: {
               cantidad: true,
@@ -109,6 +124,63 @@ export async function getCommercialIntelligence() {
 
     const paymentStarted = orders.filter((order) => order.pago);
     const paidOrders = orders.filter((order) => order.pago?.estado === "APROBADO");
+    const trackedPaidOrders = paidOrders.filter((order) => order.attribution);
+    const assistedPaidOrders = trackedPaidOrders.filter(
+      (order) => (order.attribution?.assists.length ?? 0) > 0,
+    );
+    const directTrackedOrders = trackedPaidOrders.filter(
+      (order) => (order.attribution?.assists.length ?? 0) === 0,
+    );
+    const trackedRevenue = trackedPaidOrders.reduce(
+      (sum, order) => sum + Number(order.total),
+      0,
+    );
+    const assistedRevenue = assistedPaidOrders.reduce(
+      (sum, order) => sum + Number(order.total),
+      0,
+    );
+    const directTrackedRevenue = directTrackedOrders.reduce(
+      (sum, order) => sum + Number(order.total),
+      0,
+    );
+    const attributionCoveragePct = paidOrders.length
+      ? Math.round((trackedPaidOrders.length / paidOrders.length) * 100)
+      : 0;
+    const assistedAverageTicket = assistedPaidOrders.length
+      ? Math.round(assistedRevenue / assistedPaidOrders.length)
+      : 0;
+    const directTrackedAverageTicket = directTrackedOrders.length
+      ? Math.round(directTrackedRevenue / directTrackedOrders.length)
+      : 0;
+
+    const assistMap = new Map<
+      string,
+      { assist: string; label: string; orders: number; revenue: number }
+    >();
+    for (const order of assistedPaidOrders) {
+      for (const assist of order.attribution?.assists ?? []) {
+        const current = assistMap.get(assist) ?? {
+          assist,
+          label: assistLabels[assist] ?? assist,
+          orders: 0,
+          revenue: 0,
+        };
+        current.orders += 1;
+        current.revenue += Number(order.total);
+        assistMap.set(assist, current);
+      }
+    }
+    const assistBreakdown = [...assistMap.values()].sort(
+      (a, b) => b.revenue - a.revenue || b.orders - a.orders,
+    );
+    const conciergeAssistedOrders = assistedPaidOrders.filter((order) =>
+      order.attribution?.assists.includes("CONCIERGE"),
+    );
+    const conciergeAssistedRevenue = conciergeAssistedOrders.reduce(
+      (sum, order) => sum + Number(order.total),
+      0,
+    );
+
     const deliveredOrders = orders.filter((order) => order.estado === "ENTREGADO");
     const cancelledOrders = orders.filter((order) => order.estado === "CANCELADO");
 
@@ -370,6 +442,20 @@ export async function getCommercialIntelligence() {
       pickup,
       funnel,
       paymentMethods,
+      attribution: {
+        coveragePct: attributionCoveragePct,
+        trackedOrders: trackedPaidOrders.length,
+        trackedRevenue,
+        assistedOrders: assistedPaidOrders.length,
+        assistedRevenue,
+        assistedAverageTicket,
+        directTrackedOrders: directTrackedOrders.length,
+        directTrackedRevenue,
+        directTrackedAverageTicket,
+        conciergeAssistedOrders: conciergeAssistedOrders.length,
+        conciergeAssistedRevenue,
+        assistBreakdown,
+      },
       topProducts,
       topCategories,
       dailySales,
@@ -403,6 +489,20 @@ export async function getCommercialIntelligence() {
       pickup: 0,
       funnel: [],
       paymentMethods: [],
+      attribution: {
+        coveragePct: 0,
+        trackedOrders: 0,
+        trackedRevenue: 0,
+        assistedOrders: 0,
+        assistedRevenue: 0,
+        assistedAverageTicket: 0,
+        directTrackedOrders: 0,
+        directTrackedRevenue: 0,
+        directTrackedAverageTicket: 0,
+        conciergeAssistedOrders: 0,
+        conciergeAssistedRevenue: 0,
+        assistBreakdown: [],
+      },
       topProducts: [],
       topCategories: [],
       dailySales: [],

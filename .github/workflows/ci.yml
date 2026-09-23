@@ -63,5 +63,8 @@ jobs:
       - name: Edge security tests
         run: npm run test:security
 
+      - name: Revenue attribution tests
+        run: npm run test:revenue
+
       - name: Production build
         run: npm run build

@@ -3,6 +3,83 @@ import { calcularTotalesPedido } from "./calculations";
 import type { CrearPedidoInput } from "./types";
 import { getCardPaymentProvider } from "@/lib/payments/providers";
 import { crearCargoCripto } from "@/lib/payments/crypto";
+import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
+import type { CartItem } from "@/lib/cart/types";
+
+export class OrderCatalogValidationError extends Error {
+  constructor(
+    public readonly code:
+      | "PRODUCT_NOT_FOUND"
+      | "PRODUCT_UNAVAILABLE"
+      | "PRICE_CHANGED",
+    message: string,
+  ) {
+    super(message);
+    this.name = "OrderCatalogValidationError";
+  }
+}
+
+async function validateCatalogItems(items: CrearPedidoInput["items"]): Promise<CartItem[]> {
+  const quantities = new Map<string, number>();
+  for (const item of items) {
+    quantities.set(
+      item.productoId,
+      (quantities.get(item.productoId) ?? 0) + item.cantidad,
+    );
+  }
+
+  const ids = [...quantities.keys()];
+  const products = await prisma.producto.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      nombre: true,
+      slug: true,
+      precio: true,
+      imagenUrl: true,
+      disponible: true,
+      categoria: { select: { slug: true } },
+    },
+  });
+
+  if (products.length !== ids.length) {
+    throw new OrderCatalogValidationError(
+      "PRODUCT_NOT_FOUND",
+      "Uno de los productos ya no está disponible en la carta.",
+    );
+  }
+
+  const requestedById = new Map(items.map((item) => [item.productoId, item]));
+
+  return products.map((product) => {
+    if (!product.disponible) {
+      throw new OrderCatalogValidationError(
+        "PRODUCT_UNAVAILABLE",
+        `${product.nombre} ya no está disponible. Actualiza tu mesa antes de continuar.`,
+      );
+    }
+
+    const requested = requestedById.get(product.id);
+    const serverPrice = Number(product.precio);
+
+    if (!requested || Math.abs(requested.precio - serverPrice) > 0.001) {
+      throw new OrderCatalogValidationError(
+        "PRICE_CHANGED",
+        `El precio de ${product.nombre} cambió. Actualiza la carta antes de pagar.`,
+      );
+    }
+
+    return {
+      productoId: product.id,
+      nombre: product.nombre,
+      slug: product.slug,
+      precio: serverPrice,
+      imagenUrl: product.imagenUrl,
+      categoriaSlug: product.categoria.slug,
+      cantidad: quantities.get(product.id) ?? requested.cantidad,
+    };
+  });
+}
 
 /**
  * Crea el Pedido + ItemPedido + Pago inicial, y dispara la parte
@@ -10,16 +87,21 @@ import { crearCargoCripto } from "@/lib/payments/crypto";
  * - QR_TRANSFERENCIA: el pedido queda PENDIENTE_VERIFICACION, a la
  *   espera de que el cliente suba el comprobante (ver
  *   /api/pagos/qr/comprobante) y un admin/cajero lo valide.
- * - CRIPTO: se solicita un cargo al gateway configurado y se aplica el
- *   descuento automático; la confirmación llega luego por webhook.
+ * - CRIPTO: se prepara el pago manual con las wallets públicas y se aplica el
+ *   descuento automático; el cliente adjunta comprobante para validación.
  * - TARJETA: se genera un link de pago con el proveedor activo
  *   (Wompi/PayU/ePayco, según PAYMENT_GATEWAY_PROVIDER).
  */
 export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
+  const validatedItems = await validateCatalogItems(input.items);
   const { subtotal, descuento, total } = calcularTotalesPedido(
-    input.items,
+    validatedItems,
     input.metodoPago,
   );
+
+  const attribution = input.attributionSessionId
+    ? await resolveRevenueAttribution(input.attributionSessionId)
+    : null;
 
   const pedido = await prisma.pedido.create({
     data: {
@@ -36,8 +118,20 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
         input.metodoPago === "QR_TRANSFERENCIA"
           ? "PENDIENTE_VERIFICACION"
           : "PENDIENTE_PAGO",
+      attribution: attribution
+        ? {
+            create: {
+              sessionId: attribution.sessionId,
+              assists: attribution.assists,
+              lastAssist: attribution.lastAssist,
+              touchCount: attribution.touchCount,
+              observedFrom: attribution.observedFrom,
+              observedTo: attribution.observedTo,
+            },
+          }
+        : undefined,
       items: {
-        create: input.items.map((item) => ({
+        create: validatedItems.map((item) => ({
           productoId: item.productoId,
           cantidad: item.cantidad,
           precioUnitario: item.precio,
