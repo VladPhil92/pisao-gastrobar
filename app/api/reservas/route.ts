@@ -10,6 +10,10 @@ import {
 } from "@/lib/reservas/availability";
 import { notifyReservationCreated } from "@/lib/reservas/notifications";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import {
+  emitKevGovernanceEvent,
+  governanceRef,
+} from "@/lib/governance/kev-bridge";
 
 class ReservationConflictError extends Error {
   code: "DUPLICATE" | "NO_AVAILABILITY";
@@ -42,7 +46,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let conflictInput: { fecha: string; personas: number } | null = null;
+  let conflictInput: { fecha: string; hora: string; personas: number } | null = null;
 
   try {
     const body = await request.json();
@@ -65,7 +69,7 @@ export async function POST(request: Request) {
       );
     }
 
-    conflictInput = { fecha, personas };
+    conflictInput = { fecha, hora, personas };
 
     const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
     const cleanPhone = normalizePhone(telefono);
@@ -152,6 +156,16 @@ export async function POST(request: Request) {
       mesas: reserva.mesas,
     });
 
+    void emitKevGovernanceEvent("pisao.reservation.confirmed", {
+      reservation_ref: governanceRef(reserva.id),
+      source: "reservation_api",
+      personas: reserva.personas,
+      fecha,
+      hora: reserva.hora,
+      mesas: reserva.mesas,
+      estado: reserva.estado,
+    });
+
     return NextResponse.json(
       {
         reserva: {
@@ -185,6 +199,17 @@ export async function POST(request: Request) {
           }
         }
 
+        if (conflictInput) {
+          void emitKevGovernanceEvent("pisao.reservation.rejected", {
+            source: "reservation_api",
+            personas: conflictInput.personas,
+            fecha: conflictInput.fecha,
+            hora: conflictInput.hora,
+            reason: error.code,
+            alternatives_count: alternatives.length,
+          });
+        }
+
         return NextResponse.json(
           {
             error: error.message,
@@ -193,6 +218,17 @@ export async function POST(request: Request) {
           },
           { status: 409 },
         );
+      }
+
+      if (conflictInput) {
+        void emitKevGovernanceEvent("pisao.reservation.rejected", {
+          source: "reservation_api",
+          personas: conflictInput.personas,
+          fecha: conflictInput.fecha,
+          hora: conflictInput.hora,
+          reason: error.code,
+          alternatives_count: 0,
+        });
       }
 
       return NextResponse.json(

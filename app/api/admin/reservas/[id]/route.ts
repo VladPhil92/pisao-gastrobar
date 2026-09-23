@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyReservationStatusChanged } from "@/lib/reservas/notifications";
+import {
+  emitKevGovernanceEvent,
+  governanceRef,
+} from "@/lib/governance/kev-bridge";
 
 const STATES = ["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"] as const;
 type ReservationState = (typeof STATES)[number];
@@ -80,6 +84,27 @@ export async function PATCH(
       mesas: reserva.mesas,
       estado: reserva.estado,
     });
+
+    const governanceType =
+      reserva.estado === "CANCELADA"
+        ? "pisao.reservation.cancelled"
+        : reserva.estado === "COMPLETADA"
+          ? "pisao.reservation.completed"
+          : reserva.estado === "CONFIRMADA"
+            ? "pisao.reservation.confirmed"
+            : null;
+
+    if (governanceType) {
+      void emitKevGovernanceEvent(governanceType, {
+        reservation_ref: governanceRef(reserva.id),
+        source: "admin",
+        personas: reserva.personas,
+        fecha: reserva.fecha.toISOString().slice(0, 10),
+        hora: reserva.hora,
+        mesas: reserva.mesas,
+        estado: reserva.estado,
+      });
+    }
 
     return NextResponse.json({
       reserva: {

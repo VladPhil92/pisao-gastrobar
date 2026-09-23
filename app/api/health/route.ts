@@ -4,6 +4,7 @@ import {
   MAX_COMBINED_TABLES,
   RESERVABLE_TABLE_SEATS,
 } from "@/lib/reservas/policy";
+import { kevGovernanceEnabled } from "@/lib/governance/kev-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,13 @@ export async function GET() {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
       },
+      governance: {
+        kev: {
+          mode: "observe_only",
+          bridge: kevGovernanceEnabled() ? "enabled" : "disabled",
+          mutationAuthority: false,
+        },
+      },
       timestamp: new Date().toISOString(),
     };
 
@@ -67,6 +75,13 @@ export async function GET() {
         ai: {
           mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
           model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+        },
+        governance: {
+          kev: {
+            mode: "observe_only",
+            bridge: kevGovernanceEnabled() ? "enabled" : "disabled",
+            mutationAuthority: false,
+          },
         },
         timestamp: new Date().toISOString(),
       },
