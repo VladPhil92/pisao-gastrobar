@@ -151,21 +151,21 @@ export function RevenueActionCenter({
     <div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Pendientes", summary.pending, Activity],
-          ["Aprobadas", summary.approved, BadgeCheck],
-          ["Ejecutadas", summary.executed, Play],
-          ["Rechazadas", summary.rejected, X],
-        ].map(([label, value, Icon]) => (
+          { label: "Pendientes", value: summary.pending, icon: Activity },
+          { label: "Aprobadas", value: summary.approved, icon: BadgeCheck },
+          { label: "Ejecutadas", value: summary.executed, icon: Play },
+          { label: "Rechazadas", value: summary.rejected, icon: X },
+        ].map(({ label, value, icon: Icon }) => (
           <div
-            key={String(label)}
+            key={label}
             className="rounded-2xl border border-pisao-gold/10 bg-pisao-carbon-soft p-4"
           >
             <Icon className="size-4 text-pisao-gold" />
             <p className="mt-4 text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
-              {String(label)}
+              {label}
             </p>
             <p className="font-display mt-1 text-2xl text-pisao-cream">
-              {String(value)}
+              {value}
             </p>
           </div>
         ))}
