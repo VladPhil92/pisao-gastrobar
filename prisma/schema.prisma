@@ -292,3 +292,71 @@ model EventoAnalitico {
   @@index([sessionId, createdAt])
   @@map("eventos_analiticos")
 }
+
+
+/// Perfil de hospitalidad anónimo y persistente.
+/// No almacena transcripciones, nombre, teléfono ni correo.
+model AiGuestProfile {
+  id                    String   @id @default(cuid())
+  guestKey              String   @unique @db.VarChar(96)
+  interactionCount      Int      @default(0)
+  conversationStyle     String?  @db.VarChar(24)
+  preferredFoodSignals  String[] @default([])
+  preferredDrinkSignals String[] @default([])
+  lastIntent            String?  @db.VarChar(32)
+  lastGuestState        String?  @db.VarChar(32)
+  lastSeenAt            DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  sessions AiConversationSession[]
+  runs     AiConciergeRun[]
+
+  @@index([lastSeenAt])
+  @@map("ai_guest_profiles")
+}
+
+/// Sesión lógica del Concierge. Conserva estado operativo, nunca el transcript.
+model AiConversationSession {
+  id             String   @id @default(cuid())
+  sessionKey     String   @unique @db.VarChar(96)
+  guestProfileId String?
+  messageCount   Int      @default(0)
+  lastAgent      String?  @db.VarChar(32)
+  lastIntent     String?  @db.VarChar(32)
+  lastOutcome    String?  @db.VarChar(48)
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  guestProfile AiGuestProfile? @relation(fields: [guestProfileId], references: [id], onDelete: SetNull)
+  runs         AiConciergeRun[]
+
+  @@index([guestProfileId, lastSeenAt])
+  @@map("ai_conversation_sessions")
+}
+
+/// Telemetría operacional del Concierge para medir calidad, conversión y fallbacks.
+/// No contiene texto libre del usuario.
+model AiConciergeRun {
+  id                String   @id @default(cuid())
+  sessionId         String?
+  guestProfileId    String?
+  model             String   @db.VarChar(64)
+  agent             String   @db.VarChar(32)
+  intent            String   @db.VarChar(32)
+  outcome           String   @db.VarChar(48)
+  fallback          Boolean  @default(false)
+  latencyMs         Int
+  reservationIntent Boolean  @default(false)
+  proposalCreated   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  session      AiConversationSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  guestProfile AiGuestProfile?        @relation(fields: [guestProfileId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([agent, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("ai_concierge_runs")
+}
