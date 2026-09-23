@@ -16,6 +16,10 @@ export type PaymentAdminOrder = {
   cryptoMoneda?: string | null;
   cryptoRed?: string | null;
   walletDireccion?: string | null;
+  cryptoTxHash?: string | null;
+  cryptoAmount?: string | null;
+  cryptoConfirmations?: number | null;
+  cryptoExplorerUrl?: string | null;
   items: Array<{
     nombre: string;
     cantidad: number;
@@ -58,6 +62,17 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
           `Pago: Criptomoneda · ${order.cryptoMoneda || "Sin especificar"}`,
           order.cryptoRed ? `Red: ${order.cryptoRed}` : "",
           order.walletDireccion ? `Wallet: ${order.walletDireccion}` : "",
+          order.cryptoTxHash ? `TxID/TxHash: ${order.cryptoTxHash}` : "",
+          order.cryptoAmount && order.cryptoMoneda
+            ? `Recibido on-chain: ${order.cryptoAmount} ${order.cryptoMoneda}`
+            : "",
+          order.cryptoConfirmations !== null &&
+          order.cryptoConfirmations !== undefined
+            ? `Confirmaciones on-chain al recibir evidencia: ${order.cryptoConfirmations}`
+            : "",
+          order.cryptoExplorerUrl
+            ? `Explorador: ${order.cryptoExplorerUrl}`
+            : "",
         ]
       : order.paymentMethod === "QR_TRANSFERENCIA"
         ? ["Pago: QR · Bre-B · Bancolombia"]
@@ -79,7 +94,9 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
     order.notas ? `Notas: ${order.notas}` : "",
     "",
     "El comprobante quedó almacenado en el panel administrativo de PISÁO.",
-    "Validar el pago antes de confirmar el pedido.",
+    order.paymentMethod === "CRIPTO"
+      ? "La transacción ya fue prevalidada on-chain; confirmar monto y confirmaciones antes de aprobar."
+      : "Validar el pago antes de confirmar el pedido.",
   ]
     .filter(Boolean)
     .join("\n");

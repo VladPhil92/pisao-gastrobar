@@ -192,7 +192,7 @@ model Pago {
   // Método criptomonedas
   criptoMoneda          String? // ej. USDT, BTC, ETH
   walletDireccion       String?
-  txHash                String? // hash de la transacción on-chain
+  txHash                String? @unique // hash de la transacción on-chain; no reutilizable entre pedidos
   descuentoAplicadoPct  Decimal? @db.Decimal(5, 2) // % de descuento configurable aplicado
   confirmacionesOnchain Int?
 

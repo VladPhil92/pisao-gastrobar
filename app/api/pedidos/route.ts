@@ -50,6 +50,19 @@ export async function POST(request: Request) {
     }
 
     if (
+      parsed.data.metodoPago === "CRIPTO" &&
+      process.env.CRYPTO_PAYMENTS_ENABLED === "false"
+    ) {
+      return NextResponse.json(
+        {
+          error: "Los pagos con criptomonedas no están disponibles temporalmente.",
+          code: "PAYMENT_METHOD_DISABLED",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (
       parsed.data.metodoPago === "TARJETA" &&
       process.env.CARD_PAYMENTS_ENABLED !== "true"
     ) {

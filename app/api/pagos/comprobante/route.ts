@@ -6,6 +6,7 @@ import {
   EVIDENCIA_TAMANO_MAXIMO_MB,
 } from "@/lib/payments/qr-transferencia";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
+import { cryptoExplorerUrl, type OnchainCrypto } from "@/lib/payments/onchain";
 import { notifyPaymentAdmin } from "@/lib/notifications/payment-admin";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
@@ -101,10 +102,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const requestedCrypto =
+      typeof criptoMonedaRaw === "string" ? criptoMonedaRaw : null;
     const cryptoDestination =
       pedido.pago.metodo === "CRIPTO"
         ? getCryptoPaymentDestination(
-            typeof criptoMonedaRaw === "string" ? criptoMonedaRaw : null,
+            pedido.pago.criptoMoneda || requestedCrypto,
           )
         : null;
 
@@ -115,6 +118,32 @@ export async function POST(request: Request) {
             "Selecciona una criptomoneda válida antes de subir el comprobante.",
         },
         { status: 400 },
+      );
+    }
+
+    if (
+      pedido.pago.metodo === "CRIPTO" &&
+      requestedCrypto &&
+      pedido.pago.criptoMoneda &&
+      requestedCrypto !== pedido.pago.criptoMoneda
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La criptomoneda no coincide con la transacción verificada para este pedido.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (pedido.pago.metodo === "CRIPTO" && !pedido.pago.txHash) {
+      return NextResponse.json(
+        {
+          error:
+            "Primero verifica el TxID/TxHash en la blockchain antes de subir el comprobante.",
+          code: "CRYPTO_TX_REQUIRED",
+        },
+        { status: 409 },
       );
     }
 
@@ -147,6 +176,27 @@ export async function POST(request: Request) {
       }),
     ]);
 
+    const explorerUrl =
+      pedido.pago.metodo === "CRIPTO" &&
+      pedido.pago.txHash &&
+      cryptoDestination
+        ? cryptoExplorerUrl(
+            cryptoDestination.moneda as OnchainCrypto,
+            pedido.pago.txHash,
+          )
+        : null;
+
+    const onchainPayload =
+      pedido.pago.payloadProveedor &&
+      typeof pedido.pago.payloadProveedor === "object" &&
+      !Array.isArray(pedido.pago.payloadProveedor)
+        ? (pedido.pago.payloadProveedor as Record<string, unknown>)
+        : null;
+    const cryptoAmount =
+      typeof onchainPayload?.amount === "string"
+        ? onchainPayload.amount
+        : null;
+
     const notification = await notifyPaymentAdmin(
       {
         id: pedido.id,
@@ -162,6 +212,10 @@ export async function POST(request: Request) {
         cryptoMoneda: cryptoDestination?.moneda ?? null,
         cryptoRed: cryptoDestination?.red ?? null,
         walletDireccion: cryptoDestination?.direccion ?? null,
+        cryptoTxHash: pedido.pago.txHash,
+        cryptoAmount,
+        cryptoConfirmations: pedido.pago.confirmacionesOnchain,
+        cryptoExplorerUrl: explorerUrl,
         items: pedido.items.map((item) => ({
           nombre: item.producto.nombre,
           cantidad: item.cantidad,
@@ -178,6 +232,7 @@ export async function POST(request: Request) {
         comprobanteRecibidoEn: receivedAt.toISOString(),
         metodo: pedido.pago.metodo,
         criptoMoneda: cryptoDestination?.moneda ?? null,
+        txHash: pedido.pago.txHash,
       },
       adminNotification: notification.delivery,
       notificationProvider: notification.provider,

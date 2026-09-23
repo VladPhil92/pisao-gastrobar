@@ -1,6 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
+import {
+  cryptoExplorerUrl,
+  type OnchainCrypto,
+} from "@/lib/payments/onchain";
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
+
+const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
+
+function getExplorerLink(moneda: string | null, txHash: string | null) {
+  if (!moneda || !txHash || !CRYPTO_ASSETS.has(moneda as OnchainCrypto)) {
+    return null;
+  }
+
+  try {
+    return cryptoExplorerUrl(moneda as OnchainCrypto, txHash);
+  } catch {
+    return null;
+  }
+}
 
 async function getPedidos() {
   try {
@@ -14,6 +32,9 @@ async function getPedidos() {
             estado: true,
             comprobanteUrl: true,
             comprobanteRecibidoEn: true,
+            criptoMoneda: true,
+            txHash: true,
+            confirmacionesOnchain: true,
           },
         },
       },
@@ -47,55 +68,91 @@ export default async function AdminPedidosPage() {
                 <th className="px-4 py-3">Método</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">On-chain</th>
                 <th className="px-4 py-3">Comprobante</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {pedidos.map((p) => (
-                <tr key={p.id} className="border-t border-pisao-gold/10">
-                  <td className="px-4 py-3 text-pisao-cream">{p.numero}</td>
-                  <td className="px-4 py-3 text-pisao-cream">
-                    {p.clienteNombre}
-                  </td>
-                  <td className="px-4 py-3 text-pisao-cream-muted">
-                    {p.clienteTelefono}
-                  </td>
-                  <td className="px-4 py-3 text-pisao-cream-muted">
-                    {p.pago?.metodo ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-pisao-cream-muted">
-                    {p.estado}
-                  </td>
-                  <td className="px-4 py-3 text-pisao-cream">
-                    {formatCurrency(Number(p.total))}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.pago?.comprobanteRecibidoEn ||
-                    p.pago?.comprobanteUrl ? (
-                      <a
-                        href={`/api/admin/pedidos/${p.id}/comprobante`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-pisao-gold underline"
-                      >
-                        Ver evidencia
-                      </a>
-                    ) : (
-                      <span className="text-pisao-cream-muted">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.estado === "PENDIENTE_VERIFICACION" && (
-                      <VerificarPagoButtons pedidoId={p.id} />
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {pedidos.map((p) => {
+                const explorerLink = getExplorerLink(
+                  p.pago?.criptoMoneda ?? null,
+                  p.pago?.txHash ?? null,
+                );
+
+                return (
+                  <tr key={p.id} className="border-t border-pisao-gold/10">
+                    <td className="px-4 py-3 text-pisao-cream">{p.numero}</td>
+                    <td className="px-4 py-3 text-pisao-cream">
+                      {p.clienteNombre}
+                    </td>
+                    <td className="px-4 py-3 text-pisao-cream-muted">
+                      {p.clienteTelefono}
+                    </td>
+                    <td className="px-4 py-3 text-pisao-cream-muted">
+                      {p.pago?.metodo ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-pisao-cream-muted">
+                      {p.estado}
+                    </td>
+                    <td className="px-4 py-3 text-pisao-cream">
+                      {formatCurrency(Number(p.total))}
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.pago?.metodo === "CRIPTO" && p.pago.txHash ? (
+                        <div className="space-y-1 text-xs">
+                          <p className="font-semibold text-pisao-cream">
+                            {p.pago.criptoMoneda ?? "CRIPTO"}
+                          </p>
+                          <p className="font-mono text-pisao-cream-muted">
+                            {p.pago.txHash.slice(0, 10)}…
+                            {p.pago.txHash.slice(-8)}
+                          </p>
+                          <p className="text-pisao-cream-muted">
+                            {p.pago.confirmacionesOnchain ?? 0} confirmación(es)
+                          </p>
+                          {explorerLink && (
+                            <a
+                              href={explorerLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-pisao-gold underline"
+                            >
+                              Ver transacción
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-pisao-cream-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.pago?.comprobanteRecibidoEn ||
+                      p.pago?.comprobanteUrl ? (
+                        <a
+                          href={`/api/admin/pedidos/${p.id}/comprobante`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-pisao-gold underline"
+                        >
+                          Ver evidencia
+                        </a>
+                      ) : (
+                        <span className="text-pisao-cream-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.estado === "PENDIENTE_VERIFICACION" && (
+                        <VerificarPagoButtons pedidoId={p.id} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {pedidos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-6 text-center text-pisao-cream-muted"
                   >
                     Aún no hay pedidos.
