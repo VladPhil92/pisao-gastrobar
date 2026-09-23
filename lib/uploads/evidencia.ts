@@ -1,21 +1,69 @@
-import { randomUUID } from "crypto";
+import { createHash } from "node:crypto";
+
+export type PaymentEvidence = {
+  bytes: Uint8Array;
+  arrayBuffer: ArrayBuffer;
+  fileName: string;
+  mimeType: string;
+  sha256: string;
+};
+
+function sanitizeFileName(value: string) {
+  const cleaned = value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "");
+  return (cleaned || "comprobante").slice(0, 180);
+}
+
+function hasPrefix(bytes: Uint8Array, prefix: number[]) {
+  return prefix.every((value, index) => bytes[index] === value);
+}
+
+function hasAsciiAt(bytes: Uint8Array, offset: number, text: string) {
+  return [...text].every(
+    (character, index) => bytes[offset + index] === character.charCodeAt(0),
+  );
+}
+
+function fileSignatureMatches(bytes: Uint8Array, mimeType: string) {
+  if (mimeType === "image/jpeg") {
+    return hasPrefix(bytes, [0xff, 0xd8, 0xff]);
+  }
+
+  if (mimeType === "image/png") {
+    return hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  }
+
+  if (mimeType === "image/webp") {
+    return hasAsciiAt(bytes, 0, "RIFF") && hasAsciiAt(bytes, 8, "WEBP");
+  }
+
+  if (mimeType === "application/pdf") {
+    return hasAsciiAt(bytes, 0, "%PDF-");
+  }
+
+  return false;
+}
 
 /**
- * Sube el comprobante de pago (imagen/PDF) a almacenamiento persistente.
- *
- * IMPORTANTE: el filesystem de Vercel es efímero/solo-lectura en
- * producción. Esta función debe reemplazarse por una subida real a un
- * bucket (Supabase Storage, S3, Cloudinary...) usando las credenciales
- * en `UPLOADS_*` de `.env`. Se deja aquí como único punto de entrada
- * para que ese cambio no afecte a las rutas de API que la consumen.
+ * Normaliza y valida la evidencia antes de persistirla.
+ * El archivo se guarda en PostgreSQL porque el filesystem del runtime de Render
+ * es efímero. Cuando el volumen lo justifique, esta misma frontera puede migrarse
+ * a object storage sin cambiar el contrato de la ruta de pago.
  */
-export async function subirComprobantePago(file: File): Promise<string> {
-  const extension = file.name.split(".").pop() ?? "bin";
-  const key = `comprobantes/${randomUUID()}.${extension}`;
+export async function prepararComprobantePago(
+  file: File,
+): Promise<PaymentEvidence> {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
 
-  // TODO: reemplazar por la subida real, ej.:
-  // const { url } = await storageClient.upload(key, await file.arrayBuffer());
-  // return url;
+  if (!fileSignatureMatches(bytes, file.type)) {
+    throw new Error("INVALID_PAYMENT_EVIDENCE_SIGNATURE");
+  }
 
-  return `${process.env.UPLOADS_BASE_URL ?? "https://placeholder-bucket.example.com"}/${key}`;
+  return {
+    bytes,
+    arrayBuffer,
+    fileName: sanitizeFileName(file.name),
+    mimeType: file.type,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
 }

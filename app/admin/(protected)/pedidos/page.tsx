@@ -7,7 +7,16 @@ async function getPedidos() {
     return await prisma.pedido.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { pago: true },
+      include: {
+        pago: {
+          select: {
+            metodo: true,
+            estado: true,
+            comprobanteUrl: true,
+            comprobanteRecibidoEn: true,
+          },
+        },
+      },
     });
   } catch {
     return null;
@@ -19,21 +28,22 @@ export default async function AdminPedidosPage() {
 
   return (
     <div>
-      <h1 className="font-display text-pisao-cream text-2xl">Pedidos</h1>
+      <h1 className="font-display text-2xl text-pisao-cream">Pedidos</h1>
 
       {pedidos === null && (
-        <p className="text-pisao-cream-muted mt-2 text-sm">
+        <p className="mt-2 text-sm text-pisao-cream-muted">
           No hay conexión a la base de datos. Configura DATABASE_URL en .env.
         </p>
       )}
 
       {pedidos !== null && (
-        <div className="border-pisao-gold/10 mt-6 overflow-x-auto rounded-xl border">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-pisao-gold/10">
           <table className="w-full text-left text-sm">
             <thead className="bg-pisao-carbon-soft text-pisao-cream-muted">
               <tr>
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3">Contacto</th>
                 <th className="px-4 py-3">Método</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Total</th>
@@ -43,32 +53,36 @@ export default async function AdminPedidosPage() {
             </thead>
             <tbody>
               {pedidos.map((p) => (
-                <tr key={p.id} className="border-pisao-gold/10 border-t">
-                  <td className="text-pisao-cream px-4 py-3">{p.numero}</td>
-                  <td className="text-pisao-cream px-4 py-3">
+                <tr key={p.id} className="border-t border-pisao-gold/10">
+                  <td className="px-4 py-3 text-pisao-cream">{p.numero}</td>
+                  <td className="px-4 py-3 text-pisao-cream">
                     {p.clienteNombre}
                   </td>
-                  <td className="text-pisao-cream-muted px-4 py-3">
+                  <td className="px-4 py-3 text-pisao-cream-muted">
+                    {p.clienteTelefono}
+                  </td>
+                  <td className="px-4 py-3 text-pisao-cream-muted">
                     {p.pago?.metodo ?? "—"}
                   </td>
-                  <td className="text-pisao-cream-muted px-4 py-3">
+                  <td className="px-4 py-3 text-pisao-cream-muted">
                     {p.estado}
                   </td>
-                  <td className="text-pisao-cream px-4 py-3">
+                  <td className="px-4 py-3 text-pisao-cream">
                     {formatCurrency(Number(p.total))}
                   </td>
                   <td className="px-4 py-3">
-                    {p.pago?.comprobanteUrl ? (
+                    {p.pago?.comprobanteRecibidoEn ||
+                    p.pago?.comprobanteUrl ? (
                       <a
-                        href={p.pago.comprobanteUrl}
+                        href={`/api/admin/pedidos/${p.id}/comprobante`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-pisao-gold underline"
                       >
-                        Ver
+                        Ver evidencia
                       </a>
                     ) : (
-                      "—"
+                      <span className="text-pisao-cream-muted">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -81,8 +95,8 @@ export default async function AdminPedidosPage() {
               {pedidos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
-                    className="text-pisao-cream-muted px-4 py-6 text-center"
+                    colSpan={8}
+                    className="px-4 py-6 text-center text-pisao-cream-muted"
                   >
                     Aún no hay pedidos.
                   </td>

@@ -177,7 +177,14 @@ model Pago {
   moneda String  @default("COP")
 
   // Método QR / transferencia bancaria
-  comprobanteUrl String? // imagen o PDF subido por el cliente como evidencia
+  // La evidencia se guarda temporalmente en PostgreSQL para no depender del
+  // filesystem efímero de Render. El panel sirve el archivo solo a staff autenticado.
+  comprobanteUrl        String?
+  comprobanteNombre     String?   @db.VarChar(180)
+  comprobanteMime       String?   @db.VarChar(96)
+  comprobanteBytes      Bytes?
+  comprobanteSha256     String?   @db.VarChar(64)
+  comprobanteRecibidoEn DateTime?
 
   // Método criptomonedas
   criptoMoneda          String? // ej. USDT, BTC, ETH

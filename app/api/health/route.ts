@@ -50,6 +50,20 @@ export async function GET() {
         maxCombinedTables: MAX_COMBINED_TABLES,
         maxAutomaticGroup: MAX_AUTOMATIC_RESERVATION_PEOPLE,
       },
+      payments: {
+        activeMethod: "QR_TRANSFERENCIA",
+        receiptStorage: "postgresql",
+        cardAndPse:
+          process.env.CARD_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+        crypto:
+          process.env.CRYPTO_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+        adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
+          process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
+          ? "whatsapp_cloud"
+          : process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_URL
+            ? "webhook"
+            : "click_to_chat",
+      },
       ai: {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
@@ -89,6 +103,20 @@ export async function GET() {
         app: "pisao-gastrobar",
         database: "unavailable",
         reservations: { inventory: "unknown" },
+        payments: {
+          activeMethod: "QR_TRANSFERENCIA",
+          receiptStorage: "unknown",
+          cardAndPse:
+            process.env.CARD_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+          crypto:
+            process.env.CRYPTO_PAYMENTS_ENABLED === "true" ? "enabled" : "disabled",
+          adminNotification: process.env.WHATSAPP_CLOUD_API_TOKEN &&
+            process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID
+            ? "whatsapp_cloud"
+            : process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_URL
+              ? "webhook"
+              : "click_to_chat",
+        },
         ai: {
           mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
           model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",

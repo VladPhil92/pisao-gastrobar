@@ -2,40 +2,59 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { QrCode, Coins, CreditCard, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  Coins,
+  CreditCard,
+  KeyRound,
+  Loader2,
+  QrCode,
+} from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { DESCUENTO_CRIPTO_PORCENTAJE } from "@/lib/payments/crypto";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { datosTransferenciaBancaria } from "@/lib/payments/qr-transferencia";
-import { whatsappLink } from "@/lib/site-config";
-import { useCartStore } from "@/lib/cart/store";
-import type { CartItem } from "@/lib/cart/types";
 import type { MetodoPago } from "@/lib/payments/types";
 
-const opciones: {
+const cardPaymentsEnabled =
+  process.env.NEXT_PUBLIC_CARD_PAYMENTS_ENABLED === "true";
+const cryptoPaymentsEnabled =
+  process.env.NEXT_PUBLIC_CRYPTO_PAYMENTS_ENABLED === "true";
+
+const opciones: Array<{
   metodo: MetodoPago;
   titulo: string;
   descripcion: string;
   icon: typeof QrCode;
-}[] = [
+  enabled: boolean;
+}> = [
   {
     metodo: "QR_TRANSFERENCIA",
-    titulo: "QR / Transferencia",
-    descripcion: "Paga por transferencia bancaria y sube tu comprobante.",
+    titulo: "QR · Bre-B · Bancolombia",
+    descripcion: "Método disponible hoy. El pago se valida con tu comprobante.",
     icon: QrCode,
+    enabled: true,
   },
-  {
-    metodo: "CRIPTO",
-    titulo: "Criptomonedas",
-    descripcion: `${DESCUENTO_CRIPTO_PORCENTAJE}% de descuento automático.`,
-    icon: Coins,
-  },
+  ...(cryptoPaymentsEnabled
+    ? [
+        {
+          metodo: "CRIPTO" as const,
+          titulo: "Criptomonedas",
+          descripcion: "Pago digital habilitado.",
+          icon: Coins,
+          enabled: true,
+        },
+      ]
+    : []),
   {
     metodo: "TARJETA",
-    titulo: "Tarjeta crédito/débito",
-    descripcion: "Pago seguro con pasarela colombiana.",
+    titulo: "Tarjeta / PSE",
+    descripcion: cardPaymentsEnabled
+      ? "Pago seguro mediante pasarela."
+      : "Disponible en octubre. Por ahora usa QR, Bre-B o transferencia.",
     icon: CreditCard,
+    enabled: cardPaymentsEnabled,
   },
 ];
 
@@ -44,47 +63,16 @@ interface PedidoCreado {
     id: string;
     numero: number;
     total: string | number;
-    clienteNombre?: string;
-    tipoEntrega?: string;
-    direccionEntrega?: string | null;
   };
 }
 
-function construirMensajeWhatsApp(
-  pedido: {
-    numero: number;
-    total: number;
-    clienteNombre?: string;
-    tipoEntrega?: string;
-    direccionEntrega?: string | null;
-  },
-  items: CartItem[],
-  fotoCopiada: boolean,
-) {
-  const lineasProductos = items
-    .map((item) => `- ${item.cantidad}x ${item.nombre} (${formatCurrency(item.precio * item.cantidad)})`)
-    .join("\n");
-
-  const entrega =
-    pedido.tipoEntrega === "DOMICILIO"
-      ? `Domicilio a: ${pedido.direccionEntrega ?? "(sin especificar)"}`
-      : "Recogida en el local";
-
-  const notaComprobante = fotoCopiada
-    ? "Ya copié la foto del comprobante a mi portapapeles, la pego aquí abajo 👇"
-    : "Adjunto la foto del comprobante de pago.";
-
-  return [
-    `Hola PISÁO 👋, quiero confirmar mi pago por transferencia.`,
-    ``,
-    `Pedido #${pedido.numero}${pedido.clienteNombre ? ` · ${pedido.clienteNombre}` : ""}`,
-    lineasProductos,
-    `Total: ${formatCurrency(pedido.total)}`,
-    entrega,
-    ``,
-    notaComprobante,
-  ].join("\n");
-}
+type EvidenceUploadResponse = {
+  ok?: boolean;
+  error?: string;
+  adminNotification?: "automatic" | "manual";
+  notificationProvider?: "whatsapp_cloud" | "webhook" | "click_to_chat";
+  whatsappUrl?: string;
+};
 
 async function copiarImagenAlPortapapeles(file: File): Promise<boolean> {
   try {
@@ -107,9 +95,7 @@ export function StepMetodoPago({
 }: {
   selected: MetodoPago | null;
   onSelect: (metodo: MetodoPago) => void;
-  /** Crea el pedido para el método QR sin avanzar de paso todavía. */
   onCrearPedidoQr: () => Promise<PedidoCreado | null>;
-  /** Se llama cuando ya se subió el comprobante y se puede pasar a confirmación. */
   onQrCompletado: () => void;
 }) {
   const [mostrarQr, setMostrarQr] = useState(false);
@@ -117,24 +103,20 @@ export function StepMetodoPago({
     id: string;
     numero: number;
     total: number;
-    clienteNombre?: string;
-    tipoEntrega?: string;
-    direccionEntrega?: string | null;
   } | null>(null);
-  const [itemsPedido, setItemsPedido] = useState<CartItem[]>([]);
   const [creando, setCreando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const [fotoCopiada, setFotoCopiada] = useState(false);
   const [subido, setSubido] = useState(false);
+  const [notificacionAutomatica, setNotificacionAutomatica] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const abrirQr = async () => {
     setMostrarQr(true);
     setError(null);
     if (pedido) return;
-    // Se toma una foto del carrito antes de crear el pedido, porque
-    // crearPedido() lo vacía inmediatamente después de crear la orden.
-    setItemsPedido(useCartStore.getState().items);
+
     setCreando(true);
     try {
       const data = await onCrearPedidoQr();
@@ -143,9 +125,6 @@ export function StepMetodoPago({
         id: data.pedido.id,
         numero: data.pedido.numero,
         total: Number(data.pedido.total),
-        clienteNombre: data.pedido.clienteNombre,
-        tipoEntrega: data.pedido.tipoEntrega,
-        direccionEntrega: data.pedido.direccionEntrega,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado");
@@ -156,25 +135,37 @@ export function StepMetodoPago({
 
   const subirComprobante = async (file: File) => {
     if (!pedido) return;
+
     setSubiendo(true);
     setError(null);
+
     try {
       const formData = new FormData();
       formData.append("pedidoId", pedido.id);
       formData.append("comprobante", file);
+
       const res = await fetch("/api/pagos/qr/comprobante", {
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("No se pudo subir el comprobante");
+      const payload = (await res.json()) as EvidenceUploadResponse;
+
+      if (!res.ok) {
+        throw new Error(payload.error || "No se pudo subir el comprobante");
+      }
 
       const copiada = await copiarImagenAlPortapapeles(file);
       setFotoCopiada(copiada);
-
-      const mensaje = construirMensajeWhatsApp(pedido, itemsPedido, copiada);
-      window.open(whatsappLink(mensaje), "_blank", "noopener,noreferrer");
-
+      setNotificacionAutomatica(payload.adminNotification === "automatic");
+      setWhatsappUrl(payload.whatsappUrl ?? null);
       setSubido(true);
+
+      if (
+        payload.adminNotification !== "automatic" &&
+        payload.whatsappUrl
+      ) {
+        window.open(payload.whatsappUrl, "_blank", "noopener,noreferrer");
+      }
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Error al subir el comprobante",
@@ -190,60 +181,111 @@ export function StepMetodoPago({
   };
 
   return (
-    <div className="grid max-w-2xl gap-4 sm:grid-cols-3">
-      {opciones.map(({ metodo, titulo, descripcion, icon: Icon }) => (
-        <button
-          key={metodo}
-          type="button"
-          onClick={() =>
-            metodo === "QR_TRANSFERENCIA" ? abrirQr() : onSelect(metodo)
-          }
-          className={cn(
-            "flex flex-col items-start gap-2 rounded-xl border p-5 text-left transition-colors",
-            selected === metodo
-              ? "border-pisao-gold bg-pisao-gold/10"
-              : "border-pisao-cream-muted/20 hover:border-pisao-gold/40",
-          )}
-        >
-          <Icon className="text-pisao-gold h-6 w-6" />
-          <span className="font-display text-pisao-cream text-lg">
-            {titulo}
-          </span>
-          <span className="text-pisao-cream-muted text-xs">{descripcion}</span>
-        </button>
-      ))}
+    <div className="max-w-2xl">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {opciones.map(({ metodo, titulo, descripcion, icon: Icon, enabled }) => (
+          <button
+            key={metodo}
+            type="button"
+            disabled={!enabled}
+            onClick={() => {
+              if (!enabled) return;
+              if (metodo === "QR_TRANSFERENCIA") {
+                void abrirQr();
+              } else {
+                onSelect(metodo);
+              }
+            }}
+            className={cn(
+              "relative flex flex-col items-start gap-2 rounded-xl border p-5 text-left transition-colors",
+              !enabled &&
+                "cursor-not-allowed border-white/8 bg-white/[.02] opacity-60",
+              enabled &&
+                selected === metodo &&
+                "border-pisao-gold bg-pisao-gold/10",
+              enabled &&
+                selected !== metodo &&
+                "border-pisao-cream-muted/20 hover:border-pisao-gold/40",
+            )}
+          >
+            {!enabled && (
+              <span className="absolute top-3 right-3 rounded-full border border-pisao-gold/15 px-2 py-1 text-[9px] font-semibold tracking-[.12em] text-pisao-gold uppercase">
+                Próximamente
+              </span>
+            )}
+            <Icon className="h-6 w-6 text-pisao-gold" />
+            <span className="font-display text-lg text-pisao-cream">
+              {titulo}
+            </span>
+            <span className="text-xs text-pisao-cream-muted">{descripcion}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-pisao-gold/10 bg-pisao-noche/60 px-4 py-3 text-xs leading-relaxed text-pisao-cream-muted">
+        <strong className="text-pisao-cream">Método vigente:</strong> todos los
+        pedidos se pagan actualmente mediante el QR oficial de PISÁO, Llave
+        Bre-B o transferencia directa a Bancolombia.
+      </div>
 
       <Modal
         open={mostrarQr}
         onClose={() => setMostrarQr(false)}
-        title="Paga con QR / Transferencia"
+        title="Paga con QR, Bre-B o Bancolombia"
       >
         {creando ? (
-          <div className="text-pisao-cream-muted flex items-center justify-center gap-2 py-10 text-sm">
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-pisao-cream-muted">
             <Loader2 className="h-4 w-4 animate-spin" />
             Creando tu pedido...
           </div>
         ) : subido ? (
-          <div className="space-y-3">
-            <CheckCircle2 className="text-pisao-gold h-8 w-8" />
-            <p className="text-pisao-cream text-sm font-medium">
-              Abrimos WhatsApp con el resumen de tu pedido.
-            </p>
-            <p className="text-pisao-cream-muted text-sm">
-              {fotoCopiada
-                ? "Ya copiamos la foto de tu comprobante: en la ventana de WhatsApp solo pega (Ctrl+V o mantén presionado y \"Pegar\") y presiona enviar."
-                : "No pudimos copiar la imagen automáticamente: adjunta la foto del comprobante manualmente en WhatsApp y presiona enviar."}
-            </p>
-            <Button variant="primary" className="w-full" onClick={cerrarYContinuar}>
-              Ya envié el mensaje, continuar
+          <div className="space-y-4">
+            <CheckCircle2 className="h-9 w-9 text-pisao-gold" />
+            <div>
+              <p className="text-sm font-medium text-pisao-cream">
+                Comprobante recibido.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-pisao-cream-muted">
+                {notificacionAutomatica
+                  ? "El sistema notificó automáticamente al equipo de pagos de PISÁO y adjuntó la evidencia disponible."
+                  : "El comprobante ya quedó guardado en PISÁO. Abrimos WhatsApp con el resumen del pedido para avisar al administrador."}
+              </p>
+            </div>
+
+            {!notificacionAutomatica && whatsappUrl && (
+              <Button
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                variant="primary"
+                className="w-full"
+              >
+                Enviar aviso a WhatsApp
+              </Button>
+            )}
+
+            {!notificacionAutomatica && fotoCopiada && (
+              <p className="text-xs leading-relaxed text-pisao-cream-muted">
+                También copiamos la imagen al portapapeles. Si quieres que el
+                administrador la reciba dentro del chat, pégala en WhatsApp
+                antes de enviar.
+              </p>
+            )}
+
+            <Button
+              variant={notificacionAutomatica ? "primary" : "outline"}
+              className="w-full"
+              onClick={cerrarYContinuar}
+            >
+              Continuar
             </Button>
           </div>
         ) : (
           <>
-            <div className="bg-pisao-noche relative aspect-[9/16] w-full overflow-hidden rounded-lg">
+            <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl bg-pisao-noche">
               <Image
-                src="/QR/QRTransferencia.jpeg"
-                alt="Código QR para pagar por transferencia"
+                src={datosTransferenciaBancaria.qrImageUrl}
+                alt="QR oficial de PISÁO para pago por transferencia"
                 fill
                 sizes="384px"
                 className="object-contain"
@@ -251,14 +293,56 @@ export function StepMetodoPago({
             </div>
 
             {pedido && (
-              <p className="text-pisao-cream-muted mt-3 text-xs">
-                Pedido #{pedido.numero} · Total {formatCurrency(pedido.total)}
-              </p>
+              <div className="mt-4 rounded-xl border border-pisao-gold/10 bg-pisao-noche/60 p-4">
+                <p className="text-xs text-pisao-cream-muted">
+                  Pedido #{pedido.numero}
+                </p>
+                <p className="font-display mt-1 text-2xl text-pisao-gold">
+                  {formatCurrency(pedido.total)}
+                </p>
+              </div>
             )}
 
-            <div className="mt-4">
-              <label className="text-pisao-cream-muted text-sm">
-                Sube tu comprobante de pago (imagen o PDF)
+            <div className="mt-4 grid gap-2 rounded-xl border border-pisao-gold/10 bg-pisao-noche/50 p-4 text-xs">
+              <div className="flex items-start gap-3">
+                <Building2 className="mt-0.5 size-4 shrink-0 text-pisao-gold" />
+                <div>
+                  <p className="font-semibold text-pisao-cream">
+                    {datosTransferenciaBancaria.banco}
+                  </p>
+                  <p className="mt-0.5 text-pisao-cream-muted">
+                    {datosTransferenciaBancaria.titular}
+                  </p>
+                  {datosTransferenciaBancaria.numeroCuenta && (
+                    <p className="mt-1 font-mono text-pisao-cream">
+                      {datosTransferenciaBancaria.tipoCuenta
+                        ? `${datosTransferenciaBancaria.tipoCuenta} · `
+                        : ""}
+                      {datosTransferenciaBancaria.numeroCuenta}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {datosTransferenciaBancaria.brebKey && (
+                <div className="flex items-start gap-3 border-t border-pisao-gold/10 pt-3">
+                  <KeyRound className="mt-0.5 size-4 shrink-0 text-pisao-gold" />
+                  <div>
+                    <p className="font-semibold text-pisao-cream">Llave Bre-B</p>
+                    <p className="mt-0.5 font-mono text-pisao-cream">
+                      {datosTransferenciaBancaria.brebKeyType
+                        ? `${datosTransferenciaBancaria.brebKeyType}: `
+                        : ""}
+                      {datosTransferenciaBancaria.brebKey}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5">
+              <label className="text-sm text-pisao-cream-muted">
+                Después de pagar, sube tu comprobante
               </label>
               <input
                 type="file"
@@ -266,26 +350,25 @@ export function StepMetodoPago({
                 disabled={!pedido || subiendo}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) subirComprobante(file);
+                  if (file) void subirComprobante(file);
                 }}
-                className="text-pisao-cream-muted file:bg-pisao-gold file:text-pisao-carbon mt-1 block w-full text-sm file:mr-4 file:rounded-full file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium disabled:opacity-50"
+                className="mt-2 block w-full text-sm text-pisao-cream-muted file:mr-4 file:rounded-full file:border-0 file:bg-pisao-gold file:px-4 file:py-2 file:text-sm file:font-medium file:text-pisao-carbon disabled:opacity-50"
               />
             </div>
 
             {subiendo && (
-              <p className="text-pisao-cream-muted mt-2 flex items-center gap-2 text-xs">
+              <p className="mt-2 flex items-center gap-2 text-xs text-pisao-cream-muted">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Subiendo comprobante y preparando WhatsApp...
+                Guardando comprobante y notificando al equipo...
               </p>
             )}
 
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
-            <p className="text-pisao-cream-muted mt-4 text-xs">
-              Al subir tu comprobante abriremos WhatsApp con el resumen de tu
-              pedido para el negocio ({datosTransferenciaBancaria.titular}) y
-              copiaremos la foto a tu portapapeles para que solo la pegues y
-              envíes.
+            <p className="mt-4 text-xs leading-relaxed text-pisao-cream-muted">
+              El administrador valida manualmente el pago antes de confirmar el
+              pedido. Tarjeta y PSE se habilitarán cuando la pasarela productiva
+              esté lista.
             </p>
           </>
         )}
