@@ -13,7 +13,8 @@ CREATE TABLE "revenue_actions" (
   "objectiveMetric" VARCHAR(96) NOT NULL,
   "evidence" JSONB NOT NULL,
   "payload" JSONB,
-  "approvedById" TEXT,
+  "decidedById" TEXT,
+  "executedById" TEXT,
   "approvedAt" TIMESTAMP(3),
   "rejectedAt" TIMESTAMP(3),
   "executedAt" TIMESTAMP(3),
@@ -37,6 +38,11 @@ CREATE INDEX "revenue_actions_type_createdAt_idx"
   ON "revenue_actions"("type", "createdAt");
 
 ALTER TABLE "revenue_actions"
-  ADD CONSTRAINT "revenue_actions_approvedById_fkey"
-  FOREIGN KEY ("approvedById") REFERENCES "usuarios"("id")
+  ADD CONSTRAINT "revenue_actions_decidedById_fkey"
+  FOREIGN KEY ("decidedById") REFERENCES "usuarios"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "revenue_actions"
+  ADD CONSTRAINT "revenue_actions_executedById_fkey"
+  FOREIGN KEY ("executedById") REFERENCES "usuarios"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;
