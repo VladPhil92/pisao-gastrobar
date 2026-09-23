@@ -186,6 +186,17 @@ export async function POST(request: Request) {
           )
         : null;
 
+    const onchainPayload =
+      pedido.pago.payloadProveedor &&
+      typeof pedido.pago.payloadProveedor === "object" &&
+      !Array.isArray(pedido.pago.payloadProveedor)
+        ? (pedido.pago.payloadProveedor as Record<string, unknown>)
+        : null;
+    const cryptoAmount =
+      typeof onchainPayload?.amount === "string"
+        ? onchainPayload.amount
+        : null;
+
     const notification = await notifyPaymentAdmin(
       {
         id: pedido.id,
@@ -202,6 +213,7 @@ export async function POST(request: Request) {
         cryptoRed: cryptoDestination?.red ?? null,
         walletDireccion: cryptoDestination?.direccion ?? null,
         cryptoTxHash: pedido.pago.txHash,
+        cryptoAmount,
         cryptoConfirmations: pedido.pago.confirmacionesOnchain,
         cryptoExplorerUrl: explorerUrl,
         items: pedido.items.map((item) => ({
