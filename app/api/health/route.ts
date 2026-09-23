@@ -64,6 +64,14 @@ export async function GET() {
             ? "webhook"
             : "click_to_chat",
       },
+      intelligence: {
+        revenueAttribution: {
+          mode: "server_resolved",
+          source: "first_party_behavior",
+          windowHours: 12,
+          priceIntegrity: "server_catalog_revalidation",
+        },
+      },
       ai: {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
         model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
@@ -116,6 +124,14 @@ export async function GET() {
             : process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_URL
               ? "webhook"
               : "click_to_chat",
+        },
+        intelligence: {
+          revenueAttribution: {
+            mode: "server_resolved",
+            source: "first_party_behavior",
+            windowHours: 12,
+            priceIntegrity: "server_catalog_revalidation",
+          },
         },
         ai: {
           mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
