@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const steps = [
   { icon: CalendarDays, step: "01", title: "Elige cuándo", body: "Selecciona una fecha y un horario dentro de nuestra operación." },
   { icon: Users, step: "02", title: "Dinos cuántos", body: "La solicitud se adapta a pareja, familia o grupo." },
-  { icon: MessageCircle, step: "03", title: "Confirmamos contigo", body: "Nuestro equipo valida la solicitud antes de darla por confirmada." },
+  { icon: MessageCircle, step: "03", title: "Confirmación en tiempo real", body: "PISÁO valida capacidad y mesas disponibles al instante antes de confirmar." },
 ];
 
 export default function ReservasPage() {
@@ -80,8 +80,8 @@ export default function ReservasPage() {
         <Container className="relative grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:items-start lg:gap-16">
           <Reveal className="lg:sticky lg:top-28">
             <p className="text-pisao-gold text-[10px] font-semibold tracking-[.22em] uppercase">Antes de venir</p>
-            <h2 className="font-display mt-3 text-4xl leading-[.98] text-pisao-cream sm:text-5xl">Reserva simple. Confirmación humana.</h2>
-            <p className="mt-5 text-sm leading-relaxed text-pisao-cream-muted sm:text-base">Esta solicitud no inventa disponibilidad automática. Una vez enviada, PISÁO valida los detalles y confirma contigo por los canales de contacto registrados.</p>
+            <h2 className="font-display mt-3 text-4xl leading-[.98] text-pisao-cream sm:text-5xl">Reserva simple. Disponibilidad real.</h2>
+            <p className="mt-5 text-sm leading-relaxed text-pisao-cream-muted sm:text-base">PISÁO consulta la capacidad real de la terraza y, al confirmar, vuelve a validar toda la ventana de ocupación antes de asignar las mesas. Si el último cupo cambia mientras reservas, el sistema propone horarios cercanos.</p>
 
             <div className="mt-7 overflow-hidden rounded-[2rem] border border-pisao-gold/15 bg-pisao-noche">
               <div className="relative aspect-[16/10]">
