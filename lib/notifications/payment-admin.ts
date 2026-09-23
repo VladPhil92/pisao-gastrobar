@@ -74,7 +74,6 @@ export function paymentAdminWhatsappUrl(message: string) {
 }
 
 async function notifyViaWhatsAppCloud(
-  order: PaymentAdminOrder,
   evidence: PaymentEvidence,
   message: string,
 ) {
@@ -183,7 +182,7 @@ export async function notifyPaymentAdmin(
   const whatsappUrl = paymentAdminWhatsappUrl(message);
 
   try {
-    if (await notifyViaWhatsAppCloud(order, evidence, message)) {
+    if (await notifyViaWhatsAppCloud(evidence, message)) {
       return {
         delivery: "automatic",
         provider: "whatsapp_cloud",
