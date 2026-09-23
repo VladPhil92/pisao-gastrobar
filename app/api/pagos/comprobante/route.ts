@@ -110,7 +110,6 @@ export async function POST(request: Request) {
 
     if (pedido.pago.metodo === "CRIPTO" && !cryptoDestination) {
       return NextResponse.json(
-        { error: "Selecciona una criptomoneda válida antes de subir el comprobante." },
         {
           error:
             "Selecciona una criptomoneda válida antes de subir el comprobante.",
