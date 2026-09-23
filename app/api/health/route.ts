@@ -77,6 +77,7 @@ export async function GET() {
         ai: {
           mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
           model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+          transactionCommands: transactionCommandHealth(),
         },
         governance: {
           kev: {
