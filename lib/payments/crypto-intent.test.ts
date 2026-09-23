@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   createCryptoPaymentIntent,
   cryptoIntentExpired,
@@ -27,41 +28,41 @@ describe("crypto payment rail v3", () => {
         },
       }],
     });
-    expect(intent.state).toBe("QUOTE_CREATED");
-    expect(intent.quotes.USDT).toMatchObject({ amount: "4.5" });
-    expect(cryptoIntentExpired(intent, now)).toBe(false);
+    assert.equal(intent.state, "QUOTE_CREATED");
+    assert.equal(intent.quotes.USDT?.amount, "4.5");
+    assert.equal(cryptoIntentExpired(intent, now), false);
   });
 
   it("does not settle before required confirmations", () => {
-    expect(settlementState({
+    assert.equal(settlementState({
       confirmations: 1,
       requiredConfirmations: 2,
       sufficient: true,
       variancePercent: 0,
-    })).toBe("CONFIRMING");
+    }), "CONFIRMING");
   });
 
   it("marks sufficient confirmed payment as paid", () => {
-    expect(settlementState({
+    assert.equal(settlementState({
       confirmations: 2,
       requiredConfirmations: 2,
       sufficient: true,
       variancePercent: 0,
-    })).toBe("PAID");
+    }), "PAID");
   });
 
   it("routes underpayments and unknown quotes away from paid", () => {
-    expect(settlementState({
+    assert.equal(settlementState({
       confirmations: 10,
       requiredConfirmations: 2,
       sufficient: false,
       variancePercent: -8,
-    })).toBe("UNDERPAID");
-    expect(settlementState({
+    }), "UNDERPAID");
+    assert.equal(settlementState({
       confirmations: 10,
       requiredConfirmations: 2,
       sufficient: null,
       variancePercent: null,
-    })).toBe("MANUAL_REVIEW");
+    }), "MANUAL_REVIEW");
   });
 });
