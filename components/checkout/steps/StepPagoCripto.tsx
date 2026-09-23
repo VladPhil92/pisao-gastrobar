@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Check, CheckCircle2, Copy, Loader2 } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -16,6 +23,23 @@ type EvidenceUploadResponse = {
   adminNotification?: "automatic" | "manual";
   notificationProvider?: "whatsapp_cloud" | "webhook" | "click_to_chat";
   whatsappUrl?: string;
+};
+
+type TxVerificationResponse = {
+  ok?: boolean;
+  error?: string;
+  code?: string;
+  retryable?: boolean;
+  transaction?: {
+    status: "OBSERVED" | "CONFIRMED";
+    moneda: CriptoMoneda;
+    red: string;
+    txHash: string;
+    amount: string;
+    confirmations: number;
+    requiredConfirmations: number;
+    explorerUrl: string;
+  };
 };
 
 async function copiarImagenAlPortapapeles(file: File): Promise<boolean> {
@@ -48,6 +72,11 @@ export function StepPagoCripto({
 }) {
   const [moneda, setMoneda] = useState<CriptoMoneda | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [txHash, setTxHash] = useState("");
+  const [verificandoTx, setVerificandoTx] = useState(false);
+  const [txVerificada, setTxVerificada] = useState(false);
+  const [txInfo, setTxInfo] =
+    useState<TxVerificationResponse["transaction"]>(undefined);
   const [subiendo, setSubiendo] = useState(false);
   const [subido, setSubido] = useState(false);
   const [fotoCopiada, setFotoCopiada] = useState(false);
@@ -71,8 +100,48 @@ export function StepPagoCripto({
     }
   };
 
+  const verificarTransaccion = async () => {
+    if (!destino || !txHash.trim()) return;
+
+    setVerificandoTx(true);
+    setTxVerificada(false);
+    setTxInfo(undefined);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/pagos/cripto/verificar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedidoId,
+          criptoMoneda: destino.moneda,
+          txHash: txHash.trim(),
+        }),
+      });
+      const payload = (await res.json()) as TxVerificationResponse;
+
+      if (!res.ok || !payload.transaction) {
+        throw new Error(
+          payload.error || "No se pudo verificar la transacción on-chain",
+        );
+      }
+
+      setTxHash(payload.transaction.txHash);
+      setTxInfo(payload.transaction);
+      setTxVerificada(true);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "No se pudo verificar la transacción on-chain",
+      );
+    } finally {
+      setVerificandoTx(false);
+    }
+  };
+
   const subirComprobante = async (file: File) => {
-    if (!destino) return;
+    if (!destino || !txVerificada) return;
 
     setSubiendo(true);
     setError(null);
@@ -124,8 +193,8 @@ export function StepPagoCripto({
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-pisao-cream-muted">
             {notificacionAutomatica
-              ? "PISÁO recibió tu evidencia y notificó automáticamente al administrador con los datos del pedido y del pago."
-              : "Tu evidencia quedó guardada. También abrimos WhatsApp con el resumen del pedido para que el administrador pueda validarlo."}
+              ? "PISÁO recibió tu evidencia, vinculó la transacción on-chain y notificó automáticamente al administrador con los datos del pedido y del pago."
+              : "Tu evidencia y la transacción on-chain quedaron vinculadas al pedido. También abrimos WhatsApp con el resumen para que el administrador pueda validarlo."}
           </p>
         </div>
 
@@ -174,8 +243,9 @@ export function StepPagoCripto({
           {formatCurrency(total)}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">
-          Envía el equivalente del total en la criptomoneda elegida. La
-          validación del pago se realiza con el comprobante que subas.
+          Envía el equivalente del total en la criptomoneda elegida. PISÁO
+          comprobará que el TxID/TxHash realmente llegue a la wallet correcta
+          antes de recibir el comprobante.
         </p>
       </div>
 
@@ -191,6 +261,9 @@ export function StepPagoCripto({
               onClick={() => {
                 setMoneda(opcion.moneda);
                 setCopiado(false);
+                setTxHash("");
+                setTxVerificada(false);
+                setTxInfo(undefined);
                 setError(null);
               }}
               className={cn(
@@ -269,14 +342,91 @@ export function StepPagoCripto({
             como pago del pedido.
           </div>
 
+          <div className="rounded-xl border border-pisao-gold/10 bg-pisao-carbon-soft p-4">
+            <label
+              htmlFor="crypto-tx-hash"
+              className="text-sm font-medium text-pisao-cream"
+            >
+              3. Pega el TxID / TxHash de la transferencia
+            </label>
+            <p className="mt-1 text-xs leading-relaxed text-pisao-cream-muted">
+              Lo encuentras en el detalle del retiro o transferencia de tu
+              wallet o exchange. El sistema comprobará red, activo y dirección
+              receptora.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="crypto-tx-hash"
+                type="text"
+                value={txHash}
+                disabled={verificandoTx}
+                onChange={(e) => {
+                  setTxHash(e.target.value);
+                  setTxVerificada(false);
+                  setTxInfo(undefined);
+                  setError(null);
+                }}
+                placeholder={destino.moneda === "BTC" ? "TxID de 64 caracteres" : "0x..."}
+                className="min-w-0 flex-1 rounded-lg border border-pisao-cream-muted/20 bg-pisao-noche px-3 py-3 font-mono text-xs text-pisao-cream outline-none focus:border-pisao-gold"
+              />
+              <button
+                type="button"
+                disabled={!txHash.trim() || verificandoTx}
+                onClick={() => void verificarTransaccion()}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-pisao-gold px-4 py-3 text-xs font-bold text-pisao-carbon disabled:opacity-50"
+              >
+                {verificandoTx ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                Verificar
+              </button>
+            </div>
+
+            {txVerificada && txInfo && (
+              <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs leading-relaxed text-pisao-cream-muted">
+                <p className="flex items-center gap-2 font-semibold text-emerald-300">
+                  <ShieldCheck className="h-4 w-4" />
+                  Transacción encontrada hacia la wallet de PISÁO
+                </p>
+                <p className="mt-2">
+                  Recibido on-chain:{" "}
+                  <strong className="text-pisao-cream">
+                    {txInfo.amount} {txInfo.moneda}
+                  </strong>
+                </p>
+                <p>
+                  Confirmaciones: {txInfo.confirmations} /{" "}
+                  {txInfo.requiredConfirmations}
+                  {txInfo.status === "OBSERVED"
+                    ? " · visible en la red, aún confirmándose"
+                    : " · confirmación mínima alcanzada"}
+                </p>
+                <a
+                  href={txInfo.explorerUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-pisao-gold underline"
+                >
+                  Ver en explorador <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-sm text-pisao-cream-muted">
-              3. Después de pagar, sube tu comprobante
+              4. Sube tu comprobante
             </label>
+            <p className="mt-1 text-xs leading-relaxed text-pisao-cream-muted">
+              El comprobante se habilita cuando el TxID/TxHash haya sido
+              comprobado contra la blockchain.
+            </p>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp,application/pdf"
-              disabled={subiendo}
+              disabled={!txVerificada || subiendo}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) void subirComprobante(file);
