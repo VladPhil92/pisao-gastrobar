@@ -26,6 +26,8 @@
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
     "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts",
     "test:revenue": "tsx --test lib/analytics/revenue-attribution.test.ts",
+    "test:revenue-actions": "tsx --test lib/revenue/revenue-action-core.test.ts",
+    "test:revenue-experiments": "tsx --test lib/revenue/revenue-experiment-core.test.ts",
     "test:payments": "tsx --test lib/payments/onchain.test.ts",
     "security:audit-baseline": "node scripts/audit-security-baseline.mjs"
   },

@@ -66,6 +66,12 @@ jobs:
       - name: Revenue attribution tests
         run: npm run test:revenue
 
+      - name: Revenue action engine tests
+        run: npm run test:revenue-actions
+
+      - name: Revenue experimentation tests
+        run: npm run test:revenue-experiments
+
       - name: Payment integrity tests
         run: npm run test:payments
 

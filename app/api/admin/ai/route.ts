@@ -64,6 +64,12 @@ function sanitizeMessages(value: unknown): ClientMessage[] {
     }));
 }
 
+function jsonRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 function colombiaMidnightUtc(daysAgo = 0) {
   const now = new Date();
   const colombia = new Date(now.getTime() - 5 * 60 * 60 * 1000);
@@ -83,7 +89,15 @@ async function getBusinessContext() {
   const since30Days = colombiaMidnightUtc(30);
   const today = colombiaMidnightUtc(0);
 
-  const [orders, reservations, categories, aiRuns, transactionCommands] = await Promise.all([
+  const [
+    orders,
+    reservations,
+    categories,
+    aiRuns,
+    transactionCommands,
+    revenueActions,
+    revenueExperiments,
+  ] = await Promise.all([
     prisma.pedido.findMany({
       where: { createdAt: { gte: since30Days } },
       orderBy: { createdAt: "desc" },
@@ -132,6 +146,37 @@ async function getBusinessContext() {
       },
       orderBy: { createdAt: "desc" },
       take: 500,
+    }),
+    prisma.revenueAction.findMany({
+      where: { createdAt: { gte: since30Days } },
+      select: {
+        type: true,
+        status: true,
+        title: true,
+        priorityScore: true,
+        riskLevel: true,
+        executedAt: true,
+        measuredAt: true,
+      },
+      orderBy: [{ status: "asc" }, { priorityScore: "desc" }, { createdAt: "desc" }],
+      take: 30,
+    }),
+    prisma.revenueExperiment.findMany({
+      where: {
+        OR: [
+          { createdAt: { gte: since30Days } },
+          { status: { in: ["RUNNING", "PAUSED"] } },
+        ],
+      },
+      select: {
+        status: true,
+        primaryMetric: true,
+        result: true,
+        action: { select: { title: true } },
+        assignments: { select: { arm: true, exposedAt: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
     }),
   ]);
 
@@ -207,6 +252,46 @@ async function getBusinessContext() {
   const commandExecutionRate = transactionCommands.length
     ? Math.round((commandsExecuted / transactionCommands.length) * 100)
     : 0;
+  const revenueActionsPending = revenueActions.filter(
+    (action) => action.status === "PENDING",
+  ).length;
+  const revenueActionsExecuted = revenueActions.filter(
+    (action) => action.status === "EXECUTED",
+  ).length;
+  const topRevenueActions = revenueActions
+    .filter((action) => action.status !== "REJECTED")
+    .slice(0, 8)
+    .map(
+      (action) =>
+        `- [${action.status}] ${action.title} | prioridad ${action.priorityScore} | riesgo ${action.riskLevel}`,
+    )
+    .join("\n");
+
+  const experimentSummary = revenueExperiments
+    .map((experiment) => {
+      const result = jsonRecord(experiment.result);
+      const interpretation =
+        typeof result.interpretation === "string"
+          ? result.interpretation
+          : "SIN_RESULTADO";
+      const lift =
+        typeof result.observedConversionLiftPctPoints === "number"
+          ? result.observedConversionLiftPctPoints
+          : null;
+      const sampleReady = result.sampleReady === true;
+      const control = experiment.assignments.filter(
+        (item) => item.arm === "CONTROL",
+      ).length;
+      const treatment = experiment.assignments.filter(
+        (item) => item.arm === "TREATMENT",
+      ).length;
+      const exposed = experiment.assignments.filter(
+        (item) => item.arm === "TREATMENT" && item.exposedAt,
+      ).length;
+
+      return `- [${experiment.status}] ${experiment.action.title} | control ${control} / treatment ${treatment} / expuestos ${exposed} | muestra lista ${sampleReady ? "sí" : "no"} | interpretación ${interpretation}${lift === null ? "" : ` | lift conversión ${lift} pp`}`;
+    })
+    .join("\n");
 
   return [
     `NEGOCIO: ${siteConfig.name}`,
@@ -230,6 +315,13 @@ async function getBusinessContext() {
     `Comandos ejecutados: ${commandsExecuted}`,
     `Comandos pendientes: ${commandsPending}`,
     `Tasa de ejecución de comandos observada: ${commandExecutionRate}%`,
+    `Acciones Revenue pendientes: ${revenueActionsPending}`,
+    `Acciones Revenue ejecutadas: ${revenueActionsExecuted}`,
+    "ACCIONES REVENUE GOBERNADAS:",
+    topRevenueActions || "Sin acciones generadas todavía.",
+    "EXPERIMENTOS CONTROLADOS REVENUE:",
+    experimentSummary || "Sin experimentos activos o recientes.",
+    "NOTA EXPERIMENTAL: solo un experimento con asignación controlada, muestra suficiente e instrumentación íntegra puede aportar evidencia de incrementalidad dentro de la población observada. No generalices más allá de esa población.",
     "TOP PRODUCTOS POR UNIDADES OBSERVADAS:",
     topProducts.length
       ? topProducts
@@ -282,8 +374,10 @@ REGLAS OPERATIVAS
 - Trabajas exclusivamente con los datos internos incluidos abajo. Distingue dato observado, inferencia y recomendación.
 - No inventes ventas, costos, márgenes, inventario, disponibilidad, aforo, reseñas ni métricas externas.
 - No afirmes causalidad cuando solo hay correlación o una muestra limitada.
+- Puedes describir un resultado como evidencia experimental únicamente cuando provenga del bloque EXPERIMENTOS CONTROLADOS, la muestra figure como lista y la asignación CONTROL/TREATMENT sea válida. Aun así, limita la conclusión a la población y periodo instrumentados.
 - Prioriza acciones concretas, medibles y ordenadas por impacto/esfuerzo.
 - Puedes proponer cambios de menú, campañas, promociones o procesos, pero NO afirmes que fueron ejecutados.
+- Si una acción ya aparece como EXECUTED en el Revenue Action Engine, puedes tratarla como cambio operativo real; si está PENDING o APPROVED, sigue siendo una propuesta.
 - Precios, descuentos, reembolsos, pagos, disponibilidad de productos y publicaciones requieren aprobación humana explícita.
 - Si faltan costos o márgenes, dilo antes de recomendar descuentos.
 - Responde en español profesional, directo y orientado a gestión. Evita texto inflado.

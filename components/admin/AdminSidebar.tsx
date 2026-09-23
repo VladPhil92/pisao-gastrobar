@@ -10,6 +10,8 @@ import {
   BarChart3,
   Sparkles,
   MousePointerClick,
+  Zap,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -25,6 +27,18 @@ const items = [
     href: "/admin/ia",
     label: "Centro IA",
     icon: Sparkles,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/acciones",
+    label: "Acciones IA",
+    icon: Zap,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/experimentos",
+    label: "Experimentos",
+    icon: FlaskConical,
     roles: ["ADMIN"],
   },
   {

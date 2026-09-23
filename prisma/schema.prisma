@@ -77,7 +77,11 @@ model Usuario {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  pagosVerificados Pago[] @relation("PagoVerificadoPor")
+  pagosVerificados       Pago[]          @relation("PagoVerificadoPor")
+  revenueActionsDecided  RevenueAction[] @relation("RevenueActionDecidedBy")
+  revenueActionsExecuted RevenueAction[] @relation("RevenueActionExecutedBy")
+  revenueExperimentsStarted RevenueExperiment[] @relation("RevenueExperimentStartedBy")
+  revenueExperimentsEnded   RevenueExperiment[] @relation("RevenueExperimentEndedBy")
 
   @@map("usuarios")
 }
@@ -282,6 +286,105 @@ model Evento {
 /// Se resuelve exclusivamente en servidor a partir de EventoAnalitico; el
 /// navegador solo aporta el sessionId efímero. "assists" describe señales
 /// observadas y no implica causalidad comercial.
+/// Acción comercial propuesta por Revenue Action Engine.
+/// Toda acción sensible requiere aprobación humana. Algunas acciones LOW_RISK
+/// pueden ejecutarse por el sistema solo después de esa aprobación.
+model RevenueAction {
+  id              String   @id @default(cuid())
+  fingerprint     String   @unique @db.VarChar(64)
+  engineVersion   String   @default("revenue_action_engine_v2") @db.VarChar(48)
+  type            String   @db.VarChar(48)
+  status          String   @default("PENDING") @db.VarChar(24)
+  riskLevel       String   @db.VarChar(16)
+  executionMode   String   @db.VarChar(24)
+  priorityScore   Int      @default(50)
+
+  title             String @db.VarChar(180)
+  rationale         String
+  recommendedAction String
+  objectiveMetric   String @db.VarChar(96)
+
+  evidence Json
+  payload  Json?
+
+  decidedById String?
+  decidedBy   Usuario? @relation("RevenueActionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+
+  executedById String?
+  executedBy   Usuario? @relation("RevenueActionExecutedBy", fields: [executedById], references: [id], onDelete: SetNull)
+  executedAt   DateTime?
+
+  measurementStartedAt DateTime?
+  measurementWindowDays Int      @default(7)
+  measuredAt            DateTime?
+  outcome               Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, priorityScore, createdAt])
+  experiments RevenueExperiment[]
+
+  @@index([type, createdAt])
+  @@map("revenue_actions")
+}
+
+/// Experimento controlado derivado de una acción comercial ya aprobada y ejecutada.
+/// La unidad experimental es una sessionId first-party efímera; nunca PII.
+model RevenueExperiment {
+  id               String   @id @default(cuid())
+  key              String   @unique @db.VarChar(64)
+  actionId         String
+  action           RevenueAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  status           String   @default("DRAFT") @db.VarChar(16)
+  surface          String   @default("CONCIERGE") @db.VarChar(32)
+  primaryMetric    String   @default("paid_conversion_rate") @db.VarChar(64)
+  treatmentPct     Int      @default(50)
+  minAssignmentsPerArm Int  @default(30)
+
+  startedById String?
+  startedBy   Usuario? @relation("RevenueExperimentStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+  endedById   String?
+  endedBy     Usuario? @relation("RevenueExperimentEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  startedAt DateTime?
+  endedAt   DateTime?
+  measuredAt DateTime?
+  result    Json?
+
+  assignments RevenueExperimentAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, startedAt])
+  @@index([actionId, createdAt])
+  @@map("revenue_experiments")
+}
+
+/// Asignación determinística por sesión para análisis intention-to-treat.
+model RevenueExperimentAssignment {
+  id           String   @id @default(cuid())
+  experimentId String
+  experiment   RevenueExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  sessionId    String   @db.VarChar(64)
+  arm          String   @db.VarChar(16)
+  assignedAt       DateTime @default(now())
+  lastSeenAt       DateTime @default(now())
+  eligibleAt       DateTime?
+  eligibilityCount Int      @default(0)
+  exposedAt        DateTime?
+  exposureCount    Int      @default(0)
+
+  @@unique([experimentId, sessionId])
+  @@index([experimentId, arm, assignedAt])
+  @@index([sessionId, assignedAt])
+  @@map("revenue_experiment_assignments")
+}
+
 model RevenueAttribution {
   id         String   @id @default(cuid())
   pedidoId   String   @unique

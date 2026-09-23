@@ -59,6 +59,8 @@ import {
 } from "@/lib/ai/transaction-command-bus";
 import { captureServerError } from "@/lib/observability/sentry-transport";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
+import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
+import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -336,6 +338,7 @@ export async function POST(request: Request) {
       guestProfile?: unknown;
       guestKey?: unknown;
       sessionKey?: unknown;
+      behaviorSessionId?: unknown;
     };
     const messages = sanitizeMessages(body.messages);
     const latestUserMessage = [...messages]
@@ -596,6 +599,26 @@ export async function POST(request: Request) {
       });
     }
 
+    const [revenuePlaybook, experimentContext] = await Promise.all([
+      getActiveRevenuePlaybook(),
+      getConciergeExperimentContext({
+        behaviorSessionId: body.behaviorSessionId,
+        latestUserMessage: latestUserMessage.content,
+      }),
+    ]);
+
+    if (experimentContext.experiment) {
+      void emitKevGovernanceEvent("pisao.revenue.experiment_assigned", {
+        source: "concierge_api",
+        experiment_ref: experimentContext.experiment.key,
+        arm: experimentContext.experiment.arm,
+        eligible: experimentContext.experiment.eligible,
+        exposed: experimentContext.experiment.exposed,
+        next_best_action:
+          experimentContext.experiment.nextBestAction?.type ?? "NONE",
+      });
+    }
+
     const clientRequestId = crypto.randomUUID();
     const nativeTools = buildNativeToolDefinitions({
       allowTableMutation:
@@ -620,6 +643,18 @@ ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
+
+REVENUE PLAYBOOK APROBADO
+${revenuePlaybook}
+- Estas reglas provienen de acciones comerciales aprobadas por administración y de evidencia transaccional observada.
+- Úsalas solo cuando sean relevantes para la intención del visitante.
+- No fuerces cross-sell, no inventes promociones y no presentes la correlación histórica como causalidad.
+
+EXPERIMENTACIÓN Y NEXT BEST ACTION
+${experimentContext.instructions}
+- La asignación CONTROL/TREATMENT la resuelve el servidor y debe respetarse exactamente.
+- No reveles al visitante que está en un experimento ni menciones grupos de prueba.
+- Una NEXT BEST ACTION es una sugerencia contextual, no una autorización para modificar precio, descuento, inventario o política.
 
 ${actionContextForModel(action)}
 
