@@ -94,3 +94,36 @@ test("rejects cross-origin browser writes", () => {
     },
   );
 });
+
+
+test("requires the Cloudflare-injected edge secret when enabled", () => {
+  withEnv(
+    {
+      PISAO_ENFORCE_CANONICAL_HOST: "true",
+      PISAO_CANONICAL_HOSTS: "pisaogastrobar.com",
+      PISAO_REQUIRE_EDGE_SECRET: "true",
+      PISAO_EDGE_SECRET: "0123456789abcdef0123456789abcdef",
+    },
+    () => {
+      const rejected = validateCanonicalWriteOrigin(
+        new Request("https://pisaogastrobar.com/api/pedidos", {
+          method: "POST",
+          headers: { origin: "https://pisaogastrobar.com" },
+        }),
+      );
+      assert.equal(rejected.ok, false);
+      if (!rejected.ok) assert.equal(rejected.code, "EDGE_SECRET_REQUIRED");
+
+      const accepted = validateCanonicalWriteOrigin(
+        new Request("https://pisaogastrobar.com/api/pedidos", {
+          method: "POST",
+          headers: {
+            origin: "https://pisaogastrobar.com",
+            "x-pisao-edge-secret": "0123456789abcdef0123456789abcdef",
+          },
+        }),
+      );
+      assert.equal(accepted.ok, true);
+    },
+  );
+});
