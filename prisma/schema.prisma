@@ -151,13 +151,31 @@ model Pedido {
 
   estado EstadoPedido @default(PENDIENTE_PAGO)
 
-  pago        Pago?
-  attribution RevenueAttribution?
+  pago          Pago?
+  attribution   RevenueAttribution?
+  seguimientos  PedidoSeguimiento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("pedidos")
+}
+
+/// Acceso privado para seguimiento de pedidos desde dispositivos del cliente.
+/// El token nunca se almacena en claro; únicamente se persiste su hash SHA-256.
+model PedidoSeguimiento {
+  id           String    @id @default(cuid())
+  tokenHash    String    @unique @db.VarChar(64)
+  pedidoId     String
+  pedido       Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  lastAccessAt DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([pedidoId, createdAt])
+  @@index([expiresAt])
+  @@map("pedidos_seguimiento")
 }
 
 model ItemPedido {
