@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export type PaymentEvidence = {
-  bytes: Uint8Array;
+  bytes: Uint8Array<ArrayBuffer>;
   arrayBuffer: ArrayBuffer;
   fileName: string;
   mimeType: string;
@@ -53,7 +53,7 @@ export async function prepararComprobantePago(
   file: File,
 ): Promise<PaymentEvidence> {
   const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
+  const bytes: Uint8Array<ArrayBuffer> = new Uint8Array(arrayBuffer);
 
   if (!fileSignatureMatches(bytes, file.type)) {
     throw new Error("INVALID_PAYMENT_EVIDENCE_SIGNATURE");
