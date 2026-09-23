@@ -90,5 +90,8 @@ jobs:
       - name: WhatsApp coexistence tests
         run: npm run test:whatsapp
 
+      - name: Production certification tests
+        run: npm run test:certification
+
       - name: Production build
         run: npm run build
