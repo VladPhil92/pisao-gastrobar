@@ -6,7 +6,7 @@ CREATE TABLE "revenue_experiments" (
   "surface" VARCHAR(32) NOT NULL DEFAULT 'CONCIERGE',
   "primaryMetric" VARCHAR(64) NOT NULL DEFAULT 'paid_conversion_rate',
   "treatmentPct" INTEGER NOT NULL DEFAULT 50,
-  "minAssignmentsPerArm" INTEGER NOT NULL DEFAULT 20,
+  "minAssignmentsPerArm" INTEGER NOT NULL DEFAULT 30,
   "startedById" TEXT,
   "endedById" TEXT,
   "startedAt" TIMESTAMP(3),
