@@ -155,14 +155,14 @@ function inferConversationStyle(messages: ConversationMessage[]): ConversationSt
   if (
     latest.length <= 70 &&
     averageLength <= 100 &&
-    !/(cuentame|explicame|que opciones|que me recomiendas|recomendacion)/.test(text)
+    !/(cuentame|explicame|que opciones|que (?:me|nos) recomiendas|recomendacion)/.test(text)
   ) {
     return "direct";
   }
 
   if (
     averageLength > 150 ||
-    /(cuentame|explicame|quiero conocer|que opciones|que me recomiendas|recomendacion|ayudame a escoger)/.test(
+    /(cuentame|explicame|quiero conocer|que opciones|que (?:me|nos) recomiendas|recomendacion|ayudame a escoger)/.test(
       text,
     )
   ) {
@@ -204,7 +204,7 @@ function inferGuestState(
   }
 
   if (
-    /(que me recomiendas|recomiendame|no se que|cual escoger|que opciones|ayudame a escoger|entre .* y .*)/.test(
+    /(que (?:me|nos) recomiendas|recomiendame|no se que|cual escoger|que opciones|ayudame a escoger|entre .* y .*)/.test(
       text,
     )
   ) {
