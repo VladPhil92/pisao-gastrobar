@@ -79,6 +79,8 @@ export async function POST(
       code === "POLICY_NOT_ACTIVATABLE" ||
       code === "POLICY_ACTIVE_LIMIT" ||
       code === "POLICY_NOT_ACTIVE" ||
+      code === "POLICY_INVALID_PRODUCTS" ||
+      code === "POLICY_PRODUCT_UNAVAILABLE_OR_LOW" ||
       code === "POLICY_NOT_ROLLBACKABLE"
         ? 409
         : code === "POLICY_NOT_FOUND"
