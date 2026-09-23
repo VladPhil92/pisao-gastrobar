@@ -45,5 +45,8 @@ jobs:
       - name: Reservation engine tests
         run: npm run test:reservations
 
+      - name: Concierge hospitality tests
+        run: npm run test:concierge
+
       - name: Production build
         run: npm run build

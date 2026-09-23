@@ -19,7 +19,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts"
+    "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts",
+    "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
