@@ -188,6 +188,67 @@ de producto/maridaje, pero los etiqueta expresamente como
 `observed_after_execution_not_causal`. Esto evita atribuir incremento a una
 acción sin experimento o grupo de control.
 
+## Revenue Experimentation & Next Best Action V3
+
+PISÁO puede convertir una acción de maridaje ya aprobada y ejecutada en un
+experimento controlado antes de adoptarla como política comercial general.
+
+Diseño actual:
+
+```text
+Revenue Action ejecutada
+        |
+        v
+Experimento DRAFT
+        |
+        v
+ADMIN inicia prueba
+        |
+        +--> CONTROL
+        |
+        +--> TREATMENT -> Next Best Action contextual
+        |
+        v
+Revenue Attribution enlaza pagos aprobados
+        |
+        v
+Conversión pagada + ticket + afinidad de cesta
+        |
+        v
+Resultado: muestra insuficiente / inconcluso / treatment superior / control superior
+```
+
+La unidad experimental es la `sessionId` first-party efímera ya usada por
+Behavioral Intelligence y Revenue Attribution. La asignación es estable por sesión
+y se persiste en `revenue_experiment_assignments`; no contiene nombre, teléfono,
+correo ni transcript.
+
+Reglas de gobierno:
+
+- Split por defecto 50/50.
+- Mínimo 30 sesiones asignadas por grupo antes de interpretar dirección.
+- Solo un experimento Concierge puede estar `RUNNING` al mismo tiempo.
+- CONTROL nunca recibe la regla experimental.
+- TREATMENT solo recibe la Next Best Action cuando el turno es elegible.
+- Se registran elegibilidad y exposición para auditar contaminación.
+- Precio, descuento, inventario, disponibilidad y pagos siguen fuera de la
+  autoridad experimental.
+- Un maridaje bajo experimento queda fuera del playbook general.
+- Tras completar la prueba, solo vuelve al playbook general si la muestra está
+  lista y el resultado guardado es `TREATMENT_OBSERVED_HIGHER`.
+- Un resultado inconcluso o favorable a control no se promociona automáticamente.
+
+La métrica primaria es conversión pagada por sesión asignada
+(intention-to-treat). El ticket promedio y la frecuencia del par son métricas
+secundarias. El panel muestra un intervalo normal aproximado del 95% para la
+diferencia de conversión; esto no sustituye revisión estadística cuando el volumen
+o la decisión económica sea material.
+
+El laboratorio administrativo está en `/admin/experimentos`. Allí ADMIN puede
+preparar experimentos desde acciones ejecutadas, iniciar, pausar, medir y cerrar
+una prueba. Gerencia IA y Revenue IA reciben los resultados con reglas explícitas
+para no convertir correlaciones observacionales en afirmaciones causales.
+
 ## Instalación
 
 ### Requisitos

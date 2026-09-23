@@ -43,6 +43,14 @@ function jsonNumber(
   return typeof item === "number" && Number.isFinite(item) ? item : null;
 }
 
+function jsonBoolean(
+  value: Prisma.JsonValue | null | undefined,
+  key: string,
+) {
+  const item = jsonObject(value)[key];
+  return typeof item === "boolean" ? item : null;
+}
+
 async function collectInputs(): Promise<RevenueActionInputs> {
   const now = new Date();
   const since30 = new Date(now.getTime() - 30 * DAY_MS);
@@ -363,14 +371,36 @@ export async function getActiveRevenuePlaybook() {
       executedAt: { gte: since30 },
     },
     orderBy: [{ priorityScore: "desc" }, { executedAt: "desc" }],
-    take: 3,
+    take: 12,
     select: {
       payload: true,
       evidence: true,
+      experiments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+          result: true,
+        },
+      },
     },
   });
 
-  const pairings = actions
+  const eligibleActions = actions
+    .filter((action) => {
+      const latestExperiment = action.experiments[0];
+      if (!latestExperiment) return true;
+      if (latestExperiment.status !== "COMPLETED") return false;
+
+      return (
+        jsonBoolean(latestExperiment.result, "sampleReady") === true &&
+        jsonString(latestExperiment.result, "interpretation") ===
+          "TREATMENT_OBSERVED_HIGHER"
+      );
+    })
+    .slice(0, 3);
+
+  const pairings = eligibleActions
     .map((action) => {
       const productAName = jsonString(action.payload, "productAName");
       const productBName = jsonString(action.payload, "productBName");
