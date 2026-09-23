@@ -433,12 +433,12 @@ export async function measureRevenueActions() {
         where: {
           createdAt: { gte: since },
           pago: { is: { estado: "APROBADO" } },
-          items: { some: { productoId } },
+          items: { some: { productoId: productId } },
         },
         select: {
           total: true,
           items: {
-            where: { productoId },
+            where: { productoId: productId },
             select: { cantidad: true, subtotal: true },
           },
         },
