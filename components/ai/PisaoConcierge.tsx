@@ -167,12 +167,7 @@ export function PisaoConcierge() {
     try {
       const response = await fetch("/api/ai/concierge", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(turnstileToken
-            ? { "X-Turnstile-Token": turnstileToken }
-            : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content: messageContent }) => ({
             role,
@@ -274,7 +269,12 @@ export function PisaoConcierge() {
     try {
       const response = await fetch("/api/ai/commands/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(turnstileToken
+            ? { "X-Turnstile-Token": turnstileToken }
+            : {}),
+        },
         body: JSON.stringify({
           commandId: command.id,
           confirmationToken: command.confirmationToken,
