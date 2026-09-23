@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckCircle2,
@@ -42,16 +42,16 @@ export function ReservaForm() {
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ReservaFormValues>({
     resolver: zodResolver(reservaSchema),
     defaultValues: { personas: 2 },
   });
 
-  const fecha = watch("fecha");
-  const hora = watch("hora");
-  const personas = watch("personas");
+  const fecha = useWatch({ control, name: "fecha" });
+  const hora = useWatch({ control, name: "hora" });
+  const personas = useWatch({ control, name: "personas" });
 
   const markStarted = () => {
     if (started) return;
