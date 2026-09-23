@@ -83,7 +83,7 @@ async function getBusinessContext() {
   const since30Days = colombiaMidnightUtc(30);
   const today = colombiaMidnightUtc(0);
 
-  const [orders, reservations, categories] = await Promise.all([
+  const [orders, reservations, categories, aiRuns, transactionCommands] = await Promise.all([
     prisma.pedido.findMany({
       where: { createdAt: { gte: since30Days } },
       orderBy: { createdAt: "desc" },
@@ -107,6 +107,23 @@ async function getBusinessContext() {
           orderBy: [{ destacado: "desc" }, { orden: "asc" }, { nombre: "asc" }],
         },
       },
+    }),
+    prisma.aiConciergeRun.findMany({
+      where: { createdAt: { gte: since30Days } },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    }),
+    prisma.aiTransactionCommand.findMany({
+      where: { createdAt: { gte: since30Days } },
+      select: {
+        type: true,
+        status: true,
+        containsPii: true,
+        createdAt: true,
+        executedAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
     }),
   ]);
 
@@ -152,6 +169,22 @@ async function getBusinessContext() {
     })
     .join("\n\n");
 
+  const aiFallbacks = aiRuns.filter((run) => run.fallback).length;
+  const aiLatencyAvg = aiRuns.length
+    ? Math.round(
+        aiRuns.reduce((sum, run) => sum + run.latencyMs, 0) / aiRuns.length,
+      )
+    : 0;
+  const commandsExecuted = transactionCommands.filter(
+    (command) => command.status === "EXECUTED",
+  ).length;
+  const commandsPending = transactionCommands.filter(
+    (command) => command.status === "PENDING",
+  ).length;
+  const commandExecutionRate = transactionCommands.length
+    ? Math.round((commandsExecuted / transactionCommands.length) * 100)
+    : 0;
+
   return [
     `NEGOCIO: ${siteConfig.name}`,
     `UBICACIÓN: ${siteConfig.location.address}`,
@@ -161,6 +194,13 @@ async function getBusinessContext() {
     `Pedidos de hoy observados: ${todayOrders.length}`,
     `Ventas de hoy observadas: $${Math.round(todayRevenue).toLocaleString("es-CO")} COP`,
     `Reservas futuras observadas: ${reservations.length}`,
+    `Ejecuciones Concierge IA observadas: ${aiRuns.length}`,
+    `Fallbacks IA observados: ${aiFallbacks}`,
+    `Latencia media Concierge observada: ${aiLatencyAvg} ms`,
+    `Comandos transaccionales observados: ${transactionCommands.length}`,
+    `Comandos ejecutados: ${commandsExecuted}`,
+    `Comandos pendientes: ${commandsPending}`,
+    `Tasa de ejecución de comandos observada: ${commandExecutionRate}%`,
     "TOP PRODUCTOS POR UNIDADES OBSERVADAS:",
     topProducts.length
       ? topProducts
