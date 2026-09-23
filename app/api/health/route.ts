@@ -100,7 +100,8 @@ export async function GET() {
             ? "cf-connecting-ip"
             : "x-forwarded-for",
           proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
-            turnstile: turnstileHealth(),
+          origin: edgeOriginHealth(),
+          turnstile: turnstileHealth(),
           },
         },
         observability: observabilityHealth(),
