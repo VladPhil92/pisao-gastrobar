@@ -1,17 +1,29 @@
 /**
- * Datos de la cuenta bancaria / QR para el método de pago manual.
- * El pedido queda en estado PENDIENTE_VERIFICACION hasta que un usuario
- * con rol ADMIN o CAJERO valide el comprobante subido en el panel.
+ * Datos visibles del método de pago vigente.
+ * Las variables NEXT_PUBLIC_* son deliberadas: son datos que el comercio
+ * muestra al cliente para que pueda transferir, nunca credenciales secretas.
  */
+function optional(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
 export const datosTransferenciaBancaria = {
-  banco: process.env.BANK_TRANSFER_BANK_NAME ?? "Banco Placeholder",
-  titular: process.env.BANK_TRANSFER_ACCOUNT_HOLDER ?? "PISÁO Gastrobar S.A.S.",
-  tipoCuenta: process.env.BANK_TRANSFER_ACCOUNT_TYPE ?? "Ahorros",
-  numeroCuenta: process.env.BANK_TRANSFER_ACCOUNT_NUMBER ?? "000-000000-00",
-  nit: process.env.BANK_TRANSFER_NIT ?? "900.000.000-0",
-  /** URL de la imagen del código QR (ej. Bre-B / llave bancaria) subida a /public o a un bucket. */
+  banco:
+    process.env.NEXT_PUBLIC_BANK_TRANSFER_BANK_NAME?.trim() || "Bancolombia",
+  titular:
+    process.env.NEXT_PUBLIC_BANK_TRANSFER_ACCOUNT_HOLDER?.trim() ||
+    "Grupo PISÁO Food & Drinks S.A.S.",
+  tipoCuenta: optional(process.env.NEXT_PUBLIC_BANK_TRANSFER_ACCOUNT_TYPE),
+  numeroCuenta: optional(
+    process.env.NEXT_PUBLIC_BANK_TRANSFER_ACCOUNT_NUMBER,
+  ),
+  nit: optional(process.env.NEXT_PUBLIC_BANK_TRANSFER_NIT),
+  brebKeyType: optional(process.env.NEXT_PUBLIC_BANK_TRANSFER_BREB_KEY_TYPE),
+  brebKey: optional(process.env.NEXT_PUBLIC_BANK_TRANSFER_BREB_KEY),
   qrImageUrl:
-    process.env.BANK_TRANSFER_QR_IMAGE_URL ?? "/QR/QRTransferencia.jpeg",
+    process.env.NEXT_PUBLIC_BANK_TRANSFER_QR_IMAGE_URL?.trim() ||
+    "/QR/QRTransferencia.jpeg",
 };
 
 export const EVIDENCIA_TIPOS_PERMITIDOS = [
