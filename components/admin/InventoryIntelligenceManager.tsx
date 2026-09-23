@@ -7,7 +7,6 @@ import {
   Boxes,
   ChefHat,
   CircleDollarSign,
-  Gauge,
   LoaderCircle,
   PackagePlus,
   Plus,
