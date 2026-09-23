@@ -25,6 +25,7 @@ type PolicyView = {
   minHoldoutAssignments: number;
   rollbackMarginPctPoints: number;
   rollbackReason: string | null;
+  operationalPauseReason: string | null;
   lastMeasuredAt: string | null;
   outcome: JsonRecord | null;
   action: {
@@ -355,6 +356,17 @@ export function AdaptiveRevenuePolicyCenter({
               {policy.rollbackReason && (
                 <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/5 p-4 text-xs leading-relaxed text-red-200">
                   Política retirada: {policy.rollbackReason}
+                </div>
+              )}
+
+              {policy.operationalPauseReason && policy.status === "PAUSED" && (
+                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-xs leading-relaxed text-amber-100">
+                  Pausa operativa:{" "}
+                  {policy.operationalPauseReason === "inventory_low"
+                    ? "uno de los productos tiene inventario bajo; la recomendación proactiva queda detenida."
+                    : policy.operationalPauseReason === "inventory_unavailable"
+                      ? "uno de los productos no está disponible; la política queda detenida."
+                      : "pausa administrativa."}
                 </div>
               )}
 
