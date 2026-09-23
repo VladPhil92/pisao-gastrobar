@@ -13,6 +13,7 @@ import {
   Zap,
   FlaskConical,
   Radar,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -58,6 +59,12 @@ const items = [
     href: "/admin/menu",
     label: "Menú",
     icon: UtensilsCrossed,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/inventario",
+    label: "Inventario",
+    icon: Boxes,
     roles: ["ADMIN"],
   },
   {
