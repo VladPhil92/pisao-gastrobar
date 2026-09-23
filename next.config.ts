@@ -22,6 +22,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // TypeScript ya es un gate obligatorio en GitHub CI (npx tsc --noEmit).
+  // En Render evitamos repetir ese chequeo dentro de next build porque la
+  // instancia de build de 512 MB agotó el heap al duplicar el typecheck.
+  // El flag solo se habilita explícitamente en Render; CI sigue validando tipos.
+  typescript: {
+    ignoreBuildErrors: process.env.RENDER_SKIP_NEXT_TYPECHECK === "true",
+  },
+
   // Render usa el bundle standalone para ejecutar la app con una huella
   // reducida. Vercel 16.3+ inyecta su build adapter y actualmente no
   // emite next-server.js.nft.json cuando `output: standalone` está activo;
