@@ -28,6 +28,9 @@ jobs:
       - name: Block critical production advisories
         run: npm audit --omit=dev --audit-level=critical
 
+      - name: Block new high-severity production advisories
+        run: npm run security:audit-baseline
+
       - name: Trace high-severity audit paths
         run: |
           npm audit --omit=dev --audit-level=high || true
