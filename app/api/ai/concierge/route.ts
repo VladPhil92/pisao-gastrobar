@@ -58,6 +58,7 @@ import {
   type PreparedTransactionCommand,
 } from "@/lib/ai/transaction-command-bus";
 import { captureServerError } from "@/lib/observability/sentry-transport";
+import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -303,6 +304,14 @@ function availabilityContext(
 }
 
 export async function POST(request: Request) {
+  const edgeOrigin = validateCanonicalWriteOrigin(request);
+  if (!edgeOrigin.ok) {
+    return Response.json(
+      { error: "Origen de solicitud no permitido.", code: edgeOrigin.code },
+      { status: 403 },
+    );
+  }
+
   const startedAt = Date.now();
   const identity = requestIdentity(request);
   const rate = checkRateLimit({
