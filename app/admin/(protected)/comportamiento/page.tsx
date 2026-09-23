@@ -3,7 +3,6 @@ import {
   Eye,
   Gauge,
   MousePointerClick,
-  ShoppingBag,
   Smartphone,
   Sparkles,
   Target,
