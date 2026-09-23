@@ -16,7 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { whatsappLink } from "@/lib/site-config";
-import { trackBehavior } from "@/lib/analytics/behavioral-client";
+import {
+  getBehaviorSessionId,
+  trackBehavior,
+} from "@/lib/analytics/behavioral-client";
 import { useCartStore } from "@/lib/cart/store";
 import type { ConversationalProposal } from "@/lib/ai/conversational-commerce";
 import type {
@@ -177,6 +180,7 @@ export function PisaoConcierge() {
           guestProfile: hospitalityProfile,
           guestKey: conciergeIdentity?.guestKey,
           sessionKey: conciergeIdentity?.sessionKey,
+          behaviorSessionId: getBehaviorSessionId() ?? undefined,
         }),
       });
 
