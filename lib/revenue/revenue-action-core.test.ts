@@ -94,3 +94,35 @@ test("assisted AOV difference is framed as a test, not causality", () => {
   assert.ok(discovery);
   assert.equal(discovery?.rationale.includes("no demuestra causalidad"), true);
 });
+
+
+test("does not proactively promote unavailable or low-inventory products", () => {
+  const actions = buildRevenueActionCandidates({
+    ...base,
+    products: [
+      {
+        ...base.products[0],
+        available: true,
+        lowInventory: true,
+      },
+    ],
+    pairs: [
+      {
+        ...base.pairs[0],
+        promotable: false,
+        costCoverage: "COMPLETE",
+        contributionMarginPct: 60,
+        profitabilityAdjustment: 5,
+      },
+    ],
+  });
+
+  assert.equal(
+    actions.some((action) => action.type === "FEATURE_PRODUCT"),
+    false,
+  );
+  assert.equal(
+    actions.some((action) => action.type === "CONCIERGE_PAIRING"),
+    false,
+  );
+});
