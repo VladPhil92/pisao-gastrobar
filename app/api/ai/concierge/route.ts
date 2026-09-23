@@ -32,6 +32,10 @@ import { siteConfig } from "@/lib/site-config";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { MAX_AUTOMATIC_RESERVATION_PEOPLE } from "@/lib/reservas/policy";
 import { emitKevGovernanceEvent } from "@/lib/governance/kev-bridge";
+import {
+  actionContextForModel,
+  buildConciergeAction,
+} from "@/lib/ai/action-runtime";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -308,6 +312,24 @@ export async function POST(request: Request) {
         }
       : null;
 
+    const action = buildConciergeAction({
+      latestUserMessage: latestUserMessage.content,
+      proposal,
+      reservation: reservationPayload,
+      requiresHumanValidation: commerceAnalysis.requiresHumanValidation,
+      oversizedGroup,
+      availabilityError: reservationAvailabilityError,
+    });
+
+    if (action) {
+      void emitKevGovernanceEvent("pisao.concierge.action_planned", {
+        source: "concierge_api",
+        action: action.type,
+        execution: action.execution,
+        agent: agent.id,
+      });
+    }
+
     const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
     const reservationIntent = Boolean(reservationDraft);
     const availabilityState = reservationAvailabilityError
@@ -359,6 +381,7 @@ export async function POST(request: Request) {
         text: fallbackText,
         proposal,
         reservation: reservationPayload,
+        action,
         fallback: true,
         agent: agent.id,
         agentLabel: agent.label,
@@ -397,6 +420,8 @@ ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
+
+${actionContextForModel(action)}
 
 REGLAS ADICIONALES
 - Si hay intención de reserva, prioriza completar la reserva antes de vender comida.
@@ -455,6 +480,7 @@ REGLAS ADICIONALES
         text: fallbackText,
         proposal,
         reservation: reservationPayload,
+        action,
         fallback: true,
         agent: agent.id,
         agentLabel: agent.label,
@@ -502,6 +528,7 @@ REGLAS ADICIONALES
       text,
       proposal,
       reservation: reservationPayload,
+      action,
       fallback: !modelText,
       agent: agent.id,
       agentLabel: agent.label,
