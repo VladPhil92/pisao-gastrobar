@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { behaviorEventSchema } from "@/lib/analytics/behavioral-contract";
+import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +43,21 @@ function canAccept(sessionId: string) {
 }
 
 export async function POST(request: Request) {
+  const edgeOrigin = validateCanonicalWriteOrigin(request);
+  if (!edgeOrigin.ok) {
+    return new Response(null, { status: 204 });
+  }
+
+  const identity = requestIdentity(request);
+  const rate = checkRateLimit({
+    key: `behavior-ip:${identity}`,
+    limit: 240,
+    windowMs: WINDOW_MS,
+  });
+  if (!rate.allowed) {
+    return new Response(null, { status: 204 });
+  }
+
   const userAgent = request.headers.get("user-agent") ?? "";
   if (BOT_PATTERN.test(userAgent)) {
     return new Response(null, { status: 204 });

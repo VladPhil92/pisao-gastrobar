@@ -9,6 +9,7 @@ import { transactionCommandHealth } from "@/lib/ai/transaction-command-bus";
 import { turnstileHealth } from "@/lib/security/turnstile";
 import { observabilityHealth } from "@/lib/observability/sentry-transport";
 import { cloudflareProxyTrusted } from "@/lib/security/rate-limit";
+import { edgeOriginHealth } from "@/lib/security/edge-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export async function GET() {
             ? "cf-connecting-ip"
             : "x-forwarded-for",
           proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
+          origin: edgeOriginHealth(),
           turnstile: turnstileHealth(),
         },
       },
@@ -98,7 +100,8 @@ export async function GET() {
             ? "cf-connecting-ip"
             : "x-forwarded-for",
           proxyTrust: cloudflareProxyTrusted() ? "enabled" : "disabled",
-            turnstile: turnstileHealth(),
+          origin: edgeOriginHealth(),
+          turnstile: turnstileHealth(),
           },
         },
         observability: observabilityHealth(),

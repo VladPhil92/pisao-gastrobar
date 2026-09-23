@@ -1,3 +1,5 @@
+import { canonicalOriginEnforced } from "@/lib/security/edge-origin";
+
 type Bucket = {
   count: number;
   resetAt: number;
@@ -9,9 +11,9 @@ const globalRateLimit = globalThis as unknown as {
 
 const buckets = globalRateLimit.pisaoRateLimit ?? new Map<string, Bucket>();
 
-if (process.env.NODE_ENV !== "production") {
-  globalRateLimit.pisaoRateLimit = buckets;
-}
+// Preserve buckets across module reloads and route bundles in a single
+// Render instance. Edge enforcement remains the primary distributed layer.
+globalRateLimit.pisaoRateLimit = buckets;
 
 function cleanup(now: number) {
   if (buckets.size < 2000) return;
@@ -21,17 +23,30 @@ function cleanup(now: number) {
 }
 
 export function cloudflareProxyTrusted() {
-  return process.env.CLOUDFLARE_TRUST_PROXY === "true";
+  return (
+    process.env.CLOUDFLARE_TRUST_PROXY === "true" &&
+    canonicalOriginEnforced()
+  );
 }
 
 export function requestIdentity(request: Request) {
   const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
   if (cloudflareProxyTrusted() && cloudflareIp) return cloudflareIp;
 
-  const forwarded = request.headers.get("x-forwarded-for");
-  const forwardedIp = forwarded?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
 
-  return forwardedIp || request.headers.get("x-real-ip")?.trim() || "unknown";
+  const forwarded = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  // Outside an explicitly trusted Cloudflare path, prefer the proxy-nearest
+  // hop instead of the client-controlled leftmost value.
+  const proxyNearestIp = forwarded?.at(-1);
+
+  return proxyNearestIp || "unknown";
 }
 
 export function checkRateLimit(params: {
