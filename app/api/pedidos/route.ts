@@ -5,33 +5,76 @@ import {
   emitKevGovernanceEvent,
   governanceRef,
 } from "@/lib/governance/kev-bridge";
+import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
+import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
+import { captureServerError } from "@/lib/observability/sentry-transport";
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const parsed = crearPedidoSchema.safeParse(body);
-
-  if (!parsed.success) {
+  const edgeOrigin = validateCanonicalWriteOrigin(request);
+  if (!edgeOrigin.ok) {
     return NextResponse.json(
-      { error: "Datos inválidos", detalles: parsed.error.flatten() },
-      { status: 400 },
+      { error: "Origen de solicitud no permitido.", code: edgeOrigin.code },
+      { status: 403 },
     );
   }
 
-  const baseUrl = new URL(request.url).origin;
-  const resultado = await crearPedido(parsed.data, baseUrl);
-
-  void emitKevGovernanceEvent("pisao.order.created", {
-    order_ref: governanceRef(resultado.pedido.id),
-    source: "order_api",
-    total: Number(resultado.pedido.total),
-    item_count: parsed.data.items.reduce(
-      (sum, item) => sum + item.cantidad,
-      0,
-    ),
-    tipo_entrega: parsed.data.tipoEntrega,
-    metodo_pago: parsed.data.metodoPago,
-    estado: resultado.pedido.estado,
+  const identity = requestIdentity(request);
+  const rate = checkRateLimit({
+    key: `order:${identity}`,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
   });
 
-  return NextResponse.json(resultado, { status: 201 });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados intentos de pedido." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      },
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const parsed = crearPedidoSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos inválidos", detalles: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+
+    const baseUrl = new URL(request.url).origin;
+    const resultado = await crearPedido(parsed.data, baseUrl);
+
+    void emitKevGovernanceEvent("pisao.order.created", {
+      order_ref: governanceRef(resultado.pedido.id),
+      source: "order_api",
+      total: Number(resultado.pedido.total),
+      item_count: parsed.data.items.reduce(
+        (sum, item) => sum + item.cantidad,
+        0,
+      ),
+      tipo_entrega: parsed.data.tipoEntrega,
+      metodo_pago: parsed.data.metodoPago,
+      estado: resultado.pedido.estado,
+    });
+
+    return NextResponse.json(resultado, { status: 201 });
+  } catch (error) {
+    void captureServerError(error, {
+      surface: "order_api",
+      code: "ORDER_CREATE_FAILED",
+    });
+
+    return NextResponse.json(
+      {
+        error: "No fue posible crear el pedido en este momento.",
+        code: "ORDER_CREATE_FAILED",
+      },
+      { status: 503 },
+    );
+  }
 }
