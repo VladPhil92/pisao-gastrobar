@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 import { calculateUnitCostFromPurchase } from "@/lib/inventory/core";
 import { recomputeRecipeRiskForIngredient } from "@/lib/inventory/service";
@@ -8,7 +9,6 @@ import {
   governanceRef,
 } from "@/lib/governance/kev-bridge";
 
-const UNITS = new Set(["GRAMO", "MILILITRO", "UNIDAD"]);
 
 export async function PATCH(
   request: Request,
@@ -28,14 +28,13 @@ export async function PATCH(
   const { id } = await params;
   const body = (await request.json()) as {
     nombre?: string;
-    unidadBase?: string;
     stockMinimo?: number;
     activo?: boolean;
     costoCompraReferencia?: number | null;
     cantidadCompraReferencia?: number | null;
   };
 
-  const data: Record<string, unknown> = {};
+  const data: Prisma.InventarioInsumoUpdateInput = {};
 
   if (body.nombre !== undefined) {
     const nombre = body.nombre.trim().slice(0, 120);
@@ -45,12 +44,6 @@ export async function PATCH(
     data.nombre = nombre;
   }
 
-  if (body.unidadBase !== undefined) {
-    if (!UNITS.has(body.unidadBase)) {
-      return Response.json({ error: "Unidad inválida." }, { status: 400 });
-    }
-    data.unidadBase = body.unidadBase;
-  }
 
   if (body.stockMinimo !== undefined) {
     if (!Number.isFinite(body.stockMinimo) || body.stockMinimo < 0) {
