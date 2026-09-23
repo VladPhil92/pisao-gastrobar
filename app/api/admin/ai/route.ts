@@ -83,7 +83,14 @@ async function getBusinessContext() {
   const since30Days = colombiaMidnightUtc(30);
   const today = colombiaMidnightUtc(0);
 
-  const [orders, reservations, categories, aiRuns, transactionCommands] = await Promise.all([
+  const [
+    orders,
+    reservations,
+    categories,
+    aiRuns,
+    transactionCommands,
+    revenueActions,
+  ] = await Promise.all([
     prisma.pedido.findMany({
       where: { createdAt: { gte: since30Days } },
       orderBy: { createdAt: "desc" },
@@ -132,6 +139,20 @@ async function getBusinessContext() {
       },
       orderBy: { createdAt: "desc" },
       take: 500,
+    }),
+    prisma.revenueAction.findMany({
+      where: { createdAt: { gte: since30Days } },
+      select: {
+        type: true,
+        status: true,
+        title: true,
+        priorityScore: true,
+        riskLevel: true,
+        executedAt: true,
+        measuredAt: true,
+      },
+      orderBy: [{ status: "asc" }, { priorityScore: "desc" }, { createdAt: "desc" }],
+      take: 30,
     }),
   ]);
 
@@ -207,6 +228,20 @@ async function getBusinessContext() {
   const commandExecutionRate = transactionCommands.length
     ? Math.round((commandsExecuted / transactionCommands.length) * 100)
     : 0;
+  const revenueActionsPending = revenueActions.filter(
+    (action) => action.status === "PENDING",
+  ).length;
+  const revenueActionsExecuted = revenueActions.filter(
+    (action) => action.status === "EXECUTED",
+  ).length;
+  const topRevenueActions = revenueActions
+    .filter((action) => action.status !== "REJECTED")
+    .slice(0, 8)
+    .map(
+      (action) =>
+        `- [${action.status}] ${action.title} | prioridad ${action.priorityScore} | riesgo ${action.riskLevel}`,
+    )
+    .join("\n");
 
   return [
     `NEGOCIO: ${siteConfig.name}`,
@@ -230,6 +265,10 @@ async function getBusinessContext() {
     `Comandos ejecutados: ${commandsExecuted}`,
     `Comandos pendientes: ${commandsPending}`,
     `Tasa de ejecución de comandos observada: ${commandExecutionRate}%`,
+    `Acciones Revenue pendientes: ${revenueActionsPending}`,
+    `Acciones Revenue ejecutadas: ${revenueActionsExecuted}`,
+    "ACCIONES REVENUE GOBERNADAS:",
+    topRevenueActions || "Sin acciones generadas todavía.",
     "TOP PRODUCTOS POR UNIDADES OBSERVADAS:",
     topProducts.length
       ? topProducts
@@ -284,6 +323,7 @@ REGLAS OPERATIVAS
 - No afirmes causalidad cuando solo hay correlación o una muestra limitada.
 - Prioriza acciones concretas, medibles y ordenadas por impacto/esfuerzo.
 - Puedes proponer cambios de menú, campañas, promociones o procesos, pero NO afirmes que fueron ejecutados.
+- Si una acción ya aparece como EXECUTED en el Revenue Action Engine, puedes tratarla como cambio operativo real; si está PENDING o APPROVED, sigue siendo una propuesta.
 - Precios, descuentos, reembolsos, pagos, disponibilidad de productos y publicaciones requieren aprobación humana explícita.
 - Si faltan costos o márgenes, dilo antes de recomendar descuentos.
 - Responde en español profesional, directo y orientado a gestión. Evita texto inflado.
