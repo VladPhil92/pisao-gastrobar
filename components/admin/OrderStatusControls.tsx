@@ -30,7 +30,7 @@ export function OrderStatusControls({
     setError(null);
 
     try {
-      const response = await fetch(\`/api/admin/pedidos/\${pedidoId}/estado\`, {
+      const response = await fetch(`/api/admin/pedidos/${pedidoId}/estado`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: action.next }),
