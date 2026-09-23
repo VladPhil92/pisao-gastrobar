@@ -51,5 +51,8 @@ jobs:
       - name: Concierge action runtime tests
         run: npm run test:actions
 
+      - name: Concierge stateful tool tests
+        run: npm run test:tools
+
       - name: Production build
         run: npm run build
