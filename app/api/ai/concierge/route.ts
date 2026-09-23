@@ -61,6 +61,7 @@ import { captureServerError } from "@/lib/observability/sentry-transport";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
+import { getAdaptiveRevenueContext } from "@/lib/revenue/revenue-policy-engine";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -599,11 +600,17 @@ export async function POST(request: Request) {
       });
     }
 
-    const [revenuePlaybook, experimentContext] = await Promise.all([
+    const experimentContext = await getConciergeExperimentContext({
+      behaviorSessionId: body.behaviorSessionId,
+      latestUserMessage: latestUserMessage.content,
+    });
+
+    const [revenuePlaybook, adaptiveRevenueContext] = await Promise.all([
       getActiveRevenuePlaybook(),
-      getConciergeExperimentContext({
+      getAdaptiveRevenueContext({
         behaviorSessionId: body.behaviorSessionId,
         latestUserMessage: latestUserMessage.content,
+        suppress: experimentContext.experiment?.eligible === true,
       }),
     ]);
 
@@ -616,6 +623,15 @@ export async function POST(request: Request) {
         exposed: experimentContext.experiment.exposed,
         next_best_action:
           experimentContext.experiment.nextBestAction?.type ?? "NONE",
+      });
+    }
+
+    if (adaptiveRevenueContext.policy) {
+      void emitKevGovernanceEvent("pisao.revenue.policy_assigned", {
+        source: "concierge_api",
+        policy_ref: adaptiveRevenueContext.policy.key,
+        arm: adaptiveRevenueContext.policy.arm,
+        served: adaptiveRevenueContext.policy.served,
       });
     }
 
@@ -655,6 +671,13 @@ ${experimentContext.instructions}
 - La asignación CONTROL/TREATMENT la resuelve el servidor y debe respetarse exactamente.
 - No reveles al visitante que está en un experimento ni menciones grupos de prueba.
 - Una NEXT BEST ACTION es una sugerencia contextual, no una autorización para modificar precio, descuento, inventario o política.
+
+ADAPTIVE REVENUE OPTIMIZATION
+${adaptiveRevenueContext.instructions}
+- SERVE/HOLDOUT lo decide exclusivamente el servidor y debe respetarse.
+- El holdout de seguridad no debe recibir la combinación adaptativa.
+- Si una prueba V3 elegible está activa, esa prueba tiene precedencia y la política adaptativa se suprime para evitar contaminación.
+- Nunca conviertas una política adaptativa en descuento, cambio de precio, disponibilidad, urgencia o afirmación causal.
 
 ${actionContextForModel(action)}
 

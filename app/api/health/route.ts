@@ -101,6 +101,16 @@ export async function GET() {
           maxConcurrentConciergeExperiments: 1,
           primaryMetric: "paid_conversion_rate",
         },
+        adaptiveRevenueOptimization: {
+          mode: "proven_policy_with_safety_holdout",
+          engineVersion: "adaptive_revenue_v4",
+          unit: "eligible_first_party_session",
+          serveHoldout: "90_10",
+          maxConcurrentPolicies: 3,
+          guardrailIntervalMinutes: 15,
+          autoRollback: true,
+          sensitiveMutationAuthority: false,
+        },
       },
       ai: {
         mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
@@ -191,6 +201,16 @@ export async function GET() {
             minimumPerArm: 30,
             maxConcurrentConciergeExperiments: 1,
             primaryMetric: "paid_conversion_rate",
+          },
+          adaptiveRevenueOptimization: {
+            mode: "proven_policy_with_safety_holdout",
+            engineVersion: "adaptive_revenue_v4",
+            unit: "eligible_first_party_session",
+            serveHoldout: "90_10",
+            maxConcurrentPolicies: 3,
+            guardrailIntervalMinutes: 15,
+            autoRollback: true,
+            sensitiveMutationAuthority: false,
           },
         },
         ai: {

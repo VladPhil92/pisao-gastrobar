@@ -82,6 +82,8 @@ model Usuario {
   revenueActionsExecuted RevenueAction[] @relation("RevenueActionExecutedBy")
   revenueExperimentsStarted RevenueExperiment[] @relation("RevenueExperimentStartedBy")
   revenueExperimentsEnded   RevenueExperiment[] @relation("RevenueExperimentEndedBy")
+  revenuePoliciesActivated  RevenuePolicy[] @relation("RevenuePolicyActivatedBy")
+  revenuePoliciesRolledBack RevenuePolicy[] @relation("RevenuePolicyRolledBackBy")
 
   @@map("usuarios")
 }
@@ -326,6 +328,7 @@ model RevenueAction {
 
   @@index([status, priorityScore, createdAt])
   experiments RevenueExperiment[]
+  policies     RevenuePolicy[]
 
   @@index([type, createdAt])
   @@map("revenue_actions")
@@ -356,6 +359,7 @@ model RevenueExperiment {
   result    Json?
 
   assignments RevenueExperimentAssignment[]
+  policies    RevenuePolicy[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -383,6 +387,71 @@ model RevenueExperimentAssignment {
   @@index([experimentId, arm, assignedAt])
   @@index([sessionId, assignedAt])
   @@map("revenue_experiment_assignments")
+}
+
+/// Política adaptativa promovida exclusivamente desde un experimento controlado
+/// concluido con evidencia favorable. Nunca puede modificar precio, descuento,
+/// inventario, disponibilidad ni pagos.
+model RevenuePolicy {
+  id            String @id @default(cuid())
+  key           String @unique @db.VarChar(64)
+  engineVersion String @default("adaptive_revenue_v4") @db.VarChar(48)
+  status        String @default("DRAFT") @db.VarChar(24)
+  surface       String @default("CONCIERGE") @db.VarChar(32)
+
+  actionId String
+  action   RevenueAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  experimentId String @unique
+  experiment   RevenueExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  trafficPct               Int @default(90)
+  priorityScore            Int @default(50)
+  minServeAssignments      Int @default(40)
+  minHoldoutAssignments    Int @default(20)
+  rollbackMarginPctPoints  Int @default(2)
+
+  activatedById String?
+  activatedBy   Usuario? @relation("RevenuePolicyActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+  rolledBackById String?
+  rolledBackBy   Usuario? @relation("RevenuePolicyRolledBackBy", fields: [rolledBackById], references: [id], onDelete: SetNull)
+
+  activatedAt DateTime?
+  pausedAt DateTime?
+  rolledBackAt DateTime?
+  lastMeasuredAt DateTime?
+  lastGuardrailCheckAt DateTime?
+  rollbackReason String? @db.VarChar(180)
+  outcome Json?
+
+  assignments RevenuePolicyAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, priorityScore, createdAt])
+  @@index([actionId, createdAt])
+  @@map("revenue_policies")
+}
+
+/// Asignación estable por sesión first-party para monitoreo continuo de una
+/// política adaptativa. HOLDOUT preserva una referencia de seguridad.
+model RevenuePolicyAssignment {
+  id        String @id @default(cuid())
+  policyId  String
+  policy    RevenuePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  sessionId String @db.VarChar(64)
+  arm       String @db.VarChar(16)
+
+  assignedAt    DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  servedAt      DateTime?
+  exposureCount Int @default(0)
+
+  @@unique([policyId, sessionId])
+  @@index([policyId, arm, assignedAt])
+  @@index([sessionId, assignedAt])
+  @@map("revenue_policy_assignments")
 }
 
 model RevenueAttribution {

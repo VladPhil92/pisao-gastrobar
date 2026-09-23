@@ -97,6 +97,7 @@ async function getBusinessContext() {
     transactionCommands,
     revenueActions,
     revenueExperiments,
+    revenuePolicies,
   ] = await Promise.all([
     prisma.pedido.findMany({
       where: { createdAt: { gte: since30Days } },
@@ -176,6 +177,25 @@ async function getBusinessContext() {
         assignments: { select: { arm: true, exposedAt: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
+    prisma.revenuePolicy.findMany({
+      where: {
+        OR: [
+          { createdAt: { gte: since30Days } },
+          { status: { in: ["ACTIVE", "PAUSED"] } },
+        ],
+      },
+      select: {
+        status: true,
+        trafficPct: true,
+        priorityScore: true,
+        rollbackReason: true,
+        outcome: true,
+        action: { select: { title: true } },
+        assignments: { select: { arm: true, servedAt: true } },
+      },
+      orderBy: [{ status: "asc" }, { priorityScore: "desc" }],
       take: 12,
     }),
   ]);
@@ -293,6 +313,29 @@ async function getBusinessContext() {
     })
     .join("\n");
 
+  const policySummary = revenuePolicies
+    .map((policy) => {
+      const outcome = jsonRecord(policy.outcome);
+      const guardrail =
+        typeof outcome.guardrail === "string" ? outcome.guardrail : "SIN_MEDIR";
+      const lift =
+        typeof outcome.observedConversionLiftPctPoints === "number"
+          ? outcome.observedConversionLiftPctPoints
+          : null;
+      const serve = policy.assignments.filter(
+        (item) => item.arm === "SERVE",
+      ).length;
+      const holdout = policy.assignments.filter(
+        (item) => item.arm === "HOLDOUT",
+      ).length;
+      const exposures = policy.assignments.filter(
+        (item) => item.arm === "SERVE" && item.servedAt,
+      ).length;
+
+      return `- [${policy.status}] ${policy.action.title} | tráfico ${policy.trafficPct}% serve | serve ${serve} / holdout ${holdout} / expuestos ${exposures} | guardrail ${guardrail}${lift === null ? "" : ` | lift producción ${lift} pp`}${policy.rollbackReason ? ` | rollback ${policy.rollbackReason}` : ""}`;
+    })
+    .join("\n");
+
   return [
     `NEGOCIO: ${siteConfig.name}`,
     `UBICACIÓN: ${siteConfig.location.address}`,
@@ -322,6 +365,9 @@ async function getBusinessContext() {
     "EXPERIMENTOS CONTROLADOS REVENUE:",
     experimentSummary || "Sin experimentos activos o recientes.",
     "NOTA EXPERIMENTAL: solo un experimento con asignación controlada, muestra suficiente e instrumentación íntegra puede aportar evidencia de incrementalidad dentro de la población observada. No generalices más allá de esa población.",
+    "POLÍTICAS ADAPTATIVAS DE PRODUCCIÓN:",
+    policySummary || "Sin políticas adaptativas activas o recientes.",
+    "NOTA ADAPTATIVA: el holdout continuo es un mecanismo de seguridad y monitoreo. La selección contextual y los cambios de composición del tráfico pueden limitar la interpretación causal frente al experimento A/B original.",
     "TOP PRODUCTOS POR UNIDADES OBSERVADAS:",
     topProducts.length
       ? topProducts
@@ -375,6 +421,8 @@ REGLAS OPERATIVAS
 - No inventes ventas, costos, márgenes, inventario, disponibilidad, aforo, reseñas ni métricas externas.
 - No afirmes causalidad cuando solo hay correlación o una muestra limitada.
 - Puedes describir un resultado como evidencia experimental únicamente cuando provenga del bloque EXPERIMENTOS CONTROLADOS, la muestra figure como lista y la asignación CONTROL/TREATMENT sea válida. Aun así, limita la conclusión a la población y periodo instrumentados.
+- Las POLÍTICAS ADAPTATIVAS son producción gobernada basada en experimentos previos. Su holdout continuo sirve como guardrail; no lo presentes como un nuevo A/B fijo equivalente al experimento original.
+- Si una política aparece ROLLED_BACK, no recomiendes reactivarla sin un nuevo experimento o revisión humana explícita.
 - Prioriza acciones concretas, medibles y ordenadas por impacto/esfuerzo.
 - Puedes proponer cambios de menú, campañas, promociones o procesos, pero NO afirmes que fueron ejecutados.
 - Si una acción ya aparece como EXECUTED en el Revenue Action Engine, puedes tratarla como cambio operativo real; si está PENDING o APPROVED, sigue siendo una propuesta.
