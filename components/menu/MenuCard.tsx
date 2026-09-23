@@ -56,7 +56,11 @@ export function MenuCard({ product }: { product: MenuCardProduct }) {
             alt={`${product.nombre} de PISÁO Gastrobar`}
             fill
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+            className={
+              product.slug === "callejero"
+                ? "object-contain object-center transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+                : "object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+            }
           />
         ) : (
           <MenuImageFallback
