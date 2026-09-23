@@ -1,5 +1,7 @@
 import "server-only";
 
+import { timingSafeEqual } from "node:crypto";
+
 const DEFAULT_CANONICAL_HOSTS = [
   "pisaogastrobar.com",
   "www.pisaogastrobar.com",
@@ -18,12 +20,28 @@ export function canonicalOriginEnforced() {
   return process.env.PISAO_ENFORCE_CANONICAL_HOST === "true";
 }
 
+export function edgeSecretRequired() {
+  return process.env.PISAO_REQUIRE_EDGE_SECRET === "true";
+}
+
+function secureEqual(left: string, right: string) {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 export function edgeOriginHealth() {
   return {
     canonicalHostEnforcement: canonicalOriginEnforced()
       ? "enabled"
       : "disabled",
     canonicalHosts: configuredCanonicalHosts(),
+    edgeSecret: edgeSecretRequired()
+      ? process.env.PISAO_EDGE_SECRET
+        ? "required"
+        : "misconfigured"
+      : "disabled",
   };
 }
 
@@ -45,6 +63,25 @@ export function validateCanonicalWriteOrigin(request: Request) {
       ok: false as const,
       code: "NON_CANONICAL_ORIGIN" as const,
     };
+  }
+
+  if (edgeSecretRequired()) {
+    const expected = process.env.PISAO_EDGE_SECRET?.trim();
+    const received = request.headers.get("x-pisao-edge-secret")?.trim();
+
+    if (!expected || expected.length < 32) {
+      return {
+        ok: false as const,
+        code: "EDGE_SECRET_MISCONFIGURED" as const,
+      };
+    }
+
+    if (!received || !secureEqual(received, expected)) {
+      return {
+        ok: false as const,
+        code: "EDGE_SECRET_REQUIRED" as const,
+      };
+    }
   }
 
   const origin = request.headers.get("origin");
