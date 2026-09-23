@@ -40,7 +40,7 @@ test("autoriza agregar propuesta solo con orden explícita", () => {
   });
 
   assert.equal(action?.type, "cart.add_proposal");
-  assert.equal(action?.execution, "client_auto");
+  assert.equal(action?.execution, "user_tap");
 });
 
 test("no agrega al carrito por una respuesta ambigua", () => {
@@ -61,7 +61,7 @@ test("autoriza confirmación de reserva cuando la solicitud está lista", () => 
   });
 
   assert.equal(action?.type, "reservation.confirm");
-  assert.equal(action?.execution, "client_auto");
+  assert.equal(action?.execution, "user_tap");
 });
 
 test("no confirma una reserva incompleta", () => {
