@@ -38,7 +38,7 @@ export async function POST(
         ? await approveRevenueAction(id, user.id)
         : operation === "reject"
           ? await rejectRevenueAction(id, user.id)
-          : await executeRevenueAction(id);
+          : await executeRevenueAction(id, user.id);
 
     const eventType =
       operation === "approve"
