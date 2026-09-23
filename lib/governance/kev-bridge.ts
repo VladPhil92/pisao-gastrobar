@@ -22,7 +22,13 @@ export type PisaoGovernanceEventType =
   | "pisao.revenue.action_approved"
   | "pisao.revenue.action_rejected"
   | "pisao.revenue.action_executed"
-  | "pisao.revenue.actions_measured";
+  | "pisao.revenue.actions_measured"
+  | "pisao.revenue.experiments_synced"
+  | "pisao.revenue.experiment_started"
+  | "pisao.revenue.experiment_paused"
+  | "pisao.revenue.experiment_completed"
+  | "pisao.revenue.experiments_measured"
+  | "pisao.revenue.experiment_assigned";
 
 type GovernanceScalar = string | number | boolean | null;
 type GovernancePayload = Record<
