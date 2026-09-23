@@ -27,6 +27,8 @@ export class WompiProvider implements CardPaymentProvider {
   }
 
   verificarFirmaWebhook(_rawBody: string, _headers: Headers): boolean {
+    void _rawBody;
+    void _headers;
     // TODO: validar el checksum SHA256 con WOMPI_EVENTS_SECRET
     // https://docs.wompi.co/docs/colombia/eventos/
     return true;
