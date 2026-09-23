@@ -88,27 +88,38 @@ prisma/
   seed.ts         Usuario admin + categorías/producto de ejemplo
 ```
 
-## Métodos de pago (checkout abstraído por proveedor)
+## Métodos de pago
 
-El checkout (`/pedidos`) tiene 3 métodos, cada uno como paso independiente:
+### Operación vigente — septiembre de 2026
 
-1. **QR / Transferencia bancaria** — se muestran los datos de la cuenta y un
-   QR; el cliente sube una imagen/PDF como evidencia. El pedido queda en
-   `PENDIENTE_VERIFICACION` hasta que un admin/cajero lo aprueba o rechaza
-   desde `/admin/pedidos`.
-2. **Criptomonedas** — aplica un descuento automático configurable
-   (`CRYPTO_DISCOUNT_PERCENTAGE`), muestra la dirección/checkout del gateway
-   y se confirma por estado on-chain vía webhook; el `txHash` queda
-   asociado al pedido.
-3. **Tarjeta crédito/débito** — genera un link de pago con el proveedor
-   activo (`PAYMENT_GATEWAY_PROVIDER=WOMPI|PAYU|EPAYCO`). Todo el resto del
-   código depende únicamente de la interfaz `CardPaymentProvider`
-   (`lib/payments/types.ts`), así que cambiar de pasarela es solo cuestión
-   de variables de entorno.
+El checkout productivo acepta **QR oficial de PISÁO, Llave Bre-B y transferencia
+directa a Bancolombia**. El beneficiario mostrado es **Grupo PISÁO Food & Drinks
+S.A.S.** El QR oficial está versionado en `public/QR/QRTransferencia.jpeg`.
 
-Ningún conector tiene credenciales reales ni lógica de firma/checkout
-completa: son implementaciones de referencia con `TODO`s explícitos donde
-va la integración real de cada API.
+Flujo:
+
+1. El cliente crea el pedido y ve el QR/datos de transferencia.
+2. Realiza el pago y carga una imagen o PDF del comprobante.
+3. El backend valida tipo, firma real del archivo, tamaño y SHA-256.
+4. La evidencia se persiste en Render PostgreSQL; nunca en el filesystem efímero.
+5. El equipo de pagos recibe el resumen en el canal configurado. Sin API externa,
+   la web abre WhatsApp al **+57 318 642 8218** con el mensaje prellenado.
+6. ADMIN/CAJERO abre la evidencia desde `/admin/pedidos` y aprueba o rechaza.
+7. Solo al aprobar, el pedido pasa a `CONFIRMADO`.
+
+El backend admite además un webhook de automatización y Meta WhatsApp Cloud API.
+Si cualquiera se configura, el comprobante puede notificarse automáticamente sin
+depender del click-to-chat.
+
+### Métodos futuros
+
+- **Tarjeta / PSE:** código preparado detrás de feature flags; permanece bloqueado
+  hasta habilitar la pasarela productiva.
+- **Criptomonedas:** permanece bloqueado por feature flag mientras no se habilite
+  expresamente una integración productiva.
+
+Los endpoints también aplican las feature flags en servidor, por lo que ocultar el
+método en UI no es la única barrera.
 
 ## Instalación
 
@@ -152,8 +163,8 @@ Resumen por categoría:
 | Auth (panel admin)   | `AUTH_SECRET`, `NEXTAUTH_URL`, `SEED_ADMIN_PASSWORD`                                                                               |
 | Pasarela de tarjeta  | `PAYMENT_GATEWAY_PROVIDER`, `WOMPI_*`, `PAYU_*`, `EPAYCO_*`                                                                        |
 | Gateway cripto       | `CRYPTO_GATEWAY_PROVIDER`, `CRYPTO_GATEWAY_API_KEY`, `CRYPTO_GATEWAY_WEBHOOK_SECRET`, `CRYPTO_DISCOUNT_PERCENTAGE`                 |
-| QR / transferencia   | `BANK_TRANSFER_*`                                                                                                                  |
-| Comprobantes de pago | `UPLOADS_*` (bucket externo; no usar el filesystem efímero del runtime como almacenamiento persistente)                                                                   |
+| QR / transferencia   | `NEXT_PUBLIC_BANK_TRANSFER_*`, `PAYMENT_ADMIN_WHATSAPP_NUMBER`                                                                    |
+| Automatización pago  | `PAYMENT_ADMIN_NOTIFICATION_*`, `WHATSAPP_CLOUD_*`                                                                                 |
 | Integraciones        | `NEXT_PUBLIC_WHATSAPP_NUMBER`, `NEXT_PUBLIC_GOOGLE_MAPS_EMBED_URL`, `NEXT_PUBLIC_INSTAGRAM_TOKEN`, `NEXT_PUBLIC_GA_MEASUREMENT_ID` |
 
 No se usan claves ni credenciales reales en este repositorio: todos los
@@ -186,6 +197,6 @@ reemplazar los archivos en `public/brand/` manteniendo los mismos nombres.
 
 - Credenciales y lógica de firma completas de Wompi/PayU/ePayco y del
   gateway cripto elegido.
-- Subida de comprobantes a un bucket real (`lib/uploads/evidencia.ts`).
+- Migrar comprobantes desde PostgreSQL a object storage cuando el volumen lo justifique.
 - Feed de Instagram y Google Analytics.
 - Contenido final (fotografía, textos de marca, menú real).
