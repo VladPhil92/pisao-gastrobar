@@ -149,7 +149,7 @@ export function analyzeReservationConversation(
   const transcript = userMessages.join("\n");
   const normalized = normalize(transcript);
   const hasReservationIntent =
-    /(reserv|mesa|visitar|visita|cupo|disponibilidad|esta\s+noche|hoy|manana)/.test(
+    /(reserv|mesa|visitar|visita|cupo|disponibilidad|esta\s+noche|hoy|manana|fecha|hora)/.test(
       normalized,
     );
 
