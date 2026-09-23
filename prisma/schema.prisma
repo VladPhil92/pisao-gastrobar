@@ -62,6 +62,20 @@ enum EstadoReserva {
   COMPLETADA
 }
 
+enum UnidadInsumo {
+  GRAMO
+  MILILITRO
+  UNIDAD
+}
+
+enum TipoMovimientoInventario {
+  CONTEO
+  ENTRADA
+  SALIDA
+  MERMA
+  AJUSTE
+}
+
 // ---------------------------------------------------------------------------
 // Modelos
 // ---------------------------------------------------------------------------
@@ -84,6 +98,7 @@ model Usuario {
   revenueExperimentsEnded   RevenueExperiment[] @relation("RevenueExperimentEndedBy")
   revenuePoliciesActivated  RevenuePolicy[] @relation("RevenuePolicyActivatedBy")
   revenuePoliciesRolledBack RevenuePolicy[] @relation("RevenuePolicyRolledBackBy")
+  movimientosInventario      MovimientoInventario[]
 
   @@map("usuarios")
 }
@@ -113,15 +128,17 @@ model Producto {
   costoUnitario   Decimal? @db.Decimal(10, 2)
   imagenUrl       String?
   disponible      Boolean  @default(true)
-  inventarioBajo  Boolean  @default(false)
-  destacado       Boolean  @default(false)
+  inventarioBajo        Boolean  @default(false)
+  inventarioBajoReceta  Boolean  @default(false)
+  destacado             Boolean  @default(false)
   orden           Int      @default(0)
   costoActualizadoAt DateTime?
 
   categoriaId String
   categoria   Categoria @relation(fields: [categoriaId], references: [id])
 
-  itemsPedido ItemPedido[]
+  itemsPedido    ItemPedido[]
+  recetaInsumos  RecetaInsumo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,6 +146,69 @@ model Producto {
   @@index([categoriaId])
   @@index([disponible, inventarioBajo])
   @@map("productos")
+}
+
+/// Insumo operativo almacenado en una unidad base simple para evitar conversiones
+/// ambiguas dentro de las recetas. GRAMO, MILILITRO o UNIDAD.
+model InventarioInsumo {
+  id                     String        @id @default(cuid())
+  nombre                 String        @unique
+  unidadBase             UnidadInsumo
+  stockActual            Decimal       @default(0) @db.Decimal(14, 3)
+  stockMinimo            Decimal       @default(0) @db.Decimal(14, 3)
+  costoUnidadBase        Decimal?      @db.Decimal(14, 4)
+  costoCompraReferencia  Decimal?      @db.Decimal(12, 2)
+  cantidadCompraReferencia Decimal?    @db.Decimal(14, 3)
+  activo                 Boolean       @default(true)
+  ultimaRevisionAt       DateTime?
+
+  recetas      RecetaInsumo[]
+  movimientos MovimientoInventario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([activo, nombre])
+  @@map("inventario_insumos")
+}
+
+/// Consumo teórico de un insumo para producir una unidad vendible del producto.
+/// No descuenta stock automáticamente; alimenta costo, riesgo y pronóstico.
+model RecetaInsumo {
+  id           String   @id @default(cuid())
+  productoId   String
+  producto     Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  insumoId     String
+  insumo       InventarioInsumo @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  cantidadBase Decimal  @db.Decimal(14, 3)
+  mermaPct     Decimal  @default(0) @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productoId, insumoId])
+  @@index([insumoId, productoId])
+  @@map("recetas_insumos")
+}
+
+/// Ledger auditable de cambios reales de stock. Cada movimiento conserva
+/// stock anterior/posterior y el usuario que ejecutó el cambio.
+model MovimientoInventario {
+  id            String                   @id @default(cuid())
+  insumoId      String
+  insumo        InventarioInsumo         @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  tipo          TipoMovimientoInventario
+  delta         Decimal                  @db.Decimal(14, 3)
+  stockAnterior Decimal                  @db.Decimal(14, 3)
+  stockPosterior Decimal                 @db.Decimal(14, 3)
+  motivo        String?                  @db.VarChar(180)
+  usuarioId     String
+  usuario       Usuario                  @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  createdAt     DateTime                 @default(now())
+
+  @@index([insumoId, createdAt])
+  @@index([tipo, createdAt])
+  @@map("movimientos_inventario")
 }
 
 model Pedido {
