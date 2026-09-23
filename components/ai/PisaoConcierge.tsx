@@ -35,6 +35,14 @@ import type { ReservationDraft } from "@/lib/reservas/conversation";
 import type { ReservationAvailability } from "@/lib/reservas/availability";
 import type { ConciergeActionPlan } from "@/lib/ai/action-runtime";
 
+type TransactionCommandClient = {
+  id: string;
+  type: "cart.commit" | "reservation.commit";
+  label: string;
+  confirmationToken: string;
+  expiresAt: string;
+};
+
 type ReservationState = {
   draft: ReservationDraft;
   availability: ReservationAvailability | null;
@@ -54,6 +62,7 @@ type Message = {
   reservation?: ReservationState | null;
   hospitality?: HospitalityState | null;
   action?: ConciergeActionPlan | null;
+  commands?: TransactionCommandClient[];
 };
 
 const quickPrompts = [
@@ -104,12 +113,20 @@ function reservationKey(draft: ReservationDraft) {
   return [draft.fecha, draft.hora, draft.telefono, draft.personas].join("|");
 }
 
+function commandFor(
+  message: Message,
+  type: TransactionCommandClient["type"],
+) {
+  return message.commands?.find((command) => command.type === type) ?? null;
+}
+
 export function PisaoConcierge() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [reservationSubmitting, setReservationSubmitting] = useState(false);
+  const [commandSubmittingId, setCommandSubmittingId] = useState<string | null>(null);
   const [createdReservations, setCreatedReservations] = useState<Record<string, string>>({});
   const [addedProposals, setAddedProposals] = useState<Record<string, boolean>>({});
   const [hospitalityProfile, setHospitalityProfile] =
@@ -164,6 +181,7 @@ export function PisaoConcierge() {
         reservation?: ReservationState | null;
         hospitality?: HospitalityState | null;
         action?: ConciergeActionPlan | null;
+        commands?: TransactionCommandClient[];
       };
 
       if (!response.ok || !payload.text) {
@@ -201,27 +219,9 @@ export function PisaoConcierge() {
           reservation: payload.reservation,
           hospitality: payload.hospitality,
           action: payload.action,
+          commands: payload.commands,
         },
       ]);
-
-      if (payload.action?.execution === "client_auto") {
-        if (payload.action.type === "cart.add_proposal" && payload.proposal) {
-          addProposalToTable(payload.proposal);
-          trackBehavior("concierge_action_executed", {
-            surface: "concierge",
-            action: payload.action.type,
-          });
-        } else if (
-          payload.action.type === "reservation.confirm" &&
-          payload.reservation?.canSubmit
-        ) {
-          trackBehavior("concierge_action_executed", {
-            surface: "concierge",
-            action: payload.action.type,
-          });
-          void confirmReservation(payload.reservation);
-        }
-      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "No fue posible responder.";
@@ -234,6 +234,133 @@ export function PisaoConcierge() {
       ]);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function executeTransactionCommand(
+    command: TransactionCommandClient,
+    message: Message,
+  ) {
+    if (!conciergeIdentity?.sessionKey || commandSubmittingId) return;
+
+    setCommandSubmittingId(command.id);
+
+    try {
+      const response = await fetch("/api/ai/commands/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commandId: command.id,
+          confirmationToken: command.confirmationToken,
+          sessionKey: conciergeIdentity.sessionKey,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        command?: { id: string; type: string; status: string };
+        cart?: {
+          proposalId: string;
+          total: number;
+          items: Array<{
+            productoId: string;
+            nombre: string;
+            slug: string;
+            precio: number;
+            imagenUrl?: string | null;
+            categoriaSlug?: string | null;
+            cantidad: number;
+          }>;
+        };
+        reserva?: {
+          id: string;
+          estado: string;
+          fecha: string;
+          hora: string;
+          personas: number;
+          mesas?: string[];
+        };
+        error?: string;
+        alternatives?: string[];
+      };
+
+      if (!response.ok) {
+        const alternatives = payload.alternatives?.length
+          ? ` Horas disponibles cercanas: ${payload.alternatives.join(", ")}.`
+          : "";
+        throw new Error(
+          `${payload.error || "No fue posible confirmar la acción."}${alternatives}`,
+        );
+      }
+
+      if (command.type === "cart.commit" && payload.cart) {
+        addItems(
+          payload.cart.items.map((entry) => ({
+            item: {
+              productoId: entry.productoId,
+              nombre: entry.nombre,
+              slug: entry.slug,
+              precio: entry.precio,
+              imagenUrl: entry.imagenUrl ?? undefined,
+              categoriaSlug: entry.categoriaSlug ?? undefined,
+            },
+            cantidad: entry.cantidad,
+          })),
+        );
+
+        const proposalId = message.proposal?.id ?? payload.cart.proposalId;
+        setAddedProposals((current) => ({
+          ...current,
+          [proposalId]: true,
+        }));
+        trackBehavior("concierge_action_executed", {
+          surface: "concierge",
+          action: "cart.add_proposal",
+        });
+        openCart();
+      }
+
+      if (
+        command.type === "reservation.commit" &&
+        payload.reserva &&
+        message.reservation
+      ) {
+        const draft = message.reservation.draft;
+        setCreatedReservations((current) => ({
+          ...current,
+          [reservationKey(draft)]: payload.reserva!.id,
+        }));
+
+        trackBehavior("reservation_submit_success", {
+          surface: "concierge",
+          diners: payload.reserva.personas,
+        });
+        trackBehavior("concierge_reservation_submit_success", {
+          surface: "concierge",
+          diners: payload.reserva.personas,
+        });
+
+        setMessages((current) => [
+          ...current,
+          {
+            role: "assistant",
+            content:
+              `Reserva confirmada para ${payload.reserva!.personas} persona${payload.reserva!.personas === 1 ? "" : "s"} el ${payload.reserva!.fecha} a las ${payload.reserva!.hora}. ${payload.reserva!.mesas?.length ? `Mesa(s) asignada(s): ${payload.reserva!.mesas.join(", ")}. ` : ""}Código: ${payload.reserva!.id.slice(-8).toUpperCase()}.`,
+          },
+        ]);
+      }
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            error instanceof Error
+              ? error.message
+              : "No fue posible ejecutar la acción. Puedes continuar por WhatsApp.",
+        },
+      ]);
+    } finally {
+      setCommandSubmittingId(null);
     }
   }
 
@@ -455,9 +582,20 @@ export function PisaoConcierge() {
                         {message.reservation.canSubmit ? (
                           <button
                             type="button"
-                            onClick={() => void confirmReservation(message.reservation!)}
+                            onClick={() => {
+                              const command = commandFor(
+                                message,
+                                "reservation.commit",
+                              );
+                              if (command) {
+                                void executeTransactionCommand(command, message);
+                              } else {
+                                void confirmReservation(message.reservation!);
+                              }
+                            }}
                             disabled={
                               reservationSubmitting ||
+                              Boolean(commandSubmittingId) ||
                               Boolean(
                                 createdReservations[
                                   reservationKey(message.reservation.draft)
@@ -466,7 +604,9 @@ export function PisaoConcierge() {
                             }
                             className="bg-pisao-gold text-pisao-carbon disabled:bg-pisao-green/20 disabled:text-pisao-cream flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition disabled:cursor-default"
                           >
-                            {reservationSubmitting ? (
+                            {reservationSubmitting ||
+                            commandSubmittingId ===
+                              commandFor(message, "reservation.commit")?.id ? (
                               <LoaderCircle className="size-4 animate-spin" />
                             ) : createdReservations[
                                 reservationKey(message.reservation.draft)
@@ -592,11 +732,26 @@ export function PisaoConcierge() {
                       <div className="border-pisao-gold/10 border-t p-3">
                         <button
                           type="button"
-                          onClick={() => addProposalToTable(message.proposal!)}
-                          disabled={Boolean(addedProposals[message.proposal.id])}
+                          onClick={() => {
+                            const command = commandFor(message, "cart.commit");
+                            if (command) {
+                              void executeTransactionCommand(command, message);
+                            } else {
+                              addProposalToTable(message.proposal!);
+                            }
+                          }}
+                          disabled={
+                            Boolean(commandSubmittingId) ||
+                            Boolean(addedProposals[message.proposal.id])
+                          }
                           className="bg-pisao-gold text-pisao-carbon disabled:bg-pisao-green/20 disabled:text-pisao-cream flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold"
                         >
-                          {addedProposals[message.proposal.id] ? (
+                          {commandSubmittingId ===
+                          commandFor(message, "cart.commit")?.id ? (
+                            <>
+                              <LoaderCircle className="size-4 animate-spin" /> Confirmando…
+                            </>
+                          ) : addedProposals[message.proposal.id] ? (
                             <>
                               <Check className="size-4" /> Añadida a Mesa Visual
                             </>
