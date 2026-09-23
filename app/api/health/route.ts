@@ -19,7 +19,7 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const [tables, products] = await Promise.all([
+    const [tables, products, ingredients, recipeLinks] = await Promise.all([
       prisma.mesaReservable.findMany({
         select: {
           codigo: true,
@@ -33,7 +33,19 @@ export async function GET() {
           costoUnitario: true,
           disponible: true,
           inventarioBajo: true,
+          inventarioBajoReceta: true,
         },
+      }),
+      prisma.inventarioInsumo.findMany({
+        select: {
+          activo: true,
+          stockActual: true,
+          stockMinimo: true,
+          costoUnidadBase: true,
+        },
+      }),
+      prisma.recetaInsumo.findMany({
+        select: { productoId: true },
       }),
     ]);
 
@@ -42,6 +54,28 @@ export async function GET() {
     ).length;
     const costCoveragePct = products.length
       ? Math.round((costConfiguredProducts / products.length) * 100)
+      : 0;
+    const activeIngredients = ingredients.filter(
+      (ingredient) => ingredient.activo,
+    );
+    const ingredientCostConfigured = activeIngredients.filter(
+      (ingredient) => ingredient.costoUnidadBase !== null,
+    ).length;
+    const ingredientCostCoveragePct = activeIngredients.length
+      ? Math.round(
+          (ingredientCostConfigured / activeIngredients.length) * 100,
+        )
+      : 0;
+    const criticalIngredients = activeIngredients.filter(
+      (ingredient) =>
+        Number(ingredient.stockActual) <= 0 ||
+        Number(ingredient.stockActual) <= Number(ingredient.stockMinimo),
+    ).length;
+    const recipeProductCount = new Set(
+      recipeLinks.map((line) => line.productoId),
+    ).size;
+    const recipeCoveragePct = products.length
+      ? Math.round((recipeProductCount / products.length) * 100)
       : 0;
 
     const inventoryReady =
@@ -154,11 +188,30 @@ export async function GET() {
           unavailableProducts: products.filter((product) => !product.disponible)
             .length,
           lowInventoryProducts: products.filter(
-            (product) => product.inventarioBajo,
+            (product) =>
+              product.inventarioBajo || product.inventarioBajoReceta,
+          ).length,
+          recipeRiskProducts: products.filter(
+            (product) => product.inventarioBajoReceta,
           ).length,
           historicalCostSnapshot: true,
           proactiveLowInventoryPromotion: false,
           sensitiveMutationAuthority: false,
+        },
+        recipeInventory: {
+          mode: "manual_stock_ledger_with_recipe_forecast",
+          engineVersion: "recipe_inventory_v6",
+          ingredients: ingredients.length,
+          activeIngredients: activeIngredients.length,
+          criticalIngredients,
+          ingredientCostCoveragePct,
+          recipeProductCount,
+          recipeCoveragePct,
+          physicalStockMutation: "admin_only",
+          automaticOrderConsumption: false,
+          auditableLedger: true,
+          recipeRiskFeedsRevenueGuardrails: true,
+          autonomousPurchaseAuthority: false,
         },
       },
       ai: {
@@ -287,9 +340,25 @@ export async function GET() {
             totalProducts: null,
             unavailableProducts: null,
             lowInventoryProducts: null,
+            recipeRiskProducts: null,
             historicalCostSnapshot: true,
             proactiveLowInventoryPromotion: false,
             sensitiveMutationAuthority: false,
+          },
+          recipeInventory: {
+            mode: "manual_stock_ledger_with_recipe_forecast",
+            engineVersion: "recipe_inventory_v6",
+            ingredients: null,
+            activeIngredients: null,
+            criticalIngredients: null,
+            ingredientCostCoveragePct: null,
+            recipeProductCount: null,
+            recipeCoveragePct: null,
+            physicalStockMutation: "admin_only",
+            automaticOrderConsumption: false,
+            auditableLedger: true,
+            recipeRiskFeedsRevenueGuardrails: true,
+            autonomousPurchaseAuthority: false,
           },
         },
         ai: {
