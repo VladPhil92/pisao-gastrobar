@@ -59,6 +59,12 @@ async function recordPrivacyPreservingSignal(signal: {
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
+  // Mientras el canal está desactivado, acusamos recepción sin procesar datos.
+  // Esto permite que Meta pruebe entrega sin exigir todavía el App Secret.
+  if (process.env.WHATSAPP_WEBHOOK_ENABLED !== "true") {
+    return new Response("EVENT_RECEIVED", { status: 200 });
+  }
+
   if (
     !verifyWhatsAppSignature({
       rawBody,
@@ -76,10 +82,6 @@ export async function POST(request: Request) {
     payload = JSON.parse(rawBody);
   } catch {
     return Response.json({ error: "Invalid JSON payload." }, { status: 400 });
-  }
-
-  if (process.env.WHATSAPP_WEBHOOK_ENABLED !== "true") {
-    return new Response("EVENT_RECEIVED", { status: 200 });
   }
 
   const parsed = parseWhatsAppWebhook(payload);
