@@ -24,7 +24,8 @@
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
-    "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts"
+    "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts",
+    "security:audit-baseline": "node scripts/audit-security-baseline.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
