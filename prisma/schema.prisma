@@ -325,6 +325,8 @@ model AiConversationSession {
   lastAgent      String?  @db.VarChar(32)
   lastIntent     String?  @db.VarChar(32)
   lastOutcome    String?  @db.VarChar(48)
+  lastTool       String?  @db.VarChar(48)
+  commerceState  Json?
   lastSeenAt     DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
