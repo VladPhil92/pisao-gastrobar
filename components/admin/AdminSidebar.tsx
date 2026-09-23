@@ -15,6 +15,7 @@ import {
   Radar,
   WalletCards,
   MessageCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -30,6 +31,12 @@ const items = [
     href: "/admin/ia",
     label: "Centro IA",
     icon: Sparkles,
+    roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/certificacion",
+    label: "Certificación",
+    icon: ShieldCheck,
     roles: ["ADMIN"],
   },
   {
