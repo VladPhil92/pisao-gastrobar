@@ -209,6 +209,12 @@ export async function POST(
       );
     }
 
+    const rawQuoteCopPerUnit =
+      typeof selectedQuote?.copPerUnit === "number" ||
+      typeof selectedQuote?.copPerUnit === "string"
+        ? Number(selectedQuote.copPerUnit)
+        : null;
+
     cryptoTreasurySnapshot = {
       ledgerVersion: "PISAO_CRYPTO_TREASURY_V13",
       bookedAt: new Date().toISOString(),
@@ -221,11 +227,9 @@ export async function POST(
           ? null
           : Number(currentPayment.descuentoAplicadoPct),
       quoteCopPerUnit:
-        typeof selectedQuote?.copPerUnit === "number"
-          ? selectedQuote.copPerUnit
-          : typeof selectedQuote?.copPerUnit === "string"
-            ? Number(selectedQuote.copPerUnit)
-            : null,
+        rawQuoteCopPerUnit !== null && Number.isFinite(rawQuoteCopPerUnit)
+          ? rawQuoteCopPerUnit
+          : null,
       quotedAt:
         typeof selectedQuote?.quotedAt === "string"
           ? selectedQuote.quotedAt
@@ -301,7 +305,10 @@ export async function POST(
       tipo_entrega: pedido.tipoEntrega,
       estado: pedido.estado,
       payment_method: currentPayment.metodo,
+      crypto_asset: currentPayment.criptoMoneda ?? null,
+      crypto_received_amount: onchain?.amount ?? null,
       crypto_confirmations: onchain?.confirmations ?? null,
+      crypto_treasury_booked: Boolean(cryptoTreasurySnapshot),
       attribution_tracked: Boolean(pedido.attribution),
       assist_surfaces: pedido.attribution?.assists ?? [],
       last_assist: pedido.attribution?.lastAssist ?? null,
