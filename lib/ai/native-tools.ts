@@ -32,6 +32,7 @@ export type NativeToolExecution = {
   toolName: NativeToolName | "unknown";
   commerceProposal?: ConversationalProposal | null;
   commerceMutated?: boolean;
+  summary?: string | null;
 };
 
 type CheckAvailability = (params: {
