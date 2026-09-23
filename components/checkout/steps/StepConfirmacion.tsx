@@ -7,7 +7,7 @@ const mensajes: Record<MetodoPago, string> = {
   QR_TRANSFERENCIA:
     "Recibimos tu comprobante. Tu pedido está pendiente de verificación y te avisaremos por WhatsApp en cuanto lo confirmemos.",
   CRIPTO:
-    "Estamos esperando la confirmación on-chain de tu transacción. Verás el estado actualizado automáticamente.",
+    "Recibimos tu comprobante cripto. El administrador validará moneda, red y pago antes de confirmar el pedido.",
   TARJETA:
     "Confirmaremos tu pedido automáticamente en cuanto el proveedor de pago notifique la aprobación.",
 };
