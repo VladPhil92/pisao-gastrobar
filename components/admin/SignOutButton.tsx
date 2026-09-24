@@ -1,14 +1,17 @@
 "use client";
 
 import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 export function SignOutButton() {
+  const router = useRouter();
+
   async function handleSignOut() {
     try {
       await signOut({ redirect: false });
     } finally {
-      window.location.assign("/auth/ctgone/signout?next=/admin/login");
+      router.push("/auth/ctgone/signout?next=/admin/login");
     }
   }
 
