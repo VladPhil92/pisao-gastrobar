@@ -37,7 +37,8 @@
     "test:inventory": "tsx --test lib/inventory/core.test.ts",
     "test:certification": "tsx --test lib/integrations/certification-core.test.ts",
     "test:ctgone-auth": "node scripts/test-ctgone-admin-sso.mjs",
-    "test:whatsapp-config": "node scripts/test-whatsapp-meta-config.mjs"
+    "test:whatsapp-config": "node scripts/test-whatsapp-meta-config.mjs",
+    "test:whatsapp-activation": "node scripts/test-whatsapp-activation-v4.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
