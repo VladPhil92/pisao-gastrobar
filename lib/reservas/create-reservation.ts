@@ -14,6 +14,7 @@ import {
   emitKevGovernanceEvent,
   governanceRef,
 } from "@/lib/governance/kev-bridge";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 
 export class ReservationConflictError extends Error {
   code: "DUPLICATE" | "NO_AVAILABILITY";
@@ -46,6 +47,12 @@ export async function createConfirmedReservation(
   const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
   const cleanPhone = normalizePhone(telefono);
   const config = getReservationConfig();
+  const customerProfile = await resolveCrmCustomerProfile({
+    nombre,
+    email,
+    telefono: cleanPhone,
+    source: "RESERVATION",
+  });
 
   const reserva = await prisma.$transaction(async (tx) => {
     const lockKey = `reservation-day|${fecha}`;
@@ -107,6 +114,7 @@ export async function createConfirmedReservation(
         hora,
         personas,
         notas: notas || undefined,
+        customerProfileId: customerProfile?.id,
         mesas: allocation.assignedTables,
         estado: "CONFIRMADA",
       },
