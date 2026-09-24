@@ -35,7 +35,8 @@
     "security:audit-baseline": "node scripts/audit-security-baseline.mjs",
     "test:whatsapp": "tsx --test lib/whatsapp/coexistence.test.ts",
     "test:inventory": "tsx --test lib/inventory/core.test.ts",
-    "test:certification": "tsx --test lib/integrations/certification-core.test.ts"
+    "test:certification": "tsx --test lib/integrations/certification-core.test.ts",
+    "test:ctgone-auth": "node scripts/test-ctgone-admin-sso.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
