@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Network,
   ShieldCheck,
+  Globe2,
   WalletCards,
 } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const gateIcons = {
+  PUBLIC_WEB: Globe2,
   OPENAI: Bot,
   WHATSAPP: MessageCircle,
   PAYMENT_ALERTS: BellRing,
@@ -58,7 +60,7 @@ export default async function ProductionCertificationPage() {
       <div className="flex flex-col gap-5 border-b border-pisao-gold/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
-            Production Certification · V1
+            Production Certification · V3
           </p>
           <h1 className="font-display text-pisao-cream mt-2 text-4xl">
             Certificación de integraciones
@@ -165,6 +167,16 @@ export default async function ProductionCertificationPage() {
                 </p>
               </div>
 
+              {gate.id === "PUBLIC_WEB" && (
+                <a
+                  href="https://pisaogastrobar.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-pisao-gold mt-4 inline-flex text-xs font-semibold underline"
+                >
+                  Abrir sitio público
+                </a>
+              )}
               {gate.id === "WHATSAPP" && (
                 <Link
                   href="/admin/whatsapp"
