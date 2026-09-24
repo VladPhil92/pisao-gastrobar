@@ -1,4 +1,5 @@
 import {
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Activity,
   BadgeCheck,
   Bike,
@@ -53,6 +54,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminReportesPage() {
+  await requireAdminRoute("/admin/reportes");
   const data = await getCommercialIntelligence();
   const maxDailyRevenue = Math.max(1, ...data.dailySales.map((day) => day.revenue));
   const totalFulfillment = data.delivery + data.pickup;
