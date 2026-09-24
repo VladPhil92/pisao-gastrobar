@@ -3,6 +3,7 @@ import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { PaymentNotificationTestButton } from "@/components/admin/PaymentNotificationTestButton";
 import {
   AlertTriangle,
+  BellRing,
   Bot,
   CheckCircle2,
   Clock3,
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
 const gateIcons = {
   OPENAI: Bot,
   WHATSAPP: MessageCircle,
+  PAYMENT_ALERTS: BellRing,
   KEV: Network,
   CRYPTO: WalletCards,
 } as const;
@@ -39,7 +41,7 @@ function stateClass(state: ProductionCertificationGate["state"]) {
 
 function overallCopy(state: "ACTION_REQUIRED" | "TESTING" | "CERTIFIED") {
   if (state === "CERTIFIED") {
-    return "Las cuatro integraciones críticas tienen evidencia real dentro de la ventana de certificación.";
+    return "Las integraciones críticas tienen evidencia real dentro de la ventana de certificación.";
   }
   if (state === "ACTION_REQUIRED") {
     return "Hay al menos una integración bloqueada por configuración o onboarding externo.";
