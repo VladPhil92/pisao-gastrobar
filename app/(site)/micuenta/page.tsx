@@ -16,6 +16,8 @@ import {
   CUSTOMER_SESSION_COOKIE,
   readCustomerLocalSession,
 } from "@/lib/auth/customer-session";
+import { findCrmCustomerByEmail } from "@/lib/crm/customer-identity";
+import { getLoyaltyBalance, loyaltyPolicy } from "@/lib/crm/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +100,8 @@ export default async function MiCuentaPage() {
     personas: number;
     estado: string;
   }> = [];
+  let loyaltyPoints = 0;
+  const loyalty = loyaltyPolicy();
 
   try {
     [pedidos, reservas] = await Promise.all([
@@ -136,6 +140,11 @@ export default async function MiCuentaPage() {
         select: { id: true, fecha: true, hora: true, personas: true, estado: true },
       }),
     ]);
+
+    const crmProfile = await findCrmCustomerByEmail(sessionEmail);
+    if (crmProfile) {
+      loyaltyPoints = await getLoyaltyBalance(crmProfile.id);
+    }
   } catch {
     dataAvailable = false;
   }
@@ -186,7 +195,7 @@ export default async function MiCuentaPage() {
             <div className="mb-8 rounded-2xl border border-pisao-gold/15 bg-pisao-noche p-5 text-sm text-pisao-cream-muted">Tu identidad está activa, pero el historial transaccional no está disponible en este momento.</div>
           )}
 
-          <section className="mb-8 grid gap-3 sm:grid-cols-3">
+          <section className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-pisao-gold/12 bg-pisao-noche/70 p-5">
               <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">Compra fácil</p>
               <p className="font-display mt-2 text-2xl text-pisao-cream">Repite en un toque</p>
@@ -201,6 +210,13 @@ export default async function MiCuentaPage() {
               <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">Beneficios PISÁO</p>
               <p className="font-display mt-2 text-2xl text-pisao-cream">Perfil reconocido</p>
               <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">Esta cuenta ya puede servir como base para beneficios, promociones y recompensas sin exigir CTG One.</p>
+            </div>
+            <div className="rounded-2xl border border-pisao-gold/20 bg-pisao-gold/[.055] p-5">
+              <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">PISÁO Points</p>
+              <p className="font-display mt-2 text-3xl text-pisao-gold">{loyaltyPoints}</p>
+              <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">
+                Acumulas {loyalty.pointsPer1000Cop} punto por cada $1.000 en pedidos pagados y entregados. El canje todavía no está habilitado.
+              </p>
             </div>
           </section>
 
