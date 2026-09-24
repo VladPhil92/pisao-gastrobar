@@ -93,5 +93,8 @@ jobs:
       - name: Production certification tests
         run: npm run test:certification
 
+      - name: CTG One admin SSO tests
+        run: npm run test:ctgone-auth
+
       - name: Production build
         run: npm run build
