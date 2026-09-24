@@ -1,11 +1,13 @@
 import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistenceSetup";
 import { WhatsAppRuntimeControl } from "@/components/admin/WhatsAppRuntimeControl";
+import { WhatsAppOperationsPanel } from "@/components/admin/WhatsAppOperationsPanel";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
 import {
   getEmbeddedSignupConfigId,
   getWhatsAppRuntimeState,
 } from "@/lib/whatsapp/meta-config";
+import { getWhatsAppOperationsSummary } from "@/lib/whatsapp/operations";
 
 function Status({
   label,
@@ -35,10 +37,11 @@ function Status({
 
 export default async function AdminWhatsAppPage() {
   await requireAdminRoute("/admin/whatsapp");
-  const [integration, configId, runtime] = await Promise.all([
+  const [integration, configId, runtime, operations] = await Promise.all([
     getWhatsAppIntegrationSummary(),
     getEmbeddedSignupConfigId(),
     getWhatsAppRuntimeState(),
+    getWhatsAppOperationsSummary(),
   ]);
   const appId = process.env.NEXT_PUBLIC_META_APP_ID?.trim() || null;
 
@@ -122,6 +125,8 @@ export default async function AdminWhatsAppPage() {
         initialProbeCode={runtime.lastProbeCode}
         initialProbeAt={runtime.lastProbeAt?.toISOString() ?? null}
       />
+
+      <WhatsAppOperationsPanel summary={operations} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <WhatsAppCoexistenceSetup appId={appId} configId={configId} />
