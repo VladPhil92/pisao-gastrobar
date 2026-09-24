@@ -5,6 +5,10 @@ import {
   decryptWhatsAppToken,
   encryptWhatsAppToken,
 } from "@/lib/whatsapp/token-vault";
+import {
+  META_REVIEW_EVENTS,
+  recordMetaReviewEvidence,
+} from "@/lib/whatsapp/meta-review-evidence";
 
 export type WhatsAppIntegrationInput = {
   wabaId: string;
@@ -22,7 +26,7 @@ export async function saveWhatsAppIntegration(
   const encrypted = encryptWhatsAppToken(input.accessToken);
   const now = new Date();
 
-  return prisma.whatsAppIntegration.upsert({
+  const integration = await prisma.whatsAppIntegration.upsert({
     where: { phoneNumberId: input.phoneNumberId },
     create: {
       wabaId: input.wabaId,
@@ -48,6 +52,19 @@ export async function saveWhatsAppIntegration(
       lastVerifiedAt: now,
     },
   });
+
+  await recordMetaReviewEvidence({
+    event: META_REVIEW_EVENTS.embeddedSignupCompleted,
+    detail: {
+      status: integration.status,
+      coexistence: integration.coexistence,
+      wabaLinked: Boolean(integration.wabaId),
+      phoneNumberLinked: Boolean(integration.phoneNumberId),
+    },
+    dedupeMinutes: 60,
+  });
+
+  return integration;
 }
 
 export async function getWhatsAppIntegrationCredentials(
