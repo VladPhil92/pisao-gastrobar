@@ -198,8 +198,11 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       },
     });
 
-    return { pedido, cripto: { ...cargo, paymentIntent } };
-    return { pedido, cripto: cargo, seguimiento };
+    return {
+      pedido,
+      cripto: { ...cargo, paymentIntent },
+      seguimiento,
+    };
   }
 
   // TARJETA
