@@ -151,14 +151,14 @@ export default function HomePage() {
       <section className="border-pisao-gold/10 bg-pisao-noche border-b py-16 sm:py-24">
         <Container className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
           <Reveal className="relative min-h-[560px] overflow-hidden rounded-[2.5rem] border border-pisao-gold/15 sm:min-h-[680px]">
-            {/* Google Drive serves the original 1188×1600 JPEG without an extra lossy re-encode in the app. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src="/api/media/pisao-experience"
               alt="Un momento de sabor en PISÁO"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-              loading="eager"
-              decoding="async"
+              fill
+              priority
+              unoptimized
+              sizes="(min-width: 1024px) 52vw, 100vw"
+              className="object-cover object-center"
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-transparent" />
           </Reveal>
