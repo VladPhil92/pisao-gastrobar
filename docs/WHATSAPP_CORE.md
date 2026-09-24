@@ -99,14 +99,15 @@ WHATSAPP_TOKEN_ENCRYPTION_KEY
 
 ### Embedded Signup
 
-El launcher usa explícitamente:
+El launcher histórico usó `sessionInfoVersion=3`. En Embedded Signup v4,
+productos, assets y permisos viven en la Configuration de Meta; el launcher
+conserva únicamente el selector requerido para Coexistence:
 
 ```text
 featureType = whatsapp_business_app_onboarding
-sessionInfoVersion = 3
 ```
 
-para solicitar el flujo de Coexistence. Al finalizar:
+para solicitar el flujo de WhatsApp Business App onboarding. Al finalizar:
 
 1. El navegador obtiene un authorization code.
 2. Meta comunica el `waba_id` mediante el evento `WA_EMBEDDED_SIGNUP`.

@@ -19,6 +19,11 @@ assert.match(page, /MetaEmbeddedSignupGuide/, "Admin page must mount the setup w
 assert.match(setup, /Embedded Signup v4/, "Launcher must label the v4 flow.");
 assert.match(setup, /parsed\.event === "ERROR"/, "Launcher must surface Meta errors.");
 assert.match(setup, /whatsapp_business_app_onboarding/, "Coexistence feature type must remain enabled.");
+assert.doesNotMatch(
+  setup,
+  /sessionInfoVersion/,
+  "Embedded Signup v4 launcher must not depend on legacy sessionInfoVersion.",
+);
 assert.match(docs, /V6 — Meta Embedded Signup v4 Setup Wizard/, "Docs must cover v4 setup.");
 
 console.log("WhatsApp Meta Onboarding V6 invariants: OK");
