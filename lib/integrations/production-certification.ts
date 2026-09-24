@@ -6,6 +6,10 @@ import {
   deriveOverallCertification,
   type CertificationState,
 } from "@/lib/integrations/certification-core";
+import {
+  getEmbeddedSignupConfigId,
+  getWhatsAppRuntimeState,
+} from "@/lib/whatsapp/meta-config";
 
 type EvidenceDetail = Record<string, string | number | boolean | null>;
 
@@ -180,24 +184,31 @@ export async function getProductionCertificationSummary() {
     }),
   ]);
 
+  const [embeddedConfigId, whatsappRuntime] = await Promise.all([
+    getEmbeddedSignupConfigId(),
+    getWhatsAppRuntimeState(),
+  ]);
+
   const openAiConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
   const openAiEvidence = Boolean(lastAiSuccess);
 
   const whatsappServerConfig = Boolean(
     process.env.NEXT_PUBLIC_META_APP_ID?.trim() &&
-      process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID?.trim() &&
+      embeddedConfigId &&
       process.env.WHATSAPP_META_APP_SECRET?.trim() &&
       process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim() &&
       process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY?.trim(),
   );
-  const whatsappWebhookEnabled =
-    process.env.WHATSAPP_WEBHOOK_ENABLED === "true";
+  const whatsappWebhookEnabled = whatsappRuntime.enabled;
+  const whatsappProbePassed =
+    whatsappRuntime.lastProbeStatus === "SUCCESS";
   const whatsappIntegrationActive =
     whatsappIntegration?.status === "ACTIVE";
   const whatsappConfigured =
     whatsappServerConfig &&
-    whatsappWebhookEnabled &&
-    whatsappIntegrationActive;
+    whatsappIntegrationActive &&
+    whatsappProbePassed &&
+    whatsappWebhookEnabled;
   const whatsappEvidence = Boolean(
     lastWhatsappWebhook?.processedAt &&
       lastWhatsappConversation?.lastInboundAt &&
@@ -271,15 +282,18 @@ export async function getProductionCertificationSummary() {
         ? "Completa las credenciales de Meta en Render."
         : !whatsappIntegrationActive
           ? "Entra a /admin/whatsapp y completa Embedded Signup con el número correcto."
-          : !whatsappWebhookEnabled
-            ? "Activa WHATSAPP_WEBHOOK_ENABLED=true cuando Meta haya quedado conectado."
-            : !whatsappEvidence
+          : !whatsappProbePassed
+            ? "Ejecuta Verificar conexión desde /admin/whatsapp."
+            : !whatsappWebhookEnabled
+              ? "Activa el Concierge desde /admin/whatsapp cuando la verificación esté en verde."
+              : !whatsappEvidence
               ? "Envía un WhatsApp desde un teléfono externo y confirma que el Concierge responda."
               : "Sin acción inmediata; Coexistence tiene evidencia end-to-end.",
       checks: [
         { label: "Credenciales servidor completas", ok: whatsappServerConfig },
         { label: "Integración Meta ACTIVE", ok: whatsappIntegrationActive },
-        { label: "Webhook habilitado", ok: whatsappWebhookEnabled },
+        { label: "Conexión verificada contra Meta", ok: whatsappProbePassed },
+        { label: "Runtime WhatsApp habilitado", ok: whatsappWebhookEnabled },
         { label: "Inbound procesado", ok: Boolean(lastWhatsappWebhook?.processedAt) },
         {
           label: "Respuesta IA por WhatsApp",

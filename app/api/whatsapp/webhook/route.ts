@@ -13,6 +13,7 @@ import {
   verifyWhatsAppChallengeToken,
   verifyWhatsAppSignature,
 } from "@/lib/whatsapp/webhook-security";
+import { getWhatsAppRuntimeState } from "@/lib/whatsapp/meta-config";
 
 export const runtime = "nodejs";
 
@@ -59,9 +60,10 @@ async function recordPrivacyPreservingSignal(signal: {
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
-  // Mientras el canal está desactivado, acusamos recepción sin procesar datos.
-  // Esto permite que Meta pruebe entrega sin exigir todavía el App Secret.
-  if (process.env.WHATSAPP_WEBHOOK_ENABLED !== "true") {
+  // El runtime administrado desde PISÁO controla si el Concierge procesa
+  // eventos. Si está apagado, Meta recibe 200 pero no se procesan datos.
+  const runtime = await getWhatsAppRuntimeState();
+  if (!runtime.enabled) {
     return new Response("EVENT_RECEIVED", { status: 200 });
   }
 

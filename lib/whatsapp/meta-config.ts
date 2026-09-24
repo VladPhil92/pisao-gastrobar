@@ -44,3 +44,79 @@ export async function saveEmbeddedSignupConfigId(
     },
   });
 }
+
+export async function getWhatsAppRuntimeState() {
+  const saved = await prisma.whatsAppMetaConfig.findUnique({
+    where: { id: PRIMARY_ID },
+    select: {
+      runtimeEnabled: true,
+      lastProbeAt: true,
+      lastProbeStatus: true,
+      lastProbeCode: true,
+    },
+  });
+
+  const forceDisabled =
+    process.env.WHATSAPP_WEBHOOK_FORCE_DISABLED === "true";
+  const legacyEnabled = process.env.WHATSAPP_WEBHOOK_ENABLED === "true";
+  const managed = typeof saved?.runtimeEnabled === "boolean";
+
+  return {
+    enabled: forceDisabled
+      ? false
+      : managed
+        ? Boolean(saved?.runtimeEnabled)
+        : legacyEnabled,
+    managed,
+    forceDisabled,
+    lastProbeAt: saved?.lastProbeAt ?? null,
+    lastProbeStatus: saved?.lastProbeStatus ?? null,
+    lastProbeCode: saved?.lastProbeCode ?? null,
+  };
+}
+
+export async function setWhatsAppRuntimeEnabled(
+  enabled: boolean,
+  updatedByUserId?: string | null,
+) {
+  if (process.env.WHATSAPP_WEBHOOK_FORCE_DISABLED === "true" && enabled) {
+    throw new Error("WHATSAPP_FORCE_DISABLED");
+  }
+
+  return prisma.whatsAppMetaConfig.upsert({
+    where: { id: PRIMARY_ID },
+    create: {
+      id: PRIMARY_ID,
+      runtimeEnabled: enabled,
+      updatedByUserId: updatedByUserId?.slice(0, 64) || null,
+    },
+    update: {
+      runtimeEnabled: enabled,
+      updatedByUserId: updatedByUserId?.slice(0, 64) || null,
+    },
+  });
+}
+
+export async function recordWhatsAppProbe(params: {
+  ok: boolean;
+  code: string;
+  updatedByUserId?: string | null;
+}) {
+  const now = new Date();
+  return prisma.whatsAppMetaConfig.upsert({
+    where: { id: PRIMARY_ID },
+    create: {
+      id: PRIMARY_ID,
+      lastProbeAt: now,
+      lastProbeStatus: params.ok ? "SUCCESS" : "FAILED",
+      lastProbeCode: params.code.slice(0, 64),
+      updatedByUserId: params.updatedByUserId?.slice(0, 64) || null,
+    },
+    update: {
+      lastProbeAt: now,
+      lastProbeStatus: params.ok ? "SUCCESS" : "FAILED",
+      lastProbeCode: params.code.slice(0, 64),
+      updatedByUserId: params.updatedByUserId?.slice(0, 64) || null,
+    },
+  });
+}

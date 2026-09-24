@@ -1,7 +1,11 @@
 import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistenceSetup";
+import { WhatsAppRuntimeControl } from "@/components/admin/WhatsAppRuntimeControl";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
-import { getEmbeddedSignupConfigId } from "@/lib/whatsapp/meta-config";
+import {
+  getEmbeddedSignupConfigId,
+  getWhatsAppRuntimeState,
+} from "@/lib/whatsapp/meta-config";
 
 function Status({
   label,
@@ -31,9 +35,10 @@ function Status({
 
 export default async function AdminWhatsAppPage() {
   await requireAdminRoute("/admin/whatsapp");
-  const [integration, configId] = await Promise.all([
+  const [integration, configId, runtime] = await Promise.all([
     getWhatsAppIntegrationSummary(),
     getEmbeddedSignupConfigId(),
+    getWhatsAppRuntimeState(),
   ]);
   const appId = process.env.NEXT_PUBLIC_META_APP_ID?.trim() || null;
 
@@ -44,7 +49,7 @@ export default async function AdminWhatsAppPage() {
   const webhookTokenReady = Boolean(
     process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim(),
   );
-  const webhookEnabled = process.env.WHATSAPP_WEBHOOK_ENABLED === "true";
+  const webhookEnabled = runtime.enabled;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -109,6 +114,14 @@ export default async function AdminWhatsAppPage() {
           }
         />
       </div>
+
+      <WhatsAppRuntimeControl
+        initialEnabled={runtime.enabled}
+        forceDisabled={runtime.forceDisabled}
+        initialProbeStatus={runtime.lastProbeStatus}
+        initialProbeCode={runtime.lastProbeCode}
+        initialProbeAt={runtime.lastProbeAt?.toISOString() ?? null}
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <WhatsAppCoexistenceSetup appId={appId} configId={configId} />

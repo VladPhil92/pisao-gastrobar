@@ -121,3 +121,51 @@ para solicitar el flujo de Coexistence. Al finalizar:
 Antes de lanzar Embedded Signup desde PISÁO, Meta debe habilitar la app como
 Tech Provider/Embedded Signup y emitir un Configuration ID válido. El App Secret
 se configura exclusivamente en Render y nunca se copia al navegador.
+
+
+## V4 — Production Activation Gate
+
+La activación de respuestas automáticas ya no depende de un redeploy de Render.
+
+### Verificación
+
+Desde `/admin/whatsapp`, un ADMIN o SUPER_ADMIN puede ejecutar
+`Verificar conexión`. El backend valida, sin exponer secretos:
+
+- Meta App ID;
+- Meta App Secret server-side;
+- webhook verify token;
+- Token Vault;
+- Embedded Signup Configuration ID;
+- integración ACTIVE cifrada en PostgreSQL;
+- acceso real de ese token al `Phone Number ID` mediante Graph API.
+
+El resultado del probe persiste únicamente estado técnico y un código saneado.
+Nunca se persisten tokens ni respuestas crudas de Meta.
+
+### Activación
+
+Solo SUPER_ADMIN puede activar o pausar el runtime. Al intentar activar, PISÁO
+ejecuta nuevamente el probe; si falla cualquier gate, la activación se rechaza.
+
+Una vez administrado desde el dashboard, el estado persistido reemplaza a
+`WHATSAPP_WEBHOOK_ENABLED`. Para una parada de emergencia existe:
+
+```text
+WHATSAPP_WEBHOOK_FORCE_DISABLED=true
+```
+
+Ese kill switch server-side tiene prioridad sobre cualquier estado del panel.
+
+### Certificación
+
+El gate de producción de WhatsApp exige:
+
+1. configuración servidor completa;
+2. integración Meta ACTIVE;
+3. probe exitoso contra Graph API;
+4. runtime activado;
+5. mensaje inbound procesado;
+6. respuesta IA registrada.
+
+Solo entonces el canal puede pasar a CERTIFICADA.
