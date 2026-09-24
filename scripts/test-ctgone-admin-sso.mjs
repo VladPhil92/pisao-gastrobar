@@ -100,8 +100,13 @@ assert.match(
 );
 assert.match(
   loginForm,
-  /Acceso con correo y contraseña/,
-  "Local credentials must remain available alongside CTG One federation.",
+  /Entrar con mi cuenta CTG One/,
+  "The owner/admin CTG One path must be explicit and primary.",
+);
+assert.match(
+  loginForm,
+  /Acceso interno de empleados PISÁO/,
+  "Local employee credentials must remain available alongside CTG One federation.",
 );
 assert.match(
   loginPage,
