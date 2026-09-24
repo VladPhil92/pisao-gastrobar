@@ -134,7 +134,6 @@ export function createCustomerSession(subject: string, email: string): string | 
   const issuedAt = Date.now();
   return encodeSigned({
     sub: subject,
-    localUserId,
     email: normalizedEmail,
     emailVerified: true,
     issuedAt,
@@ -170,6 +169,7 @@ export function createAdminSession(
   const issuedAt = Date.now();
   return encodeSigned({
     sub: subject,
+    localUserId,
     email: normalizedEmail,
     emailVerified: true,
     rol: "ADMIN",
