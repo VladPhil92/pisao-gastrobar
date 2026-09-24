@@ -1,6 +1,8 @@
 import { AiCommandCenter } from "@/components/admin/AiCommandCenter";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 
-export default function AdminAiPage() {
+export default async function AdminAiPage() {
+  await requireAdminRoute("/admin/ia");
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-7">
