@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { ensureFederatedAdminUser } from "@/lib/auth/federated-admin";
+import { federatedPisaoRole } from "@/lib/auth/super-admin";
 import {
   createAdminSession,
   createCustomerSession,
@@ -136,9 +137,10 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
+    const localRole = federatedPisaoRole(data.email);
     let localAdmin;
     try {
-      localAdmin = await ensureFederatedAdminUser(data.subject);
+      localAdmin = await ensureFederatedAdminUser(data.subject, localRole);
     } catch {
       const response = NextResponse.redirect(
         failureDestination(request, transaction, "local_actor_failed"),
@@ -153,6 +155,7 @@ export async function GET(request: NextRequest) {
       localAdmin.id,
       data.email,
       data.role,
+      localRole,
     );
     if (!adminSession) {
       const response = NextResponse.redirect(
