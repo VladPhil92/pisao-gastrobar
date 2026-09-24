@@ -17,6 +17,10 @@ import {
   whatsappHumanHandoffActive,
 } from "@/lib/whatsapp/state";
 import { deriveWhatsAppIdentity } from "@/lib/whatsapp/webhook-security";
+import {
+  META_REVIEW_EVENTS,
+  recordMetaReviewEvidence,
+} from "@/lib/whatsapp/meta-review-evidence";
 
 type ConciergePayload = {
   text?: string;
@@ -97,6 +101,15 @@ export async function processWhatsAppInbound(
       )
     ) {
       await markWhatsAppWebhookProcessed(eventKey);
+      await recordMetaReviewEvidence({
+        event: META_REVIEW_EVENTS.inboundProcessed,
+        detail: {
+          source: "whatsapp_webhook",
+          processed: true,
+          handoffActive: true,
+        },
+        dedupeMinutes: 15,
+      });
       return;
     }
 
@@ -142,6 +155,27 @@ export async function processWhatsAppInbound(
       phoneNumberId: message.phoneNumberId,
     });
     await markWhatsAppWebhookProcessed(eventKey);
+
+    await Promise.all([
+      recordMetaReviewEvidence({
+        event: META_REVIEW_EVENTS.inboundProcessed,
+        detail: {
+          source: "whatsapp_webhook",
+          processed: true,
+          handoffActive: false,
+        },
+        dedupeMinutes: 15,
+      }),
+      recordMetaReviewEvidence({
+        event: META_REVIEW_EVENTS.aiOutboundSent,
+        detail: {
+          source: "cloud_api",
+          deliveredToMeta: true,
+          generatedByConcierge: true,
+        },
+        dedupeMinutes: 15,
+      }),
+    ]);
   } catch (error) {
     const messageText = error instanceof Error ? error.message : "";
     const failureCode = messageText.includes("WHATSAPP_CLOUD")
