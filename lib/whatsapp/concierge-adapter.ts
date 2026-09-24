@@ -9,6 +9,7 @@ import type {
 import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
 import {
   claimWhatsAppWebhookEvent,
+  markWhatsAppWebhookFailed,
   markWhatsAppWebhookProcessed,
   recordWhatsAppAiOutbound,
   recordWhatsAppHumanEcho,
@@ -60,11 +61,16 @@ export async function processWhatsAppHumanEcho(
   });
   if (!claimed) return;
 
-  await recordWhatsAppHumanEcho({
-    customerWaId: echo.to,
-    phoneNumberId: echo.phoneNumberId,
-  });
-  await markWhatsAppWebhookProcessed(eventKey);
+  try {
+    await recordWhatsAppHumanEcho({
+      customerWaId: echo.to,
+      phoneNumberId: echo.phoneNumberId,
+    });
+    await markWhatsAppWebhookProcessed(eventKey);
+  } catch (error) {
+    await markWhatsAppWebhookFailed(eventKey, "HUMAN_ECHO_PROCESSING_FAILED");
+    throw error;
+  }
 }
 
 export async function processWhatsAppInbound(
@@ -78,31 +84,31 @@ export async function processWhatsAppInbound(
   });
   if (!claimed) return;
 
-  await recordWhatsAppInbound({
-    waId: message.from,
-    phoneNumberId: message.phoneNumberId,
-  });
-
-  if (
-    await whatsappHumanHandoffActive(
-      message.from,
-      message.phoneNumberId,
-    )
-  ) {
-    await markWhatsAppWebhookProcessed(eventKey);
-    return;
-  }
-
-  const identity = deriveWhatsAppIdentity(message.from);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "x-real-ip": identity.identity,
-  };
-
-  const edgeSecret = process.env.PISAO_EDGE_SECRET?.trim();
-  if (edgeSecret) headers["x-pisao-edge-secret"] = edgeSecret;
-
   try {
+    await recordWhatsAppInbound({
+      waId: message.from,
+      phoneNumberId: message.phoneNumberId,
+    });
+
+    if (
+      await whatsappHumanHandoffActive(
+        message.from,
+        message.phoneNumberId,
+      )
+    ) {
+      await markWhatsAppWebhookProcessed(eventKey);
+      return;
+    }
+
+    const identity = deriveWhatsAppIdentity(message.from);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-real-ip": identity.identity,
+    };
+
+    const edgeSecret = process.env.PISAO_EDGE_SECRET?.trim();
+    if (edgeSecret) headers["x-pisao-edge-secret"] = edgeSecret;
+
     const request = new Request(
       "https://pisaogastrobar.com/api/ai/concierge",
       {
@@ -137,13 +143,26 @@ export async function processWhatsAppInbound(
     });
     await markWhatsAppWebhookProcessed(eventKey);
   } catch (error) {
+    const messageText = error instanceof Error ? error.message : "";
+    const failureCode = messageText.includes("WHATSAPP_CLOUD")
+      ? "CLOUD_API_SEND_FAILED"
+      : messageText.includes("Concierge HTTP")
+        ? "CONCIERGE_HTTP_FAILED"
+        : "CONCIERGE_PROCESSING_FAILED";
+
+    const failure = await markWhatsAppWebhookFailed(eventKey, failureCode);
+
     void captureServerError(error, {
       surface: "whatsapp_concierge",
-      code: "WHATSAPP_CONCIERGE_FAILED",
+      code: failure.autoPaused
+        ? "WHATSAPP_AUTO_PAUSED_AFTER_FAILURE_BURST"
+        : "WHATSAPP_CONCIERGE_FAILED",
     });
 
     console.error("[PISAO WHATSAPP] No fue posible procesar mensaje", {
       messageId: message.id,
+      failureCode,
+      autoPaused: failure.autoPaused,
       error: error instanceof Error ? error.name : "UnknownError",
     });
   }

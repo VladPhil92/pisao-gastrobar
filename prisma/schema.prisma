@@ -756,6 +756,8 @@ model WhatsAppMetaConfig {
   lastProbeAt              DateTime?
   lastProbeStatus          String?   @db.VarChar(24)
   lastProbeCode            String?   @db.VarChar(64)
+  lastAutoPauseAt          DateTime?
+  lastAutoPauseReason      String?   @db.VarChar(96)
   updatedByUserId          String?   @db.VarChar(64)
   updatedAt                DateTime  @updatedAt
   createdAt                DateTime  @default(now())
@@ -814,10 +816,15 @@ model WhatsAppWebhookEvent {
   eventKey      String    @unique @db.VarChar(128)
   field         String    @db.VarChar(48)
   phoneNumberId String?   @db.VarChar(32)
+  status        String    @default("RECEIVED") @db.VarChar(24)
+  attemptCount  Int       @default(1)
+  failureCode   String?   @db.VarChar(64)
   receivedAt    DateTime  @default(now())
   processedAt   DateTime?
+  failedAt      DateTime?
 
   @@index([field, receivedAt])
+  @@index([status, receivedAt])
   @@map("whatsapp_webhook_events")
 }
 

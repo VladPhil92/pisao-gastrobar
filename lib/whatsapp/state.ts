@@ -9,8 +9,27 @@ function handoffMinutes() {
   return Math.min(120, Math.max(5, Math.round(parsed)));
 }
 
+function failureWindowMinutes() {
+  const parsed = Number(
+    process.env.WHATSAPP_FAILURE_AUTOPAUSE_WINDOW_MINUTES ?? "10",
+  );
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.min(60, Math.max(2, Math.round(parsed)));
+}
+
+function failureThreshold() {
+  const parsed = Number(
+    process.env.WHATSAPP_FAILURE_AUTOPAUSE_THRESHOLD ?? "5",
+  );
+  if (!Number.isFinite(parsed)) return 5;
+  return Math.min(50, Math.max(2, Math.round(parsed)));
+}
+
 function conversationKey(customerKey: string, phoneNumberId?: string) {
-  return `${customerKey}:${phoneNumberId?.slice(0, 32) || "default"}`.slice(0, 96);
+  return `${customerKey}:${phoneNumberId?.slice(0, 32) || "default"}`.slice(
+    0,
+    96,
+  );
 }
 
 async function integrationIdForPhone(phoneNumberId?: string) {
@@ -27,12 +46,16 @@ export async function claimWhatsAppWebhookEvent(params: {
   field: string;
   phoneNumberId?: string;
 }) {
+  const eventKey = params.eventKey.slice(0, 128);
+
   try {
     await prisma.whatsAppWebhookEvent.create({
       data: {
-        eventKey: params.eventKey.slice(0, 128),
+        eventKey,
         field: params.field.slice(0, 48),
         phoneNumberId: params.phoneNumberId?.slice(0, 32),
+        status: "RECEIVED",
+        attemptCount: 1,
       },
     });
     return true;
@@ -44,24 +67,41 @@ export async function claimWhatsAppWebhookEvent(params: {
       (error as { code?: string }).code === "P2002"
     ) {
       const existing = await prisma.whatsAppWebhookEvent.findUnique({
-        where: { eventKey: params.eventKey.slice(0, 128) },
-        select: { processedAt: true, receivedAt: true },
+        where: { eventKey },
+        select: {
+          processedAt: true,
+          receivedAt: true,
+          status: true,
+        },
       });
 
       if (!existing || existing.processedAt) return false;
 
-      // Permite que Meta recupere un evento abandonado tras fallo/crash,
-      // pero evita procesamiento concurrente de reintentos inmediatos.
+      // Permite recuperar eventos abandonados o reintentados sin ejecutar
+      // duplicados concurrentes.
       const staleBefore = new Date(Date.now() - 2 * 60 * 1000);
-      if (existing.receivedAt > staleBefore) return false;
+      if (
+        existing.status !== "FAILED" &&
+        existing.receivedAt > staleBefore
+      ) {
+        return false;
+      }
 
       const reclaimed = await prisma.whatsAppWebhookEvent.updateMany({
         where: {
-          eventKey: params.eventKey.slice(0, 128),
+          eventKey,
           processedAt: null,
-          receivedAt: { lte: staleBefore },
+          ...(existing.status !== "FAILED"
+            ? { receivedAt: { lte: staleBefore } }
+            : {}),
         },
-        data: { receivedAt: new Date() },
+        data: {
+          receivedAt: new Date(),
+          status: "RECEIVED",
+          failedAt: null,
+          failureCode: null,
+          attemptCount: { increment: 1 },
+        },
       });
 
       return reclaimed.count > 0;
@@ -73,8 +113,68 @@ export async function claimWhatsAppWebhookEvent(params: {
 export async function markWhatsAppWebhookProcessed(eventKey: string) {
   await prisma.whatsAppWebhookEvent.updateMany({
     where: { eventKey: eventKey.slice(0, 128) },
-    data: { processedAt: new Date() },
+    data: {
+      status: "PROCESSED",
+      processedAt: new Date(),
+      failedAt: null,
+      failureCode: null,
+    },
   });
+}
+
+export async function markWhatsAppWebhookFailed(
+  eventKey: string,
+  failureCode: string,
+) {
+  const now = new Date();
+  const safeCode = failureCode
+    .toUpperCase()
+    .replace(/[^A-Z0-9_:-]/g, "_")
+    .slice(0, 64);
+
+  await prisma.whatsAppWebhookEvent.updateMany({
+    where: { eventKey: eventKey.slice(0, 128) },
+    data: {
+      status: "FAILED",
+      failedAt: now,
+      failureCode: safeCode || "PROCESSING_FAILED",
+    },
+  });
+
+  const since = new Date(
+    now.getTime() - failureWindowMinutes() * 60 * 1000,
+  );
+  const recentFailures = await prisma.whatsAppWebhookEvent.count({
+    where: {
+      field: "messages",
+      status: "FAILED",
+      failedAt: { gte: since },
+    },
+  });
+
+  if (recentFailures >= failureThreshold()) {
+    await prisma.whatsAppMetaConfig.upsert({
+      where: { id: "primary" },
+      create: {
+        id: "primary",
+        runtimeEnabled: false,
+        lastAutoPauseAt: now,
+        lastAutoPauseReason: `FAILURE_BURST_${recentFailures}`.slice(0, 96),
+        updatedByUserId: "system:whatsapp-v5",
+      },
+      update: {
+        runtimeEnabled: false,
+        lastAutoPauseAt: now,
+        lastAutoPauseReason: `FAILURE_BURST_${recentFailures}`.slice(0, 96),
+        updatedByUserId: "system:whatsapp-v5",
+      },
+    });
+  }
+
+  return {
+    recentFailures,
+    autoPaused: recentFailures >= failureThreshold(),
+  };
 }
 
 export async function recordWhatsAppInbound(params: {
@@ -167,6 +267,14 @@ export async function recordWhatsAppHumanEcho(params: {
   });
 
   return humanHandoffUntil;
+}
+
+export async function releaseWhatsAppHumanHandoff(conversationId: string) {
+  return prisma.whatsAppConversation.update({
+    where: { id: conversationId },
+    data: { humanHandoffUntil: new Date() },
+    select: { id: true },
+  });
 }
 
 export async function whatsappHumanHandoffActive(

@@ -169,3 +169,57 @@ El gate de producción de WhatsApp exige:
 6. respuesta IA registrada.
 
 Solo entonces el canal puede pasar a CERTIFICADA.
+
+
+## V5 — Operations Console & Fail-safe
+
+El backoffice de WhatsApp incorpora una consola operacional sin almacenar
+transcripciones ni números de clientes.
+
+### Telemetría persistente
+
+Cada evento procesable mantiene exclusivamente:
+
+- tipo de evento;
+- estado `RECEIVED | PROCESSED | FAILED`;
+- número de intentos;
+- código técnico de fallo saneado;
+- timestamps de recepción, procesamiento o fallo;
+- Phone Number ID del activo comercial, no el número del cliente.
+
+No se almacena el cuerpo del mensaje, el payload de Meta ni el teléfono del cliente.
+
+### Auto-pausa
+
+Los fallos de mensajes entrantes se cuentan dentro de una ventana deslizante.
+Los defaults son:
+
+```text
+WHATSAPP_FAILURE_AUTOPAUSE_THRESHOLD=5
+WHATSAPP_FAILURE_AUTOPAUSE_WINDOW_MINUTES=10
+```
+
+Al alcanzar el umbral, PISÁO pone `runtimeEnabled=false` automáticamente y
+registra el momento y la razón del fail-safe. El SUPER_ADMIN debe revisar el
+panel, corregir la causa, ejecutar `Verificar conexión` y reactivar el canal.
+
+### Handoff humano
+
+Las conversaciones se muestran mediante alias derivados del HMAC ya existente.
+No se exponen teléfonos. ADMIN/SUPER_ADMIN pueden liberar manualmente un handoff
+cuando el equipo termina la atención humana, permitiendo que el Concierge retome
+el siguiente mensaje.
+
+### Observabilidad
+
+`/admin/whatsapp` muestra:
+
+- eventos recibidos/procesados/fallidos en 24 h;
+- fallos de los últimos 10 minutos;
+- tasa de éxito;
+- latencia p95 de procesamiento;
+- handoffs humanos activos;
+- último evento;
+- última auto-pausa;
+- códigos de fallos recientes;
+- conversaciones recientes pseudonimizadas.
