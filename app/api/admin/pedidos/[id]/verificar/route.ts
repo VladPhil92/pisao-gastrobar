@@ -16,6 +16,7 @@ import {
   customerOrderNotificationEventKey,
   processCustomerOrderNotification,
 } from "@/lib/notifications/customer-order";
+import { recordAdminAudit } from "@/lib/admin/audit";
 
 /**
  * Validación final de pagos manuales.
@@ -312,6 +313,20 @@ export async function POST(
       update: {},
     }),
   ]);
+
+  await recordAdminAudit({
+    actorUserId: (session.user as { id?: string }).id,
+    actorRole: rol ?? "UNKNOWN",
+    action: aprobado ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED",
+    targetType: "Pedido",
+    targetId: pedido.id,
+    detail: {
+      paymentMethod: currentPayment.metodo,
+      orderState: pedido.estado,
+      amountCop: Number(currentPayment.monto),
+      onchainRevalidated: Boolean(onchain),
+    },
+  });
 
   after(async () => {
     await processCustomerOrderNotification(customerNotification.id);
