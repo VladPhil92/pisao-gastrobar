@@ -29,6 +29,9 @@ jobs:
       - name: Refresh lockfile without lifecycle scripts
         run: npm install --package-lock-only --ignore-scripts
 
+      - name: Apply compatible audit remediations
+        run: npm audit fix --package-lock-only --ignore-scripts
+
       - name: Verify dependency audit is clean
         run: npm audit --audit-level=low
 
