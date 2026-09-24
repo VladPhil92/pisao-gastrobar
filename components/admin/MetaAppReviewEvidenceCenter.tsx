@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 type ReviewReadiness = {
+  engineVersion?: string;
   lifecycle: {
     accessVerificationStatus: string;
     accessVerificationUpdatedAt: string | null;
@@ -23,6 +24,22 @@ type ReviewReadiness = {
     evidence: string[];
     state: "WAITING_EXTERNAL" | "READY_TO_RECORD" | "EVIDENCE_AVAILABLE";
   }>;
+  automatedEvidence: Array<{
+    id: string;
+    event: string;
+    label: string;
+    status: string;
+    capturedAt: string;
+    ageHours: number;
+    detail: Record<string, unknown> | null;
+  }>;
+  evidenceCoverage: {
+    embeddedSignup: boolean;
+    graphProbe: boolean;
+    inbound: boolean;
+    aiOutbound: boolean;
+    strictE2E: boolean;
+  };
   publicUrls: Record<string, string>;
 };
 
@@ -43,6 +60,7 @@ export function MetaAppReviewEvidenceCenter({
 }: {
   initial: ReviewReadiness;
 }) {
+  const [data, setData] = useState(initial);
   const [accessStatus, setAccessStatus] = useState(
     initial.lifecycle.accessVerificationStatus,
   );
@@ -95,6 +113,41 @@ export function MetaAppReviewEvidenceCenter({
     }
   }
 
+  async function refreshEvidence(snapshot = false) {
+    setSaving(snapshot ? "snapshot" : "refresh");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp/review-evidence", {
+        method: snapshot ? "POST" : "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        readiness?: ReviewReadiness;
+      };
+      if (!response.ok || !payload.ok || !payload.readiness) {
+        throw new Error(payload.error || "No fue posible actualizar la evidencia.");
+      }
+      setData(payload.readiness);
+      setAccessStatus(payload.readiness.lifecycle.accessVerificationStatus);
+      setAppReviewStatus(payload.readiness.lifecycle.appReviewStatus);
+      setMessage(
+        snapshot
+          ? "Snapshot de App Review generado con el estado técnico actual."
+          : "Evidencia automática actualizada.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No fue posible actualizar la evidencia.",
+      );
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);
     setMessage("Copiado al portapapeles.");
@@ -118,12 +171,12 @@ export function MetaAppReviewEvidenceCenter({
         </div>
         <span
           className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-            initial.readyForSubmission
+            data.readyForSubmission
               ? "bg-emerald-500/15 text-emerald-300"
               : "bg-amber-500/15 text-amber-200"
           }`}
         >
-          {initial.readyForSubmission
+          {data.readyForSubmission
             ? "LISTO PARA APP REVIEW"
             : "AÚN NO ENVIAR"}
         </span>
@@ -175,7 +228,7 @@ export function MetaAppReviewEvidenceCenter({
       </div>
 
       <div className="mt-6 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {initial.checklist.map((check) => (
+        {data.checklist.map((check) => (
           <div
             key={check.id}
             className="flex items-center justify-between gap-3 rounded-xl border border-pisao-gold/10 bg-pisao-noche px-3 py-3 text-xs"
@@ -192,7 +245,7 @@ export function MetaAppReviewEvidenceCenter({
       </div>
 
       <div className="mt-7 grid gap-4 xl:grid-cols-2">
-        {initial.permissions.map((permission) => (
+        {data.permissions.map((permission) => (
           <article
             key={permission.id}
             className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche p-5"
@@ -230,11 +283,108 @@ export function MetaAppReviewEvidenceCenter({
       </div>
 
       <div className="mt-7 rounded-2xl border border-pisao-gold/10 bg-pisao-noche p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-pisao-gold text-[10px] font-semibold uppercase tracking-wider">
+              Automated Review Evidence V9
+            </p>
+            <h3 className="text-pisao-cream mt-1 text-lg font-semibold">
+              Ledger técnico de evidencia
+            </h3>
+            <p className="text-pisao-cream-muted mt-2 max-w-2xl text-xs leading-relaxed">
+              Se registra automáticamente evidencia sin PII cuando Embedded Signup
+              termina, Meta Graph valida la WABA, entra un mensaje y Cloud API acepta
+              una respuesta del Concierge.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void refreshEvidence(false)}
+              disabled={saving !== null}
+              className="border-pisao-gold/25 text-pisao-gold hover:bg-pisao-gold/10 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            >
+              {saving === "refresh" ? "Actualizando…" : "Actualizar evidencia"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void refreshEvidence(true)}
+              disabled={saving !== null}
+              className="bg-pisao-gold text-pisao-carbon rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            >
+              {saving === "snapshot" ? "Generando…" : "Generar snapshot"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            ["Embedded Signup", data.evidenceCoverage.embeddedSignup],
+            ["Graph probe", data.evidenceCoverage.graphProbe],
+            ["Inbound", data.evidenceCoverage.inbound],
+            ["Outbound IA", data.evidenceCoverage.aiOutbound],
+            ["E2E estricto", data.evidenceCoverage.strictE2E],
+          ].map(([label, ok]) => (
+            <div
+              key={String(label)}
+              className="rounded-xl border border-pisao-gold/10 bg-pisao-carbon-soft px-3 py-3"
+            >
+              <p className="text-pisao-cream-muted text-[10px] uppercase tracking-wider">
+                {String(label)}
+              </p>
+              <p
+                className={`mt-1 text-sm font-semibold ${
+                  ok ? "text-emerald-300" : "text-amber-200"
+                }`}
+              >
+                {ok ? "CAPTURADO" : "PENDIENTE"}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 space-y-2">
+          {data.automatedEvidence.length ? (
+            data.automatedEvidence.slice(0, 12).map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col gap-2 rounded-xl border border-pisao-gold/10 bg-black/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-pisao-cream text-xs font-semibold">
+                    {item.label}
+                  </p>
+                  <p className="text-pisao-cream-muted mt-1 text-[11px]">
+                    {new Date(item.capturedAt).toLocaleString("es-CO")} · hace{" "}
+                    {item.ageHours} h
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                    item.status === "SUCCESS"
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : "bg-amber-500/15 text-amber-200"
+                  }`}
+                >
+                  {item.status}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-pisao-cream-muted text-xs leading-relaxed">
+              Aún no existe evidencia V9. Se generará automáticamente cuando
+              completemos la conexión real y circule tráfico WhatsApp.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-7 rounded-2xl border border-pisao-gold/10 bg-pisao-noche p-5">
         <p className="text-pisao-gold text-[10px] font-semibold uppercase tracking-wider">
           URLs públicas para Meta
         </p>
         <div className="mt-4 grid gap-2">
-          {Object.entries(initial.publicUrls).map(([key, url]) => (
+          {Object.entries(data.publicUrls).map(([key, url]) => (
             <div
               key={key}
               className="flex flex-col gap-2 rounded-xl border border-pisao-gold/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
