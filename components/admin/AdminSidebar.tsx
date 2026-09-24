@@ -16,6 +16,7 @@ import {
   WalletCards,
   MessageCircle,
   ShieldCheck,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -31,6 +32,12 @@ const items = [
     href: "/admin/ia",
     label: "Centro IA",
     icon: Sparkles,
+    roles: ["SUPER_ADMIN", "ADMIN"],
+  },
+  {
+    href: "/admin/kev",
+    label: "Kev Control Plane",
+    icon: BrainCircuit,
     roles: ["SUPER_ADMIN", "ADMIN"],
   },
   {

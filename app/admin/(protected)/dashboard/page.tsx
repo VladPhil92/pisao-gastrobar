@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Bot,
+  BrainCircuit,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { auth } from "@/lib/auth";
+import { getKevControlPlaneSnapshot } from "@/lib/governance/kev-control-plane";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 
@@ -158,7 +160,11 @@ async function getCommandCenter() {
 }
 
 export default async function AdminDashboardPage() {
-  const [data, session] = await Promise.all([getCommandCenter(), auth()]);
+  const [data, session, kev] = await Promise.all([
+    getCommandCenter(),
+    auth(),
+    getKevControlPlaneSnapshot(),
+  ]);
   const rol = (session?.user as { rol?: string } | undefined)?.rol ?? "COCINA";
   const isSuperAdmin = rol === "SUPER_ADMIN";
 
@@ -221,6 +227,15 @@ export default async function AdminDashboardPage() {
   ];
 
   const whatsappHealthy = data.whatsapp?.status === "CONNECTED" || data.whatsapp?.status === "ACTIVE";
+  const kevHealthy = kev.state === "RECEIVING";
+  const kevLabel =
+    kev.state === "RECEIVING"
+      ? "Gobernanza activa"
+      : kev.state === "DEGRADED"
+        ? "Atención requerida"
+        : kev.state === "UNCONFIGURED"
+          ? "Sin configurar"
+          : "Listo · sin evidencia";
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-8">
@@ -320,6 +335,13 @@ export default async function AdminDashboardPage() {
             <Link href="/admin/ia" className="flex items-center justify-between rounded-2xl border border-pisao-gold/10 bg-pisao-carbon/55 p-4">
               <div className="flex items-center gap-3"><Bot className="size-4 text-pisao-gold" /><span className="text-sm font-semibold text-pisao-cream">IA / Concierge</span></div>
               <span className="text-xs font-semibold text-pisao-gold">Abrir centro IA</span>
+            </Link>
+            <Link href="/admin/kev" className="flex items-center justify-between rounded-2xl border border-pisao-gold/10 bg-pisao-carbon/55 p-4">
+              <div className="flex items-center gap-3"><BrainCircuit className="size-4 text-pisao-gold" /><span className="text-sm font-semibold text-pisao-cream">Kev · Gobernanza</span></div>
+              <span className={`flex items-center gap-1.5 text-xs font-semibold ${kevHealthy ? "text-emerald-300" : "text-amber-300"}`}>
+                {kevHealthy ? <CheckCircle2 className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
+                {kevLabel}
+              </span>
             </Link>
             <Link href="/admin/certificacion" className="flex items-center justify-between rounded-2xl border border-pisao-gold/10 bg-pisao-carbon/55 p-4">
               <div className="flex items-center gap-3"><ShieldCheck className="size-4 text-pisao-gold" /><span className="text-sm font-semibold text-pisao-cream">Certificación técnica</span></div>
