@@ -29,7 +29,7 @@ async function getProductos() {
 export default async function AdminMenuPage() {
   const session = await auth();
   const user = session?.user as { rol?: string } | undefined;
-  if (!session?.user || user?.!["SUPER_ADMIN", "ADMIN"].includes(rol ?? "")) {
+  if (!session?.user || !["SUPER_ADMIN", "ADMIN"].includes(user?.rol ?? "")) {
     redirect("/admin/dashboard");
   }
 
