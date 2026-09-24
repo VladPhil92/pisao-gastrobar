@@ -17,6 +17,8 @@ import {
   MessageCircle,
   ShieldCheck,
   BrainCircuit,
+  Boxes,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -83,6 +85,12 @@ const items = [
     roles: ["SUPER_ADMIN", "ADMIN", "CAJERO"],
   },
   {
+    href: "/admin/inventario",
+    label: "Inventario",
+    icon: Boxes,
+    roles: ["SUPER_ADMIN", "ADMIN"],
+  },
+  {
     href: "/admin/comportamiento",
     label: "Comportamiento",
     icon: MousePointerClick,
@@ -105,6 +113,12 @@ const items = [
     label: "Reportes",
     icon: BarChart3,
     roles: ["SUPER_ADMIN", "ADMIN"],
+  },
+  {
+    href: "/admin/usuarios",
+    label: "Equipo y acceso",
+    icon: UsersRound,
+    roles: ["SUPER_ADMIN"],
   },
 ] as const;
 
