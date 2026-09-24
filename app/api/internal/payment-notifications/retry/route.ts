@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { processDuePaymentAdminNotifications } from "@/lib/notifications/payment-ops";
+import { processDueCustomerOrderNotifications } from "@/lib/notifications/customer-order";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const result = await processDuePaymentAdminNotifications(20);
-  return NextResponse.json({ ok: true, ...result, at: new Date().toISOString() });
+  const [admin, customer] = await Promise.all([
+    processDuePaymentAdminNotifications(20),
+    processDueCustomerOrderNotifications(20),
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    ...admin,
+    customer,
+    at: new Date().toISOString(),
+  });
 }
