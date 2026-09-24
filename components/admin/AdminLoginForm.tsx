@@ -33,7 +33,7 @@ export function AdminLoginForm({
 
     if (result?.error) {
       setLocalError(
-        "Credenciales locales inválidas. Los administradores deben ingresar con CTG One.",
+        "Correo o contraseña incorrectos.",
       );
       return;
     }
@@ -67,12 +67,12 @@ export function AdminLoginForm({
           className="bg-pisao-gold text-pisao-carbon hover:brightness-105 mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition"
         >
           <LogIn className="h-4 w-4" />
-          Ingresar con CTG One
+          Continuar con CTG One
         </a>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
-        <details className="border-pisao-gold/10 mt-6 border-t pt-5">
+        <div className="border-pisao-gold/10 mt-6 border-t pt-5">
           <summary className="text-pisao-cream-muted hover:text-pisao-cream cursor-pointer text-xs font-semibold">
             Acceso local de staff — Cajero / Cocina
           </summary>
@@ -86,7 +86,7 @@ export function AdminLoginForm({
             <div className="space-y-4">
               <div>
                 <label className="text-pisao-cream-muted text-sm">
-                  Correo de staff
+                  Correo
                 </label>
                 <input
                   type="email"
@@ -98,7 +98,7 @@ export function AdminLoginForm({
               </div>
               <div>
                 <label className="text-pisao-cream-muted text-sm">
-                  Contraseña local
+                  Contraseña
                 </label>
                 <input
                   type="password"
@@ -116,10 +116,10 @@ export function AdminLoginForm({
               className="mt-5 w-full"
               disabled={loading}
             >
-              {loading ? "Ingresando..." : "Ingresar como staff local"}
+              {loading ? "Ingresando..." : "Ingresar con email y contraseña"}
             </Button>
           </form>
-        </details>
+        </div>
       </div>
     </div>
   );
