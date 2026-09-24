@@ -325,7 +325,7 @@ export async function executeNativeToolCall(params: {
   activeProposal: ConversationalProposal | null;
   latestUserMessage: string;
   checkAvailability: CheckAvailability;
-  lookupOrderStatus: LookupOrderStatus;
+  lookupOrderStatus?: LookupOrderStatus;
 }): Promise<NativeToolExecution> {
   const args = parseArgs(params.call.arguments);
   const name = params.call.name as NativeToolName;
@@ -382,7 +382,9 @@ export async function executeNativeToolCall(params: {
       };
     }
 
-    const snapshot = await params.lookupOrderStatus({ numero, telefono });
+    const snapshot = params.lookupOrderStatus
+      ? await params.lookupOrderStatus({ numero, telefono })
+      : null;
     return {
       toolName: name,
       output: {
