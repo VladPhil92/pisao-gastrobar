@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/Button";
 import { ImageMarquee, Reveal } from "@/components/visual/VisualMotion";
 import { siteConfig, whatsappLink } from "@/lib/site-config";
 
+export const dynamic = "force-dynamic";
+
 const visualStrip = [
   { src: "/gallery/patacon_callejero.jpg", alt: "Patacón Callejero PISÁO", label: "Callejero" },
   { src: "/gallery/cayeyeCostilla.jpg", alt: "Cayeye con costilla PISÁO", label: "Cayeye + costilla" },
