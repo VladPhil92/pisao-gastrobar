@@ -1,4 +1,5 @@
 import {
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Activity,
   Eye,
   Gauge,
@@ -26,6 +27,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminComportamientoPage() {
+  await requireAdminRoute("/admin/comportamiento");
   const data = await getBehavioralIntelligence();
   const finalFunnelRate = data.funnel.at(-1)?.rate ?? 0;
   const maxProductSignal = Math.max(
