@@ -43,13 +43,18 @@ assert.match(
 );
 assert.match(
   callback,
-  /ensureFederatedAdminUser\(data\.subject\)/,
+  /ensureFederatedAdminUser\(data\.subject, localRole\)/,
   "Federated admins must be mapped to a local PISÁO actor before access.",
 );
 assert.match(
   callback,
   /createAdminSession\([\s\S]*?data\.subject,[\s\S]*?localAdmin\.id,[\s\S]*?data\.email,[\s\S]*?data\.role/,
   "The signed admin session must bind CTG identity, local actor id and canonical role.",
+);
+assert.match(
+  callback,
+  /federatedPisaoRole\(data\.email\)/,
+  "Super admin elevation must be resolved from the explicit PISÁO allowlist.",
 );
 assert.match(
   federatedAdmin,
@@ -68,7 +73,7 @@ assert.match(
 );
 
 const roleGateIndex = callback.indexOf('data.role !== "admin"');
-const actorProvisionIndex = callback.indexOf("ensureFederatedAdminUser(data.subject)");
+const actorProvisionIndex = callback.indexOf("ensureFederatedAdminUser(data.subject, localRole)");
 assert.ok(
   roleGateIndex >= 0 &&
     actorProvisionIndex >= 0 &&
