@@ -6,6 +6,10 @@ import {
   getEmbeddedSignupConfigId,
   recordWhatsAppProbe,
 } from "@/lib/whatsapp/meta-config";
+import {
+  META_REVIEW_EVENTS,
+  recordMetaReviewEvidence,
+} from "@/lib/whatsapp/meta-review-evidence";
 
 export type WhatsAppReadinessCheck = {
   id:
@@ -272,6 +276,18 @@ export async function probeWhatsAppIntegration(
     id: "META_GRAPH",
     label: "Token y Phone Number ID validados contra Meta",
     ok: true,
+  });
+
+  await recordMetaReviewEvidence({
+    event: META_REVIEW_EVENTS.wabaProbeVerified,
+    detail: {
+      graphAccepted: true,
+      integrationActive: true,
+      coexistence: integration.coexistence,
+      verifiedNamePresent: Boolean(payload.verified_name),
+      qualityRatingPresent: Boolean(payload.quality_rating),
+    },
+    dedupeMinutes: 30,
   });
 
   return persistProbe(
