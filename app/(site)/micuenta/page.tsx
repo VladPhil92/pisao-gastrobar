@@ -66,7 +66,7 @@ export default async function MiCuentaPage() {
     );
   }
 
-  const sessionEmail = sessionEmail;
+  const sessionEmail = session.email;
   const sessionName = "name" in session ? session.name : null;
   const authSource = "authSource" in session ? session.authSource : "ctgone";
 
