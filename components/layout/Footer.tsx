@@ -95,10 +95,11 @@ export function Footer() {
               {siteConfig.contact.email}
             </a>
           </div>
-          <div className="text-pisao-cream-muted/80 mt-4 flex gap-4 text-xs">
-            <Link href="/legal" className="hover:text-pisao-gold">
-              Términos y privacidad
-            </Link>
+          <div className="text-pisao-cream-muted/80 mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+            <Link href="/legal" className="hover:text-pisao-gold">Términos</Link>
+            <Link href="/privacidad" className="hover:text-pisao-gold">Privacidad</Link>
+            <Link href="/eliminacion-datos" className="hover:text-pisao-gold">Eliminar datos</Link>
+            <Link href="/concierge" className="hover:text-pisao-gold">Concierge</Link>
           </div>
         </div>
       </Container>

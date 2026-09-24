@@ -40,7 +40,8 @@
     "test:whatsapp-config": "node scripts/test-whatsapp-meta-config.mjs",
     "test:whatsapp-activation": "node scripts/test-whatsapp-activation-v4.mjs",
     "test:whatsapp-operations": "node scripts/test-whatsapp-operations-v5.mjs",
-    "test:whatsapp-meta-onboarding": "node scripts/test-whatsapp-meta-onboarding-v6.mjs"
+    "test:whatsapp-meta-onboarding": "node scripts/test-whatsapp-meta-onboarding-v6.mjs",
+    "test:meta-compliance": "node scripts/test-meta-compliance-v7.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
