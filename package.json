@@ -44,7 +44,8 @@
     "test:meta-compliance": "node scripts/test-meta-compliance-v7.mjs",
     "test:meta-app-review": "node scripts/test-meta-app-review-v8.mjs",
     "test:meta-review-evidence": "node scripts/test-meta-review-evidence-v9.mjs",
-    "test:owner-governance": "node scripts/test-owner-governance-v10.mjs"
+    "test:owner-governance": "node scripts/test-owner-governance-v10.mjs",
+    "test:crm-loyalty": "node scripts/test-customer-crm-loyalty-v11.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
