@@ -255,6 +255,7 @@ model Pedido {
   pago          Pago?
   attribution   RevenueAttribution?
   seguimientos  PedidoSeguimiento[]
+  adminNotifications PaymentAdminNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -342,6 +343,32 @@ model Pago {
   updatedAt DateTime @updatedAt
 
   @@map("pagos")
+}
+
+/// Outbox durable para alertas administrativas de pago.
+/// No duplica el comprobante: conserva solamente referencias, hash y telemetría de entrega.
+model PaymentAdminNotification {
+  id            String   @id @default(cuid())
+  eventKey      String   @unique @db.VarChar(180)
+  event         String   @db.VarChar(64)
+  status        String   @default("PENDING") @db.VarChar(24)
+  provider      String?  @db.VarChar(32)
+  attempts      Int      @default(0)
+  lastError     String?  @db.VarChar(180)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  deliveredAt   DateTime?
+  proofSha256   String?  @db.VarChar(64)
+
+  pedidoId String
+  pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([pedidoId, createdAt])
+  @@map("payment_admin_notifications")
 }
 
 model Reserva {

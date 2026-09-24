@@ -5,7 +5,7 @@ import {
   EVIDENCIA_TIPOS_PERMITIDOS,
   EVIDENCIA_TAMANO_MAXIMO_MB,
 } from "@/lib/payments/qr-transferencia";
-import { notifyPaymentAdmin } from "@/lib/notifications/payment-admin";
+import { processPaymentAdminNotification } from "@/lib/notifications/payment-ops";
 import { checkRateLimit, requestIdentity } from "@/lib/security/rate-limit";
 import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 import { captureServerError } from "@/lib/observability/sentry-transport";
@@ -100,7 +100,8 @@ export async function POST(request: Request) {
     const comprobanteUrl = `/api/admin/pedidos/${pedidoId}/comprobante`;
     const receivedAt = new Date();
 
-    await prisma.$transaction([
+    const eventKey = `PAYMENT_EVIDENCE:${pedidoId}:${evidence.sha256}`;
+    const [, , queuedNotification] = await prisma.$transaction([
       prisma.pago.update({
         where: { pedidoId },
         data: {
@@ -117,27 +118,24 @@ export async function POST(request: Request) {
         where: { id: pedidoId },
         data: { estado: "PENDIENTE_VERIFICACION" },
       }),
+      prisma.paymentAdminNotification.upsert({
+        where: { eventKey },
+        create: {
+          eventKey,
+          event: "PAYMENT_EVIDENCE_RECEIVED",
+          pedidoId,
+          proofSha256: evidence.sha256,
+          status: "PENDING",
+          nextAttemptAt: receivedAt,
+        },
+        update: {},
+      }),
     ]);
 
-    const notification = await notifyPaymentAdmin(
-      {
-        id: pedido.id,
-        numero: pedido.numero,
-        clienteNombre: pedido.clienteNombre,
-        clienteTelefono: pedido.clienteTelefono,
-        clienteEmail: pedido.clienteEmail,
-        tipoEntrega: pedido.tipoEntrega,
-        direccionEntrega: pedido.direccionEntrega,
-        notas: pedido.notas,
-        total: Number(pedido.total),
-        items: pedido.items.map((item) => ({
-          nombre: item.producto.nombre,
-          cantidad: item.cantidad,
-          subtotal: Number(item.subtotal),
-        })),
-      },
-      evidence,
+    const processing = await processPaymentAdminNotification(
+      queuedNotification.id,
     );
+    const notification = processing.notification;
 
     return NextResponse.json({
       ok: true,
@@ -145,9 +143,10 @@ export async function POST(request: Request) {
         estado: "EN_VERIFICACION",
         comprobanteRecibidoEn: receivedAt.toISOString(),
       },
-      adminNotification: notification.delivery,
-      notificationProvider: notification.provider,
-      whatsappUrl: notification.whatsappUrl,
+      adminNotification: notification?.delivery ?? "pending",
+      notificationStatus: processing.status,
+      notificationProvider: notification?.provider ?? processing.provider ?? null,
+      whatsappUrl: notification?.whatsappUrl ?? null,
     });
   } catch (error) {
     if (
