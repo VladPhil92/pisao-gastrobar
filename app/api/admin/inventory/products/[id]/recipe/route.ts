@@ -21,7 +21,7 @@ export async function PUT(
 
   const session = await auth();
   const user = session?.user as { id?: string; rol?: string } | undefined;
-  if (!user?.id || user.rol !== "ADMIN") {
+  if (!user?.id || !["SUPER_ADMIN", "ADMIN"].includes(user.rol ?? "")) {
     return Response.json({ error: "No autorizado." }, { status: 401 });
   }
 
