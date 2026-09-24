@@ -256,6 +256,7 @@ model Pedido {
   attribution   RevenueAttribution?
   seguimientos  PedidoSeguimiento[]
   adminNotifications PaymentAdminNotification[]
+  customerNotifications CustomerOrderNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -369,6 +370,31 @@ model PaymentAdminNotification {
   @@index([status, nextAttemptAt])
   @@index([pedidoId, createdAt])
   @@map("payment_admin_notifications")
+}
+
+/// Outbox durable para notificaciones transaccionales al cliente sobre su pedido.
+/// No almacena el contenido del mensaje ni tokens de seguimiento en claro.
+model CustomerOrderNotification {
+  id            String   @id @default(cuid())
+  eventKey      String   @unique @db.VarChar(180)
+  event         String   @db.VarChar(64)
+  status        String   @default("PENDING") @db.VarChar(24)
+  provider      String?  @db.VarChar(32)
+  attempts      Int      @default(0)
+  lastError     String?  @db.VarChar(180)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  deliveredAt   DateTime?
+
+  pedidoId String
+  pedido   Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([pedidoId, createdAt])
+  @@map("customer_order_notifications")
 }
 
 model Reserva {
