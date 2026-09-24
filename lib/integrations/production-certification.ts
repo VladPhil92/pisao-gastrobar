@@ -52,7 +52,7 @@ function configuredKevBridge() {
 }
 
 export type ProductionCertificationGate = {
-  id: "OPENAI" | "WHATSAPP" | "KEV" | "CRYPTO";
+  id: "OPENAI" | "WHATSAPP" | "PAYMENT_ALERTS" | "KEV" | "CRYPTO";
   label: string;
   state: CertificationState;
   configured: boolean;
@@ -75,6 +75,7 @@ export async function getProductionCertificationSummary() {
     whatsappIntegration,
     lastWhatsappWebhook,
     lastWhatsappConversation,
+    lastPaymentAlert,
     lastKevSuccess,
     lastKevAttempt,
     lastCryptoReconciliation,
@@ -123,6 +124,17 @@ export async function getProductionCertificationSummary() {
         updatedAt: true,
         lastInboundAt: true,
         lastAiMessageAt: true,
+      },
+    }),
+    prisma.paymentAdminNotification.findFirst({
+      where: { createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        status: true,
+        provider: true,
+        attempts: true,
+        createdAt: true,
+        deliveredAt: true,
       },
     }),
     prisma.integrationEvidence.findFirst({
@@ -191,6 +203,20 @@ export async function getProductionCertificationSummary() {
       lastWhatsappConversation?.lastInboundAt &&
       lastWhatsappConversation?.lastAiMessageAt,
   );
+
+  const paymentAlertChannelConfigured = Boolean(
+    (process.env.RESEND_API_KEY?.trim() &&
+      process.env.RESEND_FROM_EMAIL?.trim() &&
+      process.env.PAYMENT_ADMIN_NOTIFY_EMAIL?.trim()) ||
+      (process.env.WHATSAPP_CLOUD_API_TOKEN?.trim() &&
+        process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim()) ||
+      process.env.PAYMENT_ADMIN_NOTIFICATION_WEBHOOK_URL?.trim(),
+  );
+  const paymentRetryConfigured =
+    (process.env.PAYMENT_NOTIFICATION_RETRY_SECRET?.trim().length ?? 0) >= 32;
+  const paymentAlertsConfigured =
+    paymentAlertChannelConfigured && paymentRetryConfigured;
+  const paymentAlertEvidence = lastPaymentAlert?.status === "DELIVERED";
 
   const kevConfigured = configuredKevBridge();
   const kevEvidence = Boolean(lastKevSuccess);
@@ -262,6 +288,33 @@ export async function getProductionCertificationSummary() {
       ],
     },
     {
+      id: "PAYMENT_ALERTS",
+      label: "Alertas de pago · Outbox",
+      state: deriveCertificationState(
+        paymentAlertsConfigured,
+        paymentAlertEvidence,
+      ),
+      configured: paymentAlertsConfigured,
+      evidenceAt: iso(lastPaymentAlert?.deliveredAt ?? lastPaymentAlert?.createdAt),
+      evidence: paymentAlertEvidence
+        ? `Última alerta entregada por ${lastPaymentAlert?.provider ?? "canal automático"} tras ${lastPaymentAlert?.attempts ?? 0} intento(s).`
+        : lastPaymentAlert
+          ? `Última alerta en estado ${lastPaymentAlert.status}; todavía no existe entrega certificada.`
+          : "La outbox está lista, pero aún no existe una alerta originada por un comprobante real.",
+      nextAction: !paymentAlertChannelConfigured
+        ? "Configura al menos un canal automático: Resend, WhatsApp Cloud o webhook."
+        : !paymentRetryConfigured
+          ? "Configura PAYMENT_NOTIFICATION_RETRY_SECRET y activa el worker programado."
+          : !paymentAlertEvidence
+            ? "Carga un comprobante real o controlado y verifica que la alerta quede DELIVERED."
+            : "Sin acción inmediata; las alertas administrativas tienen evidencia reciente.",
+      checks: [
+        { label: "Canal automático configurado", ok: paymentAlertChannelConfigured },
+        { label: "Worker de reintentos protegido", ok: paymentRetryConfigured },
+        { label: "Entrega persistida", ok: paymentAlertEvidence },
+      ],
+    },
+    {
       id: "KEV",
       label: "KEV · Governance Bridge",
       state: deriveCertificationState(kevConfigured, kevEvidence),
@@ -312,7 +365,7 @@ export async function getProductionCertificationSummary() {
   ];
 
   return {
-    engineVersion: "production_certification_v1",
+    engineVersion: "production_certification_v2",
     windowDays,
     overall: deriveOverallCertification(gates.map((gate) => gate.state)),
     certifiedCount: gates.filter((gate) => gate.state === "CERTIFIED").length,
