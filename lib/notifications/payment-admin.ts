@@ -20,6 +20,7 @@ export type PaymentAdminOrder = {
   cryptoAmount?: string | null;
   cryptoConfirmations?: number | null;
   cryptoExplorerUrl?: string | null;
+  alertReason?: string | null;
   items: Array<{
     nombre: string;
     cantidad: number;
@@ -167,6 +168,7 @@ export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
 
   return [
     `🧾 PISÁO · Pago por validar · Pedido #${order.numero}`,
+    order.alertReason ? `⚠️ ${order.alertReason}` : "",
     "",
     `Cliente: ${order.clienteNombre}`,
     `Teléfono: ${order.clienteTelefono}`,
