@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { ensureFederatedAdminUser } from "@/lib/auth/federated-admin";
 import { federatedPisaoRole } from "@/lib/auth/super-admin";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 import {
   createAdminSession,
   createCustomerSession,
@@ -176,6 +177,12 @@ export async function GET(request: NextRequest) {
     response.headers.set("Referrer-Policy", "no-referrer");
     return response;
   }
+
+  await resolveCrmCustomerProfile({
+    nombre: "Cliente CTG One",
+    email: data.email,
+    source: "CTG_ONE",
+  });
 
   const session = createCustomerSession(data.subject, data.email);
   if (!session) {
