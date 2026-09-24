@@ -154,7 +154,7 @@ export default function HomePage() {
             {/* Google Drive serves the original 1188×1600 JPEG without an extra lossy re-encode in the app. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://drive.google.com/thumbnail?id=1lY9FmPQBnsyzMcPFd1fQZziMqMZ34UkH&sz=w1600"
+              src="/api/media/pisao-experience"
               alt="Un momento de sabor en PISÁO"
               className="absolute inset-0 h-full w-full object-cover object-center"
               loading="eager"
