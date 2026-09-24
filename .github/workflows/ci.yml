@@ -102,6 +102,9 @@ jobs:
       - name: WhatsApp Meta onboarding tests
         run: npm run test:whatsapp-meta-onboarding
 
+      - name: Meta compliance readiness tests
+        run: npm run test:meta-compliance
+
       - name: Production certification tests
         run: npm run test:certification
 
