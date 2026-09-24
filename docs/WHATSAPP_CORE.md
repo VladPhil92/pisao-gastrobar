@@ -223,3 +223,44 @@ el siguiente mensaje.
 - última auto-pausa;
 - códigos de fallos recientes;
 - conversaciones recientes pseudonimizadas.
+
+
+## V6 — Meta Embedded Signup v4 Setup Wizard
+
+El backoffice incorpora un asistente específico para crear la configuración
+de Facebook Login for Business requerida por Embedded Signup.
+
+### Configuración esperada en Meta
+
+1. Abrir la app de Meta usada por PISÁO.
+2. Añadir/abrir Facebook Login for Business.
+3. Ir a Configurations y crear una nueva configuración.
+4. Elegir la variación `WhatsApp Embedded Signup`.
+5. Seleccionar `WhatsApp Cloud API` como producto principal.
+6. Seleccionar `WhatsApp accounts` como asset.
+7. Solicitar únicamente los permisos necesarios:
+   - `whatsapp_business_management`
+   - `whatsapp_business_messaging`
+8. Habilitar Client OAuth Login, Web OAuth Login, Enforce HTTPS,
+   Embedded Browser OAuth Login, Strict Mode y Login with JavaScript SDK.
+9. Autorizar el dominio HTTPS `pisaogastrobar.com`.
+10. Copiar el Configuration ID generado y guardarlo desde
+    `/admin/whatsapp`.
+
+Para Coexistence, PISÁO conserva `featureType =
+whatsapp_business_app_onboarding` al lanzar `FB.login`, de modo que el flujo
+apunte al número ya usado en WhatsApp Business App y no a una migración
+convencional.
+
+### Diagnóstico
+
+El launcher reconoce ahora eventos FINISH, CANCEL y ERROR de Embedded Signup.
+Los errores visibles se muestran en el panel sin registrar tokens, teléfonos ni
+payloads completos.
+
+### Publicación
+
+El flujo puede probarse con usuarios que tengan rol en la app mientras está en
+desarrollo. Para liberar onboarding a usuarios externos, la app debe cumplir
+los requisitos de publicación/App Review y los niveles de acceso que Meta
+exija para WhatsApp Business Platform.
