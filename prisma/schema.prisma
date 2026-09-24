@@ -720,6 +720,18 @@ model AiTransactionCommand {
 
 /// Conexión WhatsApp Cloud API/Coexistence administrada por PISÁO.
 /// El token nunca se guarda en claro: se cifra con AES-256-GCM.
+/// Configuración no secreta del onboarding de Meta para WhatsApp.
+/// Permite administrar el Configuration ID desde el backoffice sin redeploy.
+model WhatsAppMetaConfig {
+  id                       String   @id @default("primary") @db.VarChar(24)
+  embeddedSignupConfigId   String?  @db.VarChar(128)
+  updatedByUserId          String?  @db.VarChar(64)
+  updatedAt                DateTime @updatedAt
+  createdAt                DateTime @default(now())
+
+  @@map("whatsapp_meta_config")
+}
+
 model WhatsAppIntegration {
   id                    String   @id @default(cuid())
   wabaId                String   @unique @db.VarChar(32)

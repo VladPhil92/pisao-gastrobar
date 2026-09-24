@@ -90,6 +90,9 @@ jobs:
       - name: WhatsApp coexistence tests
         run: npm run test:whatsapp
 
+      - name: WhatsApp Embedded Signup config tests
+        run: npm run test:whatsapp-config
+
       - name: Production certification tests
         run: npm run test:certification
 
