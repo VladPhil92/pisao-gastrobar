@@ -1,6 +1,7 @@
 import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistenceSetup";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
+import { getEmbeddedSignupConfigId } from "@/lib/whatsapp/meta-config";
 
 function Status({
   label,
@@ -30,10 +31,11 @@ function Status({
 
 export default async function AdminWhatsAppPage() {
   await requireAdminRoute("/admin/whatsapp");
-  const integration = await getWhatsAppIntegrationSummary();
+  const [integration, configId] = await Promise.all([
+    getWhatsAppIntegrationSummary(),
+    getEmbeddedSignupConfigId(),
+  ]);
   const appId = process.env.NEXT_PUBLIC_META_APP_ID?.trim() || null;
-  const configId =
-    process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID?.trim() || null;
 
   const appSecretReady = Boolean(process.env.WHATSAPP_META_APP_SECRET?.trim());
   const vaultReady = Boolean(
@@ -60,7 +62,7 @@ export default async function AdminWhatsAppPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Status
           label="Webhook"
           ok={webhookTokenReady}
@@ -86,6 +88,15 @@ export default async function AdminWhatsAppPage() {
             vaultReady
               ? "Los tokens de Embedded Signup pueden cifrarse en PostgreSQL."
               : "Falta la clave AES-256 de cifrado."
+          }
+        />
+        <Status
+          label="Embedded Signup"
+          ok={Boolean(configId)}
+          detail={
+            configId
+              ? "Configuration ID listo para abrir el onboarding de Meta."
+              : "Guárdalo abajo cuando Meta genere la configuración."
           }
         />
         <Status
