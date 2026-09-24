@@ -43,13 +43,18 @@ assert.match(
 );
 assert.match(
   callback,
-  /ensureFederatedAdminUser\(data\.subject\)/,
+  /ensureFederatedAdminUser\(data\.subject, localRole\)/,
   "Federated admins must be mapped to a local PISÁO actor before access.",
 );
 assert.match(
   callback,
   /createAdminSession\([\s\S]*?data\.subject,[\s\S]*?localAdmin\.id,[\s\S]*?data\.email,[\s\S]*?data\.role/,
   "The signed admin session must bind CTG identity, local actor id and canonical role.",
+);
+assert.match(
+  callback,
+  /federatedPisaoRole\(data\.email\)/,
+  "Super admin elevation must be resolved from the explicit PISÁO allowlist.",
 );
 assert.match(
   federatedAdmin,
@@ -68,7 +73,7 @@ assert.match(
 );
 
 const roleGateIndex = callback.indexOf('data.role !== "admin"');
-const actorProvisionIndex = callback.indexOf("ensureFederatedAdminUser(data.subject)");
+const actorProvisionIndex = callback.indexOf("ensureFederatedAdminUser(data.subject, localRole)");
 assert.ok(
   roleGateIndex >= 0 &&
     actorProvisionIndex >= 0 &&
@@ -91,12 +96,12 @@ assert.ok(
 assert.match(
   loginForm,
   /\/auth\/ctgone\/start\?next=\/admin\/dashboard/,
-  "The admin login UI must make CTG One SSO the primary path.",
+  "The admin login UI must keep CTG One SSO available.",
 );
 assert.match(
   loginForm,
-  /Acceso local de staff/,
-  "Local credentials must remain explicitly scoped to operational staff.",
+  /Acceso con correo y contraseña/,
+  "Local credentials must remain available alongside CTG One federation.",
 );
 assert.match(
   loginPage,

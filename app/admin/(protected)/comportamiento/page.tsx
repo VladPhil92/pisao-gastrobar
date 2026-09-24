@@ -8,6 +8,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getBehavioralIntelligence } from "@/lib/analytics/behavioral-intelligence";
 
 function slugLabel(value: string) {
@@ -26,6 +27,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminComportamientoPage() {
+  await requireAdminRoute("/admin/comportamiento");
   const data = await getBehavioralIntelligence();
   const finalFunnelRate = data.funnel.at(-1)?.rate ?? 0;
   const maxProductSignal = Math.max(

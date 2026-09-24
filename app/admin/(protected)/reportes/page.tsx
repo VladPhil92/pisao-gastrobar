@@ -14,6 +14,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getCommercialIntelligence } from "@/lib/analytics/commercial-intelligence";
 import { formatCurrency } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminReportesPage() {
+  await requireAdminRoute("/admin/reportes");
   const data = await getCommercialIntelligence();
   const maxDailyRevenue = Math.max(1, ...data.dailySales.map((day) => day.revenue));
   const totalFulfillment = data.delivery + data.pickup;

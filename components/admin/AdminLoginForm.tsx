@@ -33,7 +33,7 @@ export function AdminLoginForm({
 
     if (result?.error) {
       setLocalError(
-        "Credenciales locales inválidas. Los administradores deben ingresar con CTG One.",
+        "Correo o contraseña incorrectos.",
       );
       return;
     }
@@ -57,9 +57,8 @@ export function AdminLoginForm({
           PISÁO Admin
         </p>
         <p className="text-pisao-cream-muted mt-1 text-sm leading-relaxed">
-          Administradores: usa tu identidad central de CTG One. Si ya tienes una
-          sesión abierta en ctgone.com, el acceso será directo; de lo contrario,
-          CTG One solicitará tus mismas credenciales.
+          Administradores y empleados pueden ingresar con sus credenciales de PISÁO.
+          Si tu cuenta está federada, también puedes continuar con CTG One.
         </p>
 
         <a
@@ -67,26 +66,25 @@ export function AdminLoginForm({
           className="bg-pisao-gold text-pisao-carbon hover:brightness-105 mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition"
         >
           <LogIn className="h-4 w-4" />
-          Ingresar con CTG One
+          Continuar con CTG One
         </a>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
-        <details className="border-pisao-gold/10 mt-6 border-t pt-5">
-          <summary className="text-pisao-cream-muted hover:text-pisao-cream cursor-pointer text-xs font-semibold">
-            Acceso local de staff — Cajero / Cocina
-          </summary>
+        <div className="border-pisao-gold/10 mt-6 border-t pt-5">
+          <p className="text-pisao-cream-muted text-xs font-semibold">
+            Acceso con correo y contraseña
+          </p>
 
           <form onSubmit={onSubmit} className="mt-4">
             <p className="text-pisao-cream-muted mb-4 text-xs leading-relaxed">
-              Este formulario usa credenciales propias de PISÁO y no la
-              contraseña de CTG One.
+              Usa las credenciales asignadas a tu perfil administrativo u operativo de PISÁO.
             </p>
 
             <div className="space-y-4">
               <div>
                 <label className="text-pisao-cream-muted text-sm">
-                  Correo de staff
+                  Correo
                 </label>
                 <input
                   type="email"
@@ -98,7 +96,7 @@ export function AdminLoginForm({
               </div>
               <div>
                 <label className="text-pisao-cream-muted text-sm">
-                  Contraseña local
+                  Contraseña
                 </label>
                 <input
                   type="password"
@@ -116,10 +114,10 @@ export function AdminLoginForm({
               className="mt-5 w-full"
               disabled={loading}
             >
-              {loading ? "Ingresando..." : "Ingresar como staff local"}
+              {loading ? "Ingresando..." : "Ingresar con email y contraseña"}
             </Button>
           </form>
-        </details>
+        </div>
       </div>
     </div>
   );

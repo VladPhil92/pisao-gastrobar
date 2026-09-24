@@ -15,6 +15,7 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum RolUsuario {
+  SUPER_ADMIN
   ADMIN
   CAJERO
   COCINA
@@ -101,6 +102,25 @@ model Usuario {
   movimientosInventario     MovimientoInventario[]
 
   @@map("usuarios")
+}
+
+
+/// Perfil de cliente final de PISÁO. Separado de Usuario para evitar que
+/// una cuenta comercial pueda adquirir permisos de backoffice.
+model Cliente {
+  id           String   @id @default(cuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String
+  telefono     String?
+  activo       Boolean  @default(true)
+  emailVerified Boolean @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([activo, createdAt])
+  @@map("clientes")
 }
 
 model Categoria {

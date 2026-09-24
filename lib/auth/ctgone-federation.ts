@@ -33,7 +33,7 @@ export type CtgOneAdminSession = {
   localUserId: string;
   email: string;
   emailVerified: true;
-  rol: "ADMIN";
+  rol: "SUPER_ADMIN" | "ADMIN";
   issuedAt: number;
   exp: number;
 };
@@ -154,6 +154,7 @@ export function createAdminSession(
   localUserId: string,
   email: string,
   ctgRole: unknown,
+  localRole: "SUPER_ADMIN" | "ADMIN" = "ADMIN",
 ): string | null {
   const normalizedEmail = email.trim().toLowerCase();
   if (
@@ -172,7 +173,7 @@ export function createAdminSession(
     localUserId,
     email: normalizedEmail,
     emailVerified: true,
-    rol: "ADMIN",
+    rol: localRole,
     issuedAt,
     exp: issuedAt + SESSION_TTL_MS,
   } satisfies CtgOneAdminSession);
@@ -186,7 +187,7 @@ export function readAdminSession(raw: string | undefined): CtgOneAdminSession | 
     !session.localUserId ||
     !session.email ||
     session.emailVerified !== true ||
-    session.rol !== "ADMIN"
+    !["SUPER_ADMIN", "ADMIN"].includes(session.rol)
   ) {
     return null;
   }

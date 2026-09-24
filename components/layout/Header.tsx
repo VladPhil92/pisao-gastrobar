@@ -56,10 +56,11 @@ export function Header() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Link
             href="/micuenta"
-            aria-label="Mi cuenta PISÁO con CTG One"
-            className={`flex size-10 items-center justify-center rounded-full border transition duration-300 ${pathname.startsWith("/micuenta") ? "border-pisao-gold/45 bg-pisao-gold/10 text-pisao-gold" : "border-transparent text-pisao-cream hover:border-pisao-gold/20 hover:bg-pisao-gold/5 hover:text-pisao-gold"}`}
+            aria-label="Ingresar o abrir mi cuenta PISÁO"
+            className={`flex min-h-10 items-center justify-center gap-2 rounded-full border px-2.5 transition duration-300 xl:px-3.5 ${pathname.startsWith("/micuenta") ? "border-pisao-gold/45 bg-pisao-gold/10 text-pisao-gold" : "border-transparent text-pisao-cream hover:border-pisao-gold/20 hover:bg-pisao-gold/5 hover:text-pisao-gold"}`}
           >
             <UserCircle className="size-5" aria-hidden="true" />
+            <span className="hidden text-xs font-semibold xl:inline">Mi cuenta</span>
           </Link>
 
           <button
@@ -110,7 +111,7 @@ export function Header() {
                   );
                 })}
                 <Link href="/micuenta" onClick={() => setMenuOpen(false)} className="mt-1 flex items-center justify-between rounded-2xl border border-pisao-gold/15 px-4 py-3.5 text-sm font-semibold text-pisao-cream">
-                  Mi cuenta · CTG One <UserCircle className="size-4 text-pisao-gold" />
+                  Ingresar / Mi cuenta <UserCircle className="size-4 text-pisao-gold" />
                 </Link>
               </nav>
 

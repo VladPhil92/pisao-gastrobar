@@ -1,4 +1,5 @@
 import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistenceSetup";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
 
 function Status({
@@ -28,6 +29,7 @@ function Status({
 }
 
 export default async function AdminWhatsAppPage() {
+  await requireAdminRoute("/admin/whatsapp");
   const integration = await getWhatsAppIntegrationSummary();
   const appId = process.env.NEXT_PUBLIC_META_APP_ID?.trim() || null;
   const configId =

@@ -37,7 +37,7 @@ function maskHash(value: string | null) {
 export default async function CryptoOperationsPage() {
   const session = await auth();
   const rol = (session?.user as { rol?: string } | undefined)?.rol;
-  if (rol !== "ADMIN") redirect("/admin/dashboard");
+  if (!["SUPER_ADMIN", "ADMIN"].includes(rol ?? "")) redirect("/admin/dashboard");
 
   const data = await getCryptoOperationsSummary(30);
 

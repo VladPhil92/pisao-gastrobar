@@ -10,7 +10,7 @@ export async function GET(
   const session = await auth();
   const role = (session?.user as { rol?: string } | undefined)?.rol;
 
-  if (!session?.user || !["ADMIN", "CAJERO"].includes(role ?? "")) {
+  if (!session?.user || !["SUPER_ADMIN", "ADMIN", "CAJERO"].includes(role ?? "")) {
     return Response.json({ error: "No autorizado." }, { status: 401 });
   }
 

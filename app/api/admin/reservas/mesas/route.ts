@@ -17,7 +17,7 @@ export async function PATCH(request: Request) {
   const session = await auth();
   const rol = (session?.user as { rol?: string } | undefined)?.rol;
 
-  if (!session?.user || rol !== "ADMIN") {
+  if (!session?.user || !["SUPER_ADMIN", "ADMIN"].includes(rol ?? "")) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 

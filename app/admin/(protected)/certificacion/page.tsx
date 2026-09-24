@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import {
   AlertTriangle,
   Bot,
@@ -46,6 +47,7 @@ function overallCopy(state: "ACTION_REQUIRED" | "TESTING" | "CERTIFIED") {
 }
 
 export default async function ProductionCertificationPage() {
+  await requireAdminRoute("/admin/certificacion");
   const summary = await getProductionCertificationSummary();
 
   return (

@@ -28,7 +28,7 @@ export async function POST(
   const session = await auth();
   const rol = (session?.user as { rol?: string } | undefined)?.rol;
 
-  if (!session?.user || !["ADMIN", "CAJERO", "COCINA"].includes(rol ?? "")) {
+  if (!session?.user || !["SUPER_ADMIN", "ADMIN", "CAJERO", "COCINA"].includes(rol ?? "")) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
