@@ -20,6 +20,7 @@ export const PERMISOS_ADMIN: Record<string, Rol[]> = {
   "/admin/certificacion": ALL_ADMIN,
   "/admin/cripto": ALL_ADMIN,
   "/admin/whatsapp": ALL_ADMIN,
+  "/admin/usuarios": ["SUPER_ADMIN"],
 };
 
 export function tieneAcceso(ruta: string, rol: Rol) {
