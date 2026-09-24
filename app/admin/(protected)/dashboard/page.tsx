@@ -20,6 +20,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getKevControlPlaneSnapshot } from "@/lib/governance/kev-control-plane";
 import { prisma } from "@/lib/prisma";
+import { paymentReviewSlaMinutes } from "@/lib/notifications/payment-ops";
 import { formatCurrency } from "@/lib/utils";
 
 function bogotaDayStart(daysAgo = 0) {
@@ -36,12 +37,15 @@ function bogotaDayStart(daysAgo = 0) {
 async function getCommandCenter() {
   const today = bogotaDayStart();
   const sevenDaysAgo = bogotaDayStart(6);
+  const paymentSlaMinutes = paymentReviewSlaMinutes();
+  const paymentSlaCutoff = new Date(Date.now() - paymentSlaMinutes * 60_000);
 
   try {
     const [
       pedidosHoy,
       pedidosActivos,
       pagosPorVerificar,
+      pagosFueraSla,
       reservasHoy,
       ventasHoy,
       ventas7d,
@@ -61,6 +65,13 @@ async function getCommandCenter() {
         },
       }),
       prisma.pago.count({ where: { estado: "EN_VERIFICACION" } }),
+      prisma.pago.count({
+        where: {
+          estado: "EN_VERIFICACION",
+          comprobanteRecibidoEn: { lte: paymentSlaCutoff },
+          pedido: { is: { estado: "PENDIENTE_VERIFICACION" } },
+        },
+      }),
       prisma.reserva.count({
         where: { fecha: { gte: today }, estado: "CONFIRMADA" },
       }),
@@ -122,6 +133,7 @@ async function getCommandCenter() {
       pedidosHoy,
       pedidosActivos,
       pagosPorVerificar,
+      pagosFueraSla,
       reservasHoy,
       ventasHoy: Number(ventasHoy._sum.total ?? 0),
       ticketPromedio: Number(ventasHoy._avg.total ?? 0),
@@ -144,6 +156,7 @@ async function getCommandCenter() {
       pedidosHoy: 0,
       pedidosActivos: 0,
       pagosPorVerificar: 0,
+      pagosFueraSla: 0,
       reservasHoy: 0,
       ventasHoy: 0,
       ticketPromedio: 0,
@@ -205,6 +218,12 @@ export default async function AdminDashboardPage() {
       value: data.pagosPorVerificar,
       href: "/admin/pedidos",
       icon: WalletCards,
+    },
+    {
+      label: "Pagos fuera de SLA",
+      value: data.pagosFueraSla,
+      href: "/admin/pedidos",
+      icon: Clock3,
     },
     {
       label: "Productos con riesgo",
