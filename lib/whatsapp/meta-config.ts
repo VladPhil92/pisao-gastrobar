@@ -12,17 +12,16 @@ export function normalizeEmbeddedSignupConfigId(value: unknown): string | null {
 }
 
 export async function getEmbeddedSignupConfigId(): Promise<string | null> {
-  const fromEnv = normalizeEmbeddedSignupConfigId(
-    process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
-  );
-  if (fromEnv) return fromEnv;
-
   const saved = await prisma.whatsAppMetaConfig.findUnique({
     where: { id: PRIMARY_ID },
     select: { embeddedSignupConfigId: true },
   });
+  const persisted = normalizeEmbeddedSignupConfigId(saved?.embeddedSignupConfigId);
+  if (persisted) return persisted;
 
-  return normalizeEmbeddedSignupConfigId(saved?.embeddedSignupConfigId);
+  return normalizeEmbeddedSignupConfigId(
+    process.env.NEXT_PUBLIC_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
+  );
 }
 
 export async function saveEmbeddedSignupConfigId(
