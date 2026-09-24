@@ -68,7 +68,9 @@ export async function getOwnerGovernanceSnapshot() {
       rawEmail: isFederatedAdminEmail(user.email) ? null : user.email,
       rol: user.rol,
       activo: user.activo,
-      authSource: isFederatedAdminEmail(user.email) ? "CTG_ONE" : "LOCAL",
+      authSource: isFederatedAdminEmail(user.email)
+        ? ("CTG_ONE" as const)
+        : ("LOCAL" as const),
       sessionVersion: user.sessionVersion,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
