@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { kevGovernanceEnabled } from "@/lib/governance/kev-bridge";
 import { kevInboundEnabled } from "@/lib/governance/kev-inbound-security";
+import { kevIntelligenceEnabled } from "@/lib/governance/kev-intelligence";
 
 export type KevControlPlaneState =
   | "UNCONFIGURED"
@@ -22,6 +23,12 @@ const CAPABILITIES = [
     label: "Retorno consultivo",
     description:
       "Kev puede devolver propuestas tipadas a PISÁO; ingresan como acciones pendientes y nunca se ejecutan automáticamente.",
+  },
+  {
+    id: "intelligence-mirror",
+    label: "Inteligencia operativa",
+    description:
+      "PISÁO consulta un snapshot agregado de Kev para mostrar señales y recomendaciones sin replicar PII ni eventos crudos.",
   },
   {
     id: "human-approval",
@@ -70,6 +77,7 @@ export async function getKevControlPlaneSnapshot() {
 
   const configured = kevGovernanceEnabled();
   const inboundEnabled = kevInboundEnabled();
+  const intelligenceEnabled = kevIntelligenceEnabled();
   const lastAttempt = evidence[0] ?? null;
   const lastSuccess = evidence.find((item) => item.status === "SUCCESS") ?? null;
   const hasFailureAfterLastSuccess = Boolean(
@@ -120,9 +128,11 @@ export async function getKevControlPlaneSnapshot() {
       enabled:
         capability.id === "advisory-return"
           ? inboundEnabled
-          : capability.id === "outbound-governance"
-            ? configured
-            : true,
+          : capability.id === "intelligence-mirror"
+            ? intelligenceEnabled
+            : capability.id === "outbound-governance"
+              ? configured
+              : true,
     })),
     recentEvidence: evidence.slice(0, 20).map((item) => ({
       id: item.id,
