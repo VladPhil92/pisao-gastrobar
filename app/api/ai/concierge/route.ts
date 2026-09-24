@@ -62,6 +62,7 @@ import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
 import { getAdaptiveRevenueContext } from "@/lib/revenue/revenue-policy-engine";
+import { lookupOrderStatusForCustomer } from "@/lib/orders/customer-status";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -689,6 +690,7 @@ NATIVE TOOL CALLING
 - Usa search_menu para confirmar productos concretos cuando la solicitud lo requiera.
 - Usa get_active_table cuando necesites consultar la mesa activa antes de responder.
 - Usa check_reservation_availability para consultar cupo real; nunca la confundas con crear una reserva.
+- Usa get_order_status cuando el cliente pregunte por un pedido y haya proporcionado número de pedido y teléfono. Si falta alguno, pídeselo; no inventes ni reveles pedidos.
 - modify_active_table solo estará disponible cuando el último mensaje contenga una orden explícita de edición.
 - Una herramienta puede devolver error o denegar una mutación. Respeta siempre ese resultado.
 - No afirmes que una acción de carrito, reserva o pago fue ejecutada si no existe confirmación de la aplicación.
@@ -768,6 +770,7 @@ REGLAS ADICIONALES
           activeProposal,
           latestUserMessage: latestUserMessage.content,
           checkAvailability: checkReservationAvailability,
+          lookupOrderStatus: lookupOrderStatusForCustomer,
         });
 
         nativeToolCount += 1;

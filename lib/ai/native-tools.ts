@@ -12,7 +12,8 @@ export type NativeToolName =
   | "search_menu"
   | "get_active_table"
   | "modify_active_table"
-  | "check_reservation_availability";
+  | "check_reservation_availability"
+  | "get_order_status";
 
 export type NativeToolCall = {
   type: "function_call";
@@ -40,6 +41,11 @@ type CheckAvailability = (params: {
   hora: string;
   personas: number;
 }) => Promise<ReservationAvailability>;
+
+type LookupOrderStatus = (params: {
+  numero: number;
+  telefono: string;
+}) => Promise<unknown | null>;
 
 function normalize(value: string) {
   return value
@@ -163,6 +169,32 @@ export function buildNativeToolDefinitions(params: {
         type: "object",
         properties: {},
         required: [],
+        additionalProperties: false,
+      },
+    },
+    {
+      type: "function",
+      name: "get_order_status",
+      description:
+        "Consulta el estado real de un pedido PISÁO cuando el cliente proporciona número de pedido y teléfono. Solo devuelve estado operativo y de pago; nunca datos personales.",
+      strict: true,
+      parameters: {
+        type: "object",
+        properties: {
+          numero: {
+            type: "integer",
+            minimum: 1,
+            maximum: 10000000,
+            description: "Número visible del pedido.",
+          },
+          telefono: {
+            type: "string",
+            minLength: 7,
+            maxLength: 32,
+            description: "Teléfono del cliente para verificar acceso al pedido.",
+          },
+        },
+        required: ["numero", "telefono"],
         additionalProperties: false,
       },
     },
@@ -293,6 +325,7 @@ export async function executeNativeToolCall(params: {
   activeProposal: ConversationalProposal | null;
   latestUserMessage: string;
   checkAvailability: CheckAvailability;
+  lookupOrderStatus?: LookupOrderStatus;
 }): Promise<NativeToolExecution> {
   const args = parseArgs(params.call.arguments);
   const name = params.call.name as NativeToolName;
@@ -321,6 +354,52 @@ export async function executeNativeToolCall(params: {
         type: "function_call_output",
         call_id: params.call.call_id,
         output: safeJson({ ok: true, table: tableSnapshot(params.activeProposal) }),
+      },
+    };
+  }
+
+  if (name === "get_order_status") {
+    const numero =
+      typeof args.numero === "number" && Number.isFinite(args.numero)
+        ? Math.round(args.numero)
+        : 0;
+    const telefono =
+      typeof args.telefono === "string" ? args.telefono.slice(0, 32) : "";
+
+    if (numero <= 0 || telefono.length < 7) {
+      return {
+        toolName: name,
+        output: {
+          type: "function_call_output",
+          call_id: params.call.call_id,
+          output: safeJson({
+            ok: false,
+            code: "ORDER_VERIFICATION_REQUIRED",
+            error:
+              "Para consultar un pedido se requiere número de pedido y teléfono.",
+          }),
+        },
+      };
+    }
+
+    const snapshot = params.lookupOrderStatus
+      ? await params.lookupOrderStatus({ numero, telefono })
+      : null;
+    return {
+      toolName: name,
+      output: {
+        type: "function_call_output",
+        call_id: params.call.call_id,
+        output: safeJson(
+          snapshot
+            ? { ok: true, order: snapshot }
+            : {
+                ok: false,
+                code: "ORDER_NOT_VERIFIED",
+                error:
+                  "No se pudo verificar un pedido con ese número y teléfono.",
+              },
+        ),
       },
     };
   }

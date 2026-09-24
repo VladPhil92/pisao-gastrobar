@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCryptoPaymentDestination } from "@/lib/payments/crypto";
@@ -12,6 +12,10 @@ import {
   emitKevGovernanceEvent,
   governanceRef,
 } from "@/lib/governance/kev-bridge";
+import {
+  customerOrderNotificationEventKey,
+  processCustomerOrderNotification,
+} from "@/lib/notifications/customer-order";
 
 /**
  * Validación final de pagos manuales.
@@ -239,7 +243,13 @@ export async function POST(
     };
   }
 
-  const [pago, pedido] = await prisma.$transaction([
+  const customerEvent = aprobado ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED";
+  const customerEventKey = customerOrderNotificationEventKey({
+    pedidoId: id,
+    event: customerEvent,
+  });
+
+  const [pago, pedido, customerNotification] = await prisma.$transaction([
     prisma.pago.update({
       where: { pedidoId: id },
       data: {
@@ -290,7 +300,22 @@ export async function POST(
         items: { select: { cantidad: true } },
       },
     }),
+    prisma.customerOrderNotification.upsert({
+      where: { eventKey: customerEventKey },
+      create: {
+        eventKey: customerEventKey,
+        event: customerEvent,
+        pedidoId: id,
+        status: "PENDING",
+        nextAttemptAt: new Date(),
+      },
+      update: {},
+    }),
   ]);
+
+  after(async () => {
+    await processCustomerOrderNotification(customerNotification.id);
+  });
 
   void emitKevGovernanceEvent(
     aprobado ? "pisao.order.confirmed" : "pisao.order.cancelled",

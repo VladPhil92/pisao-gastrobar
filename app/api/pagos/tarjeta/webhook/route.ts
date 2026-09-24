@@ -1,6 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCardPaymentProvider } from "@/lib/payments/providers";
+import {
+  customerOrderNotificationEventKey,
+  processCustomerOrderNotification,
+} from "@/lib/notifications/customer-order";
 
 /**
  * Webhook único para el proveedor de tarjeta activo. La verificación de
@@ -26,15 +30,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
   }
 
-  await prisma.pago.update({
-    where: { id: pago.id },
-    data: { estado: evento.estado, payloadProveedor: payload },
-  });
+  let customerNotificationId: string | null = null;
 
   if (evento.estado === "APROBADO") {
-    await prisma.pedido.update({
-      where: { id: pago.pedidoId },
-      data: { estado: "CONFIRMADO" },
+    const event = "PAYMENT_APPROVED";
+    const eventKey = customerOrderNotificationEventKey({
+      pedidoId: pago.pedidoId,
+      event,
+    });
+
+    const [, , notification] = await prisma.$transaction([
+      prisma.pago.update({
+        where: { id: pago.id },
+        data: {
+          estado: evento.estado,
+          payloadProveedor: payload,
+          verificadoEn: new Date(),
+        },
+      }),
+      prisma.pedido.update({
+        where: { id: pago.pedidoId },
+        data: { estado: "CONFIRMADO" },
+      }),
+      prisma.customerOrderNotification.upsert({
+        where: { eventKey },
+        create: {
+          eventKey,
+          event,
+          pedidoId: pago.pedidoId,
+          status: "PENDING",
+          nextAttemptAt: new Date(),
+        },
+        update: {},
+      }),
+    ]);
+
+    customerNotificationId = notification.id;
+  } else {
+    await prisma.pago.update({
+      where: { id: pago.id },
+      data: { estado: evento.estado, payloadProveedor: payload },
+    });
+  }
+
+  if (customerNotificationId) {
+    after(async () => {
+      await processCustomerOrderNotification(customerNotificationId);
     });
   }
 
