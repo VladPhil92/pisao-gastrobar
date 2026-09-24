@@ -47,12 +47,6 @@ export async function createConfirmedReservation(
   const fechaDb = new Date(`${fecha}T00:00:00.000Z`);
   const cleanPhone = normalizePhone(telefono);
   const config = getReservationConfig();
-  const customerProfile = await resolveCrmCustomerProfile({
-    nombre,
-    email,
-    telefono: cleanPhone,
-    source: "RESERVATION",
-  });
 
   const reserva = await prisma.$transaction(async (tx) => {
     const lockKey = `reservation-day|${fecha}`;
@@ -114,12 +108,24 @@ export async function createConfirmedReservation(
         hora,
         personas,
         notas: notas || undefined,
-        customerProfileId: customerProfile?.id,
         mesas: allocation.assignedTables,
         estado: "CONFIRMADA",
       },
     });
   });
+
+  const customerProfile = await resolveCrmCustomerProfile({
+    nombre,
+    email,
+    telefono: cleanPhone,
+    source: "RESERVATION",
+  });
+  if (customerProfile) {
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { customerProfileId: customerProfile.id },
+    });
+  }
 
   await notifyReservationCreated({
     id: reserva.id,
