@@ -91,12 +91,12 @@ assert.ok(
 assert.match(
   loginForm,
   /\/auth\/ctgone\/start\?next=\/admin\/dashboard/,
-  "The admin login UI must make CTG One SSO the primary path.",
+  "The admin login UI must keep CTG One SSO available.",
 );
 assert.match(
   loginForm,
-  /Acceso local de staff/,
-  "Local credentials must remain explicitly scoped to operational staff.",
+  /Acceso con correo y contraseña/,
+  "Local credentials must remain available alongside CTG One federation.",
 );
 assert.match(
   loginPage,
