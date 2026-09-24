@@ -102,8 +102,11 @@ Flujo:
 2. Realiza el pago y carga una imagen o PDF del comprobante.
 3. El backend valida tipo, firma real del archivo, tamaño y SHA-256.
 4. La evidencia se persiste en Render PostgreSQL; nunca en el filesystem efímero.
-5. El equipo de pagos recibe el resumen en el canal configurado. Sin API externa,
-   la web abre WhatsApp al **+57 318 642 8218** con el mensaje prellenado.
+5. El backend intenta enviar el resumen y el comprobante por WhatsApp Cloud API.
+   Si WhatsApp no está disponible, el pedido y la evidencia permanecen en el
+   dashboard y se envía una alerta por correo al administrador mediante Resend.
+   El webhook configurado sigue disponible como canal redundante; como último
+   recurso, la web conserva el click-to-chat al **+57 318 642 8218**.
 6. ADMIN/CAJERO abre la evidencia desde `/admin/pedidos` y aprueba o rechaza.
 7. Solo al aprobar, el pedido pasa a `CONFIRMADO`.
 
