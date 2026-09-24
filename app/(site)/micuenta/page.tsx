@@ -4,6 +4,7 @@ import { ExternalLink, LogOut, ReceiptText, CalendarDays, ShieldCheck, Sparkles 
 
 import { Button } from "@/components/ui/Button";
 import { AccountAccess } from "@/components/account/AccountAccess";
+import { ReorderButton } from "@/components/account/ReorderButton";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/visual/VisualMotion";
 import {
@@ -77,6 +78,18 @@ export default async function MiCuentaPage() {
     total: { toString(): string };
     estado: string;
     createdAt: Date;
+    items: Array<{
+      cantidad: number;
+      producto: {
+        id: string;
+        nombre: string;
+        slug: string;
+        precio: { toString(): string };
+        imagenUrl: string | null;
+        disponible: boolean;
+        categoria: { slug: string };
+      };
+    }>;
   }> = [];
   let reservas: Array<{
     id: string;
@@ -92,7 +105,29 @@ export default async function MiCuentaPage() {
         where: { clienteEmail: { equals: sessionEmail, mode: "insensitive" } },
         orderBy: { createdAt: "desc" },
         take: 12,
-        select: { id: true, numero: true, total: true, estado: true, createdAt: true },
+        select: {
+          id: true,
+          numero: true,
+          total: true,
+          estado: true,
+          createdAt: true,
+          items: {
+            select: {
+              cantidad: true,
+              producto: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  slug: true,
+                  precio: true,
+                  imagenUrl: true,
+                  disponible: true,
+                  categoria: { select: { slug: true } },
+                },
+              },
+            },
+          },
+        },
       }),
       prisma.reserva.findMany({
         where: { email: { equals: sessionEmail, mode: "insensitive" } },
@@ -165,6 +200,18 @@ export default async function MiCuentaPage() {
                     <article key={pedido.id} className="group rounded-2xl border border-pisao-gold/10 bg-pisao-carbon/55 p-5 transition hover:border-pisao-gold/30">
                       <div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-pisao-cream">Pedido #{pedido.numero}</p><p className="mt-1 text-xs text-pisao-cream-muted">{formatDate(pedido.createdAt)}</p></div><span className="rounded-full bg-pisao-gold/10 px-3 py-1.5 text-[10px] font-semibold capitalize text-pisao-gold">{statusLabel(pedido.estado)}</span></div>
                       <p className="font-display mt-4 text-2xl text-pisao-gold">{formatMoney(pedido.total)}</p>
+                      <ReorderButton
+                        items={pedido.items.map((item) => ({
+                          productoId: item.producto.id,
+                          nombre: item.producto.nombre,
+                          slug: item.producto.slug,
+                          precio: Number(item.producto.precio.toString()),
+                          imagenUrl: item.producto.imagenUrl,
+                          categoriaSlug: item.producto.categoria.slug,
+                          cantidad: item.cantidad,
+                          disponible: item.producto.disponible,
+                        }))}
+                      />
                     </article>
                   ))}
                 </div>
