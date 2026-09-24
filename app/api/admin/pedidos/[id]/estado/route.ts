@@ -14,6 +14,8 @@ import {
   customerOrderNotificationEventKey,
   processCustomerOrderNotification,
 } from "@/lib/notifications/customer-order";
+import { awardDeliveredOrderPoints } from "@/lib/crm/loyalty";
+import { recordAdminAudit } from "@/lib/admin/audit";
 
 const allowedStatuses = new Set<OrderOperationalStatus>([
   "PENDIENTE_PAGO",
@@ -139,6 +141,33 @@ export async function POST(
       await processCustomerOrderNotification(customerNotification.id);
     });
   }
+
+  let loyaltyAward: { awarded: boolean; points: number } | null = null;
+  if (updated.estado === "ENTREGADO") {
+    try {
+      loyaltyAward = await awardDeliveredOrderPoints(updated.id);
+    } catch (error) {
+      console.error("[PISAO LOYALTY] No fue posible acreditar puntos", {
+        orderId: updated.id,
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
+  }
+
+  await recordAdminAudit({
+    actorUserId: (session.user as { id?: string }).id,
+    actorRole: rol ?? "UNKNOWN",
+    action: "ORDER_STATUS_CHANGED",
+    targetType: "Pedido",
+    targetId: updated.id,
+    detail: {
+      previousStatus: current.estado,
+      nextStatus: updated.estado,
+      loyaltyPointsAwarded: loyaltyAward?.awarded
+        ? loyaltyAward.points
+        : 0,
+    },
+  });
 
   void emitKevGovernanceEvent("pisao.order.status_changed", {
     order_ref: governanceRef(updated.id),
