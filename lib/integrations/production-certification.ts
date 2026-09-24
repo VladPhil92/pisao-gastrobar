@@ -10,6 +10,11 @@ import {
   getEmbeddedSignupConfigId,
   getWhatsAppRuntimeState,
 } from "@/lib/whatsapp/meta-config";
+import {
+  publicWebCertified,
+  publicWebEvidence,
+  type PublicWebProbe,
+} from "@/lib/integrations/public-web-certification-core";
 
 type EvidenceDetail = Record<string, string | number | boolean | null>;
 
@@ -55,8 +60,95 @@ function configuredKevBridge() {
   return url.startsWith("https://") && secret.length >= 32;
 }
 
+function publicBaseUrl() {
+  const configured = process.env.PISAO_PUBLIC_URL?.trim();
+  return configured || "https://pisaogastrobar.com";
+}
+
+async function probePublicWeb(): Promise<PublicWebProbe> {
+  const baseUrl = publicBaseUrl().replace(/\/$/, "");
+  const configured = baseUrl.startsWith("https://");
+
+  if (!configured) {
+    return {
+      configured: false,
+      homeOk: false,
+      currentRelease: false,
+      legacyReleaseAbsent: false,
+      healthOk: false,
+      databaseOk: false,
+      imageOk: false,
+      imageBytes: 0,
+      securityHeadersOk: false,
+    };
+  }
+
+  try {
+    const [homeResponse, healthResponse, imageResponse] = await Promise.all([
+      fetch(`${baseUrl}/`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(6_000),
+        headers: { "User-Agent": "PISAO-Certification/3.0" },
+      }),
+      fetch(`${baseUrl}/api/health`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(6_000),
+        headers: { "User-Agent": "PISAO-Certification/3.0" },
+      }),
+      fetch(`${baseUrl}/api/media/pisao-experience`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+        headers: { "User-Agent": "PISAO-Certification/3.0" },
+      }),
+    ]);
+
+    const [homeHtml, healthPayload, imageBytes] = await Promise.all([
+      homeResponse.text(),
+      healthResponse.json().catch(() => null) as Promise<{
+        status?: string;
+        database?: string;
+      } | null>,
+      imageResponse.arrayBuffer(),
+    ]);
+
+    const contentType = imageResponse.headers.get("content-type") ?? "";
+    const securityHeadersOk =
+      homeResponse.headers.get("x-content-type-options") === "nosniff" &&
+      Boolean(homeResponse.headers.get("strict-transport-security")) &&
+      Boolean(homeResponse.headers.get("content-security-policy"));
+
+    return {
+      configured,
+      homeOk: homeResponse.ok,
+      currentRelease:
+        homeHtml.includes("Patacones · Cerveza artesanal · Terraza") &&
+        homeHtml.includes("Así se vive PISÁO"),
+      legacyReleaseAbsent: !homeHtml.includes(
+        "Modo Plan · Mesa Visual · Concierge",
+      ),
+      healthOk: healthResponse.ok && healthPayload?.status === "ok",
+      databaseOk: healthPayload?.database === "available",
+      imageOk: imageResponse.ok && contentType.startsWith("image/"),
+      imageBytes: imageBytes.byteLength,
+      securityHeadersOk,
+    };
+  } catch {
+    return {
+      configured,
+      homeOk: false,
+      currentRelease: false,
+      legacyReleaseAbsent: false,
+      healthOk: false,
+      databaseOk: false,
+      imageOk: false,
+      imageBytes: 0,
+      securityHeadersOk: false,
+    };
+  }
+}
+
 export type ProductionCertificationGate = {
-  id: "OPENAI" | "WHATSAPP" | "PAYMENT_ALERTS" | "KEV" | "CRYPTO";
+  id: "PUBLIC_WEB" | "OPENAI" | "WHATSAPP" | "PAYMENT_ALERTS" | "KEV" | "CRYPTO";
   label: string;
   state: CertificationState;
   configured: boolean;
@@ -184,9 +276,10 @@ export async function getProductionCertificationSummary() {
     }),
   ]);
 
-  const [embeddedConfigId, whatsappRuntime] = await Promise.all([
+  const [embeddedConfigId, whatsappRuntime, publicWeb] = await Promise.all([
     getEmbeddedSignupConfigId(),
     getWhatsAppRuntimeState(),
+    probePublicWeb(),
   ]);
 
   const openAiConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -242,7 +335,42 @@ export async function getProductionCertificationSummary() {
   const cryptoPaymentEvidence = Boolean(lastApprovedCrypto?.verificadoEn);
   const cryptoEvidence = cryptoSchedulerEvidence && cryptoPaymentEvidence;
 
+  const publicWebIsCertified = publicWebCertified(publicWeb);
+
   const gates: ProductionCertificationGate[] = [
+    {
+      id: "PUBLIC_WEB",
+      label: "Web pública · Production Smoke",
+      state: deriveCertificationState(publicWeb.configured, publicWebIsCertified),
+      configured: publicWeb.configured,
+      evidenceAt: publicWebIsCertified ? new Date().toISOString() : null,
+      evidence: publicWebEvidence(publicWeb),
+      nextAction: !publicWeb.configured
+        ? "Configura PISAO_PUBLIC_URL con un dominio HTTPS."
+        : !publicWeb.homeOk
+          ? "Revisa dominio, SSL, Cloudflare y estado del servicio en Render."
+          : !publicWeb.currentRelease || !publicWeb.legacyReleaseAbsent
+            ? "El dominio no está sirviendo el release esperado; revisa caché/CDN y deployment activo."
+            : !publicWeb.imageOk || publicWeb.imageBytes < 50_000
+              ? "Corrige la entrega de /api/media/pisao-experience hasta que responda una imagen válida."
+              : !publicWeb.healthOk || !publicWeb.databaseOk
+                ? "Revisa /api/health y la conexión productiva con PostgreSQL."
+                : !publicWeb.securityHeadersOk
+                  ? "Restaura los headers de seguridad del dominio público."
+                  : "Sin acción inmediata; superficie pública certificada en vivo.",
+      checks: [
+        { label: "Dominio público HTTPS", ok: publicWeb.configured },
+        { label: "Home responde 200", ok: publicWeb.homeOk },
+        { label: "Release actual visible", ok: publicWeb.currentRelease },
+        { label: "Copy legacy ausente", ok: publicWeb.legacyReleaseAbsent },
+        { label: "Health + base de datos", ok: publicWeb.healthOk && publicWeb.databaseOk },
+        {
+          label: "Fotografía crítica entregada",
+          ok: publicWeb.imageOk && publicWeb.imageBytes >= 50_000,
+        },
+        { label: "Headers de seguridad", ok: publicWeb.securityHeadersOk },
+      ],
+    },
     {
       id: "OPENAI",
       label: "PISÁO Concierge · OpenAI",
@@ -379,7 +507,7 @@ export async function getProductionCertificationSummary() {
   ];
 
   return {
-    engineVersion: "production_certification_v2",
+    engineVersion: "production_certification_v3",
     windowDays,
     overall: deriveOverallCertification(gates.map((gate) => gate.state)),
     certifiedCount: gates.filter((gate) => gate.state === "CERTIFIED").length,
