@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { ensureFederatedAdminUser } from "@/lib/auth/federated-admin";
 import {
   createAdminSession,
   createCustomerSession,
@@ -28,20 +29,41 @@ function clearTransaction(response: NextResponse) {
   response.cookies.set(CTG_ONE_TRANSACTION_COOKIE, "", federationCookieOptions(0));
 }
 
+function failureDestination(
+  request: NextRequest,
+  transaction: { next: string } | null,
+  code: string,
+) {
+  const adminDestination =
+    transaction?.next === "/admin" || transaction?.next.startsWith("/admin/");
+  return new URL(
+    adminDestination
+      ? `/admin/login?ctgone=${encodeURIComponent(code)}`
+      : `/?ctgone=${encodeURIComponent(code)}`,
+    request.url,
+  );
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const transaction = readFederationTransaction(request.cookies.get(CTG_ONE_TRANSACTION_COOKIE)?.value);
 
   if (!transaction || !isValidFederationCallback(code, state) || !federationStateMatches(transaction.state, state!)) {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_invalid", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_invalid"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
 
   const secret = process.env.PISAO_FEDERATION_SECRET?.trim() ?? "";
   if (secret.length < 32) {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_unavailable", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_unavailable"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
@@ -58,13 +80,19 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify({ code, code_verifier: transaction.verifier }),
     });
   } catch {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_unavailable", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_unavailable"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
 
   if (!exchange.ok) {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_exchange_failed", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_exchange_failed"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
@@ -73,7 +101,10 @@ export async function GET(request: NextRequest) {
   try {
     data = (await exchange.json()) as ExchangeResponse;
   } catch {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_exchange_failed", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_exchange_failed"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
@@ -84,7 +115,10 @@ export async function GET(request: NextRequest) {
     typeof data.email !== "string" ||
     data.email_verified !== true
   ) {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_exchange_failed", request.url), 302);
+    const response = NextResponse.redirect(
+      failureDestination(request, transaction, "federation_exchange_failed"),
+      302,
+    );
     clearTransaction(response);
     return response;
   }
@@ -93,7 +127,33 @@ export async function GET(request: NextRequest) {
     transaction.next === "/admin" || transaction.next.startsWith("/admin/");
 
   if (adminDestination) {
-    const adminSession = createAdminSession(data.subject, data.email, data.role);
+    if (data.role !== "admin") {
+      const response = NextResponse.redirect(
+        failureDestination(request, transaction, "admin_required"),
+        302,
+      );
+      clearTransaction(response);
+      return response;
+    }
+
+    let localAdmin;
+    try {
+      localAdmin = await ensureFederatedAdminUser(data.subject);
+    } catch {
+      const response = NextResponse.redirect(
+        failureDestination(request, transaction, "local_actor_failed"),
+        302,
+      );
+      clearTransaction(response);
+      return response;
+    }
+
+    const adminSession = createAdminSession(
+      data.subject,
+      localAdmin.id,
+      data.email,
+      data.role,
+    );
     if (!adminSession) {
       const response = NextResponse.redirect(
         new URL("/admin/login?ctgone=admin_required", request.url),

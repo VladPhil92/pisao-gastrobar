@@ -6,13 +6,22 @@ import {
   CTG_ONE_TRANSACTION_COOKIE,
   CTG_ONE_TRANSACTION_MAX_AGE_SECONDS,
   federationCookieOptions,
+  normalizeFederationNext,
 } from "@/lib/auth/ctgone-federation";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const transaction = createFederationTransaction(request.nextUrl.searchParams.get("next"));
+  const next = normalizeFederationNext(request.nextUrl.searchParams.get("next"));
+  const transaction = createFederationTransaction(next);
   if (!transaction) {
+    const adminDestination = next === "/admin" || next.startsWith("/admin/");
+    if (adminDestination) {
+      return NextResponse.redirect(
+        new URL("/admin/login?ctgone=federation_unavailable", request.url),
+        302,
+      );
+    }
     return NextResponse.json(
       { error: "CTG_ONE_FEDERATION_NOT_CONFIGURED" },
       { status: 503, headers: { "Cache-Control": "no-store" } },

@@ -12,16 +12,9 @@ export const handlers = nextAuth.handlers;
 export const signIn = nextAuth.signIn;
 export const signOut = nextAuth.signOut;
 
-export async function auth(): Promise<Session | null> {
-  const localSession = await nextAuth.auth();
-  if (localSession?.user) return localSession;
-
-  const cookieStore = await cookies();
-  const federated = readAdminSession(
-    cookieStore.get(CTG_ONE_ADMIN_SESSION_COOKIE)?.value,
-  );
-  if (!federated) return null;
-
+function federatedSession(
+  federated: NonNullable<ReturnType<typeof readAdminSession>>,
+): Session {
   const session: Session = {
     user: {
       name: "CTG One Admin",
@@ -32,7 +25,7 @@ export async function auth(): Promise<Session | null> {
   };
 
   (session.user as { id?: string; rol?: string; authSource?: string }).id =
-    federated.sub;
+    federated.localUserId;
   (session.user as { id?: string; rol?: string; authSource?: string }).rol =
     federated.rol;
   (
@@ -40,4 +33,16 @@ export async function auth(): Promise<Session | null> {
   ).authSource = "ctgone";
 
   return session;
+}
+
+export async function auth(): Promise<Session | null> {
+  // Federated ADMIN authority intentionally wins over any stale local
+  // CAJERO/COCINA session that may still exist in the same browser.
+  const cookieStore = await cookies();
+  const federated = readAdminSession(
+    cookieStore.get(CTG_ONE_ADMIN_SESSION_COOKIE)?.value,
+  );
+  if (federated) return federatedSession(federated);
+
+  return nextAuth.auth();
 }
