@@ -7,6 +7,7 @@ import {
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
 import { OrderStatusControls } from "@/components/admin/OrderStatusControls";
 import { PaymentNotificationRetryButton } from "@/components/admin/PaymentNotificationRetryButton";
+import { CustomerNotificationRetryButton } from "@/components/admin/CustomerNotificationRetryButton";
 import { paymentReviewSlaMinutes } from "@/lib/notifications/payment-ops";
 
 const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
@@ -70,6 +71,18 @@ async function getPedidos() {
             nextAttemptAt: true,
           },
         },
+        customerNotifications: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            event: true,
+            status: true,
+            provider: true,
+            attempts: true,
+            deliveredAt: true,
+          },
+        },
       },
     });
   } catch {
@@ -106,6 +119,7 @@ export default async function AdminPedidosPage() {
                 <th className="px-4 py-3">Comprobante</th>
                 <th className="px-4 py-3">SLA pago</th>
                 <th className="px-4 py-3">Alerta admin</th>
+                <th className="px-4 py-3">Aviso cliente</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -261,6 +275,37 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
+                      {p.customerNotifications[0] ? (
+                        <div className="space-y-1 text-xs">
+                          <p
+                            className={
+                              p.customerNotifications[0].status === "DELIVERED"
+                                ? "font-semibold text-emerald-300"
+                                : p.customerNotifications[0].status === "DEAD_LETTER"
+                                  ? "font-semibold text-red-300"
+                                  : "font-semibold text-amber-200"
+                            }
+                          >
+                            {p.customerNotifications[0].status}
+                          </p>
+                          <p className="text-pisao-cream-muted">
+                            {p.customerNotifications[0].provider ?? "sin canal"} ·{" "}
+                            {p.customerNotifications[0].attempts} intento(s)
+                          </p>
+                          <p className="text-pisao-cream-muted">
+                            {p.customerNotifications[0].event}
+                          </p>
+                          {p.customerNotifications[0].status !== "DELIVERED" && (
+                            <CustomerNotificationRetryButton
+                              notificationId={p.customerNotifications[0].id}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-pisao-cream-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="space-y-2">
                         {p.estado === "PENDIENTE_VERIFICACION" && (
                           <VerificarPagoButtons pedidoId={p.id} />
@@ -278,7 +323,7 @@ export default async function AdminPedidosPage() {
               {pedidos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-4 py-6 text-center text-pisao-cream-muted"
                   >
                     Aún no hay pedidos.
