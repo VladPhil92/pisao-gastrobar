@@ -118,6 +118,18 @@ async function notifyPaymentAdminEmail(params: {
   return true;
 }
 
+export async function sendPaymentAdminTestEmail() {
+  return notifyPaymentAdminEmail({
+    orderNumber: 0,
+    subject: "PISÁO · Prueba de alertas administrativas",
+    message: [
+      "Prueba sintética de Payment Operations Reliability V2.",
+      "No corresponde a una venta ni a un pago real.",
+      `Fecha: ${new Date().toISOString()}`,
+    ].join("\n"),
+  });
+}
+
 export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
   const items = order.items
     .map(
