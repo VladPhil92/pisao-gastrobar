@@ -30,6 +30,7 @@ export type CtgOneCustomerSession = {
 
 export type CtgOneAdminSession = {
   sub: string;
+  localUserId: string;
   email: string;
   emailVerified: true;
   rol: "ADMIN";
@@ -80,7 +81,12 @@ function decodeSigned<T>(raw: string | undefined): T | null {
 
 export function normalizeFederationNext(value: string | null | undefined): string {
   const candidate = value?.trim() ?? "";
-  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.length > 512) {
+  if (
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.includes("\\") ||
+    candidate.length > 512
+  ) {
     return "/micuenta";
   }
   return candidate;
@@ -128,6 +134,7 @@ export function createCustomerSession(subject: string, email: string): string | 
   const issuedAt = Date.now();
   return encodeSigned({
     sub: subject,
+    localUserId,
     email: normalizedEmail,
     emailVerified: true,
     issuedAt,
@@ -145,12 +152,14 @@ export function readCustomerSession(raw: string | undefined): CtgOneCustomerSess
 
 export function createAdminSession(
   subject: string,
+  localUserId: string,
   email: string,
   ctgRole: unknown,
 ): string | null {
   const normalizedEmail = email.trim().toLowerCase();
   if (
     !subject ||
+    !localUserId ||
     !normalizedEmail ||
     !normalizedEmail.includes("@") ||
     ctgRole !== "admin"
@@ -174,6 +183,7 @@ export function readAdminSession(raw: string | undefined): CtgOneAdminSession | 
   if (!session) return null;
   if (
     !session.sub ||
+    !session.localUserId ||
     !session.email ||
     session.emailVerified !== true ||
     session.rol !== "ADMIN"
