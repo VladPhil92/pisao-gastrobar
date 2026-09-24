@@ -26,7 +26,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-pisao-gold/10 bg-pisao-carbon/80 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-2xl">
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-pisao-gold/45 to-transparent" />
-      <Container className="flex h-[4.5rem] items-center justify-between">
+      <Container className="flex h-[4.25rem] items-center justify-between sm:h-[4.5rem]">
         <Link href="/" className="group flex items-center gap-3" aria-label="Ir al inicio de PISÁO">
           <span className="relative flex size-10 items-center justify-center overflow-hidden rounded-full border border-pisao-gold/20 bg-pisao-noche transition duration-300 group-hover:border-pisao-gold/55 group-hover:shadow-[0_0_30px_rgba(199,154,58,.16)]">
             <Image src="/brand/pisao-mark.png" alt="" width={34} height={34} className="h-8 w-8 transition duration-500 group-hover:scale-110" priority />
@@ -67,7 +67,7 @@ export function Header() {
             type="button"
             aria-label="Abrir carrito"
             onClick={openCart}
-            className="relative flex size-10 items-center justify-center rounded-full border border-transparent text-pisao-cream transition duration-300 hover:border-pisao-gold/20 hover:bg-pisao-gold/5 hover:text-pisao-gold"
+            className="relative flex size-11 items-center justify-center rounded-full border border-transparent text-pisao-cream transition duration-300 hover:border-pisao-gold/20 hover:bg-pisao-gold/5 hover:text-pisao-gold sm:size-10"
           >
             <ShoppingBag className="size-5" />
             {count > 0 && (
@@ -84,7 +84,7 @@ export function Header() {
             type="button"
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
-            className="flex size-10 items-center justify-center rounded-full border border-pisao-gold/15 text-pisao-cream transition hover:border-pisao-gold/40 lg:hidden"
+            className="flex size-11 items-center justify-center rounded-full border border-pisao-gold/15 text-pisao-cream transition hover:border-pisao-gold/40 sm:size-10 lg:hidden"
             onClick={() => setMenuOpen((v) => !v)}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -93,7 +93,7 @@ export function Header() {
       </Container>
 
       {menuOpen && (
-        <div className="border-t border-pisao-gold/10 bg-pisao-carbon/97 lg:hidden">
+        <div className="max-h-[calc(100svh-4.25rem)] overflow-y-auto border-t border-pisao-gold/10 bg-pisao-carbon/97 sm:max-h-[calc(100svh-4.5rem)] lg:hidden">
           <Container className="py-5">
             <div className="grid gap-5 md:grid-cols-[.9fr_1.1fr]">
               <nav className="flex flex-col gap-1" aria-label="Navegación móvil">
@@ -117,7 +117,7 @@ export function Header() {
 
               <div className="grid grid-cols-3 gap-2">
                 {visualLinks.map((item) => (
-                  <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="group relative min-h-36 overflow-hidden rounded-2xl border border-pisao-gold/10">
+                  <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="group relative min-h-28 overflow-hidden rounded-2xl border border-pisao-gold/10 sm:min-h-36">
                     <Image src={item.image} alt="" fill sizes="33vw" className="object-cover transition duration-500 group-hover:scale-105" />
                     <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/15 to-transparent" />
                     <span className="absolute right-3 bottom-3 left-3 font-display text-sm text-pisao-cream">{item.label}</span>
