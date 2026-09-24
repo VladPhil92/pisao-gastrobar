@@ -1,5 +1,4 @@
 import {
-import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Activity,
   Eye,
   Gauge,
@@ -9,6 +8,7 @@ import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Target,
   Users,
 } from "lucide-react";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getBehavioralIntelligence } from "@/lib/analytics/behavioral-intelligence";
 
 function slugLabel(value: string) {
