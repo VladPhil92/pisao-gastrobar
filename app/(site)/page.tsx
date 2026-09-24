@@ -83,7 +83,7 @@ const editorialPlates = [
 export default function HomePage() {
   return (
     <>
-      <section className="pisao-grain bg-pisao-noche relative min-h-[88svh] overflow-hidden lg:min-h-[calc(100svh-4rem)]">
+      <section className="pisao-grain bg-pisao-noche relative min-h-[82svh] overflow-hidden sm:min-h-[88svh] lg:min-h-[calc(100svh-4rem)]">
         <Image
           src="/gallery/patacon_callejero.jpg"
           alt="Patacón insignia de PISÁO Gastrobar"
@@ -96,7 +96,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(17,17,17,.92)_100%)]" />
         <div className="pisao-ambient-glow absolute -top-24 right-[8%] size-[32rem] rounded-full bg-pisao-gold/15 blur-[100px]" />
 
-        <Container className="relative grid min-h-[88svh] items-end gap-10 pb-16 pt-28 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:pb-20">
+        <Container className="relative grid min-h-[82svh] items-end gap-8 pb-12 pt-24 sm:min-h-[88svh] sm:gap-10 sm:pb-16 sm:pt-28 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:pb-20">
           <div className="relative z-10 max-w-4xl">
             <div className="border-pisao-gold/30 bg-pisao-carbon/55 text-pisao-gold inline-flex rounded-full border px-4 py-2 text-[11px] font-semibold tracking-[0.24em] uppercase backdrop-blur-xl">
               {siteConfig.location.label}
@@ -109,15 +109,15 @@ export default function HomePage() {
               Patacones, cayeye, burgers y cerveza artesanal en una experiencia que empieza en la pantalla y termina alrededor de una mesa.
             </p>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Button href="/menu" variant="primary">Pedir ahora</Button>
-              <Button href="/reservas" variant="outline">Reservar mesa</Button>
-              <Button href="/galeria" variant="ghost">Ver PISÁO</Button>
+            <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
+              <Button href="/menu" variant="primary" className="w-full sm:w-auto">Pedir ahora</Button>
+              <Button href="/reservas" variant="outline" className="w-full sm:w-auto">Reservar mesa</Button>
+              <Button href="/galeria" variant="ghost" className="w-full sm:w-auto">Ver PISÁO</Button>
             </div>
 
             <div className="text-pisao-cream-muted mt-10 flex flex-wrap gap-x-6 gap-y-2 text-xs">
               <span>Terraza Panorámica · Mall Plaza Cartagena</span>
-              <span>Modo Plan · Mesa Visual · Concierge</span>
+              <span>Patacones · Cerveza artesanal · Terraza</span>
             </div>
           </div>
 
@@ -148,14 +148,13 @@ export default function HomePage() {
         <ImageMarquee photos={visualStrip} />
       </section>
 
-      <section className="border-pisao-gold/10 bg-pisao-noche border-b py-16 sm:py-24">
+      <section className="border-pisao-gold/10 bg-pisao-noche border-b py-14 sm:py-24">
         <Container className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-          <Reveal className="relative min-h-[560px] overflow-hidden rounded-[2.5rem] border border-pisao-gold/15 sm:min-h-[680px]">
+          <Reveal className="relative min-h-[430px] overflow-hidden rounded-[2rem] border border-pisao-gold/15 sm:min-h-[600px] sm:rounded-[2.5rem] lg:min-h-[680px]">
             <Image
               src="/api/media/pisao-experience"
               alt="Un momento de sabor en PISÁO"
               fill
-              priority
               unoptimized
               sizes="(min-width: 1024px) 52vw, 100vw"
               className="object-cover object-center"
@@ -164,21 +163,21 @@ export default function HomePage() {
           </Reveal>
           <Reveal delay={100} className="lg:pl-6">
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">Así se vive PISÁO</p>
-            <h2 className="font-display text-pisao-cream mt-3 max-w-[12ch] text-5xl leading-[.98] sm:text-6xl">
+            <h2 className="font-display text-pisao-cream mt-3 max-w-[12ch] text-4xl leading-[.98] sm:text-6xl">
               Hay antojos que no se explican.
             </h2>
             <p className="text-pisao-cream-muted mt-5 max-w-lg text-base leading-relaxed sm:text-lg">
               Se piden, se comparten y se disfrutan. Ven con hambre; del resto nos encargamos nosotros.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button href="/menu" variant="primary">Ver la carta</Button>
-              <Button href="/reservas" variant="outline">Reservar mesa</Button>
+              <Button href="/menu" variant="primary" className="w-full sm:w-auto">Ver la carta</Button>
+              <Button href="/reservas" variant="outline" className="w-full sm:w-auto">Reservar mesa</Button>
             </div>
           </Reveal>
         </Container>
       </section>
 
-      <section id="elige-tu-plan" className="py-20 sm:py-28">
+      <section id="elige-tu-plan" className="py-16 sm:py-28">
         <Container>
           <Reveal className="max-w-3xl">
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">¿Qué plan tienes?</p>
@@ -212,7 +211,7 @@ export default function HomePage() {
                 </>
               );
 
-              const classes = "pisao-image-lift group relative block h-full min-h-[420px] w-full min-w-0 overflow-hidden rounded-[2rem] border border-pisao-gold/15 bg-pisao-noche sm:min-h-[460px] xl:min-h-[500px]";
+              const classes = "pisao-image-lift group relative block h-full min-h-[390px] w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-pisao-gold/15 bg-pisao-noche sm:min-h-[460px] sm:rounded-[2rem] xl:min-h-[500px]";
 
               return (
                 <Reveal key={item.title} delay={index * 100} className="h-full min-w-0">
@@ -228,7 +227,7 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className="bg-pisao-noche overflow-hidden py-20 sm:py-28">
+      <section className="bg-pisao-noche overflow-hidden py-16 sm:py-28">
         <Container>
           <Reveal className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
             <div className="max-w-3xl">
@@ -237,7 +236,7 @@ export default function HomePage() {
                 Esto entra por los ojos.
               </h2>
             </div>
-            <Button href="/menu" variant="outline">Ver carta completa</Button>
+            <Button href="/menu" variant="outline" className="w-full sm:w-auto">Ver carta completa</Button>
           </Reveal>
 
           <div className="mt-12 grid auto-rows-[190px] gap-4 md:grid-cols-12 md:auto-rows-[170px]">
@@ -259,17 +258,17 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className="relative overflow-hidden border-y border-pisao-gold/10 py-20 sm:py-28">
+      <section className="relative overflow-hidden border-y border-pisao-gold/10 py-16 sm:py-28">
         <div className="pisao-ambient-glow absolute -left-32 top-20 size-[34rem] rounded-full bg-pisao-gold/8 blur-[110px]" />
         <Container className="relative grid gap-12 lg:grid-cols-[1.08fr_.92fr] lg:items-center lg:gap-16">
-          <Reveal className="relative min-h-[580px]">
-            <div className="pisao-image-lift absolute top-0 left-0 h-[76%] w-[74%] overflow-hidden rounded-[2.5rem] border border-pisao-gold/15">
+          <Reveal className="relative min-h-[460px] sm:min-h-[580px]">
+            <div className="pisao-image-lift absolute top-0 left-0 h-[72%] w-[80%] overflow-hidden rounded-[2rem] border border-pisao-gold/15 sm:h-[76%] sm:w-[74%] sm:rounded-[2.5rem]">
               <Image src="/gallery/terraza-atardecer.jpg" alt="Terraza PISÁO al atardecer" fill sizes="(min-width:1024px) 40vw, 74vw" className="object-cover" />
             </div>
-            <div className="pisao-float-slow pisao-image-lift absolute right-0 bottom-0 h-[56%] w-[54%] overflow-hidden rounded-[2rem] border-4 border-pisao-carbon bg-pisao-noche shadow-2xl">
+            <div className="pisao-float-slow pisao-image-lift absolute right-0 bottom-0 h-[52%] w-[62%] overflow-hidden rounded-[1.75rem] border-4 border-pisao-carbon bg-pisao-noche shadow-2xl sm:h-[56%] sm:w-[54%] sm:rounded-[2rem]">
               <Image src="/gallery/terraza-cervezas.jpg" alt="Cervezas artesanales en la terraza PISÁO" fill sizes="(min-width:1024px) 28vw, 54vw" className="object-cover" />
             </div>
-            <div className="border-pisao-gold/20 bg-pisao-carbon/80 absolute bottom-[8%] left-[4%] max-w-[240px] rounded-2xl border p-4 backdrop-blur-xl">
+            <div className="border-pisao-gold/20 bg-pisao-carbon/80 absolute bottom-[5%] left-[3%] max-w-[210px] rounded-2xl border p-3 backdrop-blur-xl sm:bottom-[8%] sm:left-[4%] sm:max-w-[240px] sm:p-4">
               <p className="text-pisao-gold text-[9px] font-semibold tracking-[.2em] uppercase">La hora dorada</p>
               <p className="font-display mt-1 text-xl text-pisao-cream">La terraza cambia cuando cae la tarde.</p>
             </div>
@@ -282,14 +281,14 @@ export default function HomePage() {
               Cae la tarde, llega la cerveza y la conversación se alarga. Arriba, Cartagena se disfruta distinto.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button href="/reservas" variant="primary">Quiero venir</Button>
-              <Button href="/galeria" variant="outline">Ver la experiencia</Button>
+              <Button href="/reservas" variant="primary" className="w-full sm:w-auto">Quiero venir</Button>
+              <Button href="/galeria" variant="outline" className="w-full sm:w-auto">Ver la experiencia</Button>
             </div>
           </Reveal>
         </Container>
       </section>
 
-      <section className="py-20 sm:py-28">
+      <section className="py-16 sm:py-28">
         <Container className="grid gap-12 lg:grid-cols-[.95fr_1.05fr] lg:items-center">
           <Reveal>
             <div className="border-pisao-gold/15 bg-pisao-noche inline-flex items-center gap-2 rounded-full border px-4 py-2">
@@ -310,11 +309,11 @@ export default function HomePage() {
             </div>
           </Reveal>
 
-          <Reveal delay={120} className="relative min-h-[510px]">
-            <div className="pisao-image-lift absolute right-0 top-0 h-[78%] w-[66%] overflow-hidden rounded-[2.25rem] border border-pisao-gold/15">
+          <Reveal delay={120} className="relative min-h-[450px] sm:min-h-[510px]">
+            <div className="pisao-image-lift absolute right-0 top-0 h-[74%] w-[72%] overflow-hidden rounded-[2rem] border border-pisao-gold/15 sm:h-[78%] sm:w-[66%] sm:rounded-[2.25rem]">
               <Image src="/gallery/patacon_montanero.jpg" alt="Patacón Montañero" fill sizes="34vw" className="object-cover" />
             </div>
-            <div className="border-pisao-gold/20 bg-pisao-noche/95 absolute bottom-0 left-0 z-10 w-[78%] rounded-[2rem] border p-5 shadow-2xl backdrop-blur-xl sm:p-7">
+            <div className="border-pisao-gold/20 bg-pisao-noche/95 absolute bottom-0 left-0 z-10 w-[86%] rounded-[1.75rem] border p-4 shadow-2xl backdrop-blur-xl sm:w-[78%] sm:rounded-[2rem] sm:p-7">
               <p className="text-pisao-cream-muted text-xs">Tú</p>
               <div className="bg-pisao-gold text-pisao-carbon mt-2 ml-auto max-w-[86%] rounded-2xl rounded-br-md px-4 py-3 text-sm">
                 Somos 4. Queremos compartir y después algo fuerte. Presupuesto: $180.000.
@@ -328,14 +327,14 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className="bg-pisao-carbon-soft/35 overflow-hidden py-16 sm:py-24">
+      <section className="bg-pisao-carbon-soft/35 overflow-hidden py-14 sm:py-24">
         <Container className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-          <Reveal className="relative min-h-[430px]">
-            <div className="pisao-image-lift absolute inset-y-0 left-0 w-[86%] overflow-hidden rounded-[2.5rem]">
+          <Reveal className="relative min-h-[360px] sm:min-h-[430px]">
+            <div className="pisao-image-lift absolute inset-y-0 left-0 w-full overflow-hidden rounded-[2rem] sm:w-[86%] sm:rounded-[2.5rem]">
               <Image src="/promo/domicilios-hamburguesas.jpg" alt="Promoción de domicilios PISÁO" fill sizes="(min-width:1024px) 45vw, 100vw" className="object-cover" />
             </div>
-            <div className="bg-pisao-gold text-pisao-carbon absolute right-0 bottom-8 rounded-[1.75rem] px-6 py-5 shadow-2xl">
-              <span className="font-display block text-5xl">{siteConfig.delivery.descuentoDomicilios}</span>
+            <div className="bg-pisao-gold text-pisao-carbon absolute right-0 bottom-4 rounded-[1.5rem] px-5 py-4 shadow-2xl sm:bottom-8 sm:rounded-[1.75rem] sm:px-6 sm:py-5">
+              <span className="font-display block text-4xl sm:text-5xl">{siteConfig.delivery.descuentoDomicilios}</span>
               <span className="mt-1 block max-w-28 text-xs font-bold uppercase">beneficio en domicilios</span>
             </div>
           </Reveal>
@@ -347,8 +346,8 @@ export default function HomePage() {
               Pide desde la carta o escríbenos por WhatsApp. Tú eliges cómo; nosotros ponemos el sabor.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button href="/menu" variant="primary">Armar pedido</Button>
-              <Button href={whatsappLink("Hola PISÁO, quiero hacer un pedido a domicilio.")} variant="outline" target="_blank" rel="noreferrer">
+              <Button href="/menu" variant="primary" className="w-full sm:w-auto">Armar pedido</Button>
+              <Button href={whatsappLink("Hola PISÁO, quiero hacer un pedido a domicilio.")} variant="outline" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
                 Pedir por WhatsApp
               </Button>
             </div>
