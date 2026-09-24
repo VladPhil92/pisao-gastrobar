@@ -6,6 +6,7 @@ import {
   emitKevGovernanceEvent,
   governanceRef,
 } from "@/lib/governance/kev-bridge";
+import { recordAdminAudit } from "@/lib/admin/audit";
 
 const TYPES = new Set(["CONTEO", "ENTRADA", "SALIDA", "MERMA", "AJUSTE"]);
 
@@ -93,6 +94,20 @@ export async function POST(
     });
 
     const affected = await recomputeRecipeRiskForIngredient(id);
+
+    await recordAdminAudit({
+      actorUserId: user.id,
+      actorRole: user.rol ?? "UNKNOWN",
+      action: "INVENTORY_STOCK_CHANGED",
+      targetType: "InventarioInsumo",
+      targetId: id,
+      detail: {
+        movementType: tipo,
+        delta: Number(movement.delta),
+        resultingStock: Number(movement.stockPosterior),
+        affectedProducts: affected.length,
+      },
+    });
 
     void emitKevGovernanceEvent("pisao.inventory.stock_changed", {
       source: "inventory_v6",
