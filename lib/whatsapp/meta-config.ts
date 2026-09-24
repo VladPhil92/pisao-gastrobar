@@ -53,6 +53,8 @@ export async function getWhatsAppRuntimeState() {
       lastProbeAt: true,
       lastProbeStatus: true,
       lastProbeCode: true,
+      lastAutoPauseAt: true,
+      lastAutoPauseReason: true,
     },
   });
 
@@ -72,6 +74,8 @@ export async function getWhatsAppRuntimeState() {
     lastProbeAt: saved?.lastProbeAt ?? null,
     lastProbeStatus: saved?.lastProbeStatus ?? null,
     lastProbeCode: saved?.lastProbeCode ?? null,
+    lastAutoPauseAt: saved?.lastAutoPauseAt ?? null,
+    lastAutoPauseReason: saved?.lastAutoPauseReason ?? null,
   };
 }
 
