@@ -33,7 +33,7 @@ export function AdminLoginForm({
 
     if (result?.error) {
       setLocalError(
-        "Correo o contraseña incorrectos.",
+        "Correo o contraseña interna de PISÁO incorrectos. Si estás usando tu contraseña de CTG One, entra con el botón “Entrar con mi cuenta CTG One”.",
       );
       return;
     }
@@ -57,28 +57,36 @@ export function AdminLoginForm({
           PISÁO Admin
         </p>
         <p className="text-pisao-cream-muted mt-1 text-sm leading-relaxed">
-          Administradores y empleados pueden ingresar con sus credenciales de PISÁO.
-          Si tu cuenta está federada, también puedes continuar con CTG One.
+          El acceso propietario y administrativo federado se valida directamente en CTG One.
+          Las credenciales internas de PISÁO quedan reservadas para empleados operativos.
         </p>
 
-        <a
-          href="/auth/ctgone/start?next=/admin/dashboard"
-          className="bg-pisao-gold text-pisao-carbon hover:brightness-105 mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition"
-        >
-          <LogIn className="h-4 w-4" />
-          Continuar con CTG One
-        </a>
+        <div className="border-pisao-gold/15 bg-pisao-gold/[.045] mt-6 rounded-xl border p-4">
+          <p className="text-pisao-gold text-xs font-bold tracking-[.12em] uppercase">
+            Acceso propietario / administrador CTG One
+          </p>
+          <p className="text-pisao-cream-muted mt-2 text-xs leading-relaxed">
+            Usa tu misma cuenta de CTG One. La contraseña se valida en CTG One y no se copia ni se guarda en PISÁO.
+          </p>
+          <a
+            href="/auth/ctgone/start?next=/admin/dashboard"
+            className="bg-pisao-gold text-pisao-carbon hover:brightness-105 mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition"
+          >
+            <LogIn className="h-4 w-4" />
+            Entrar con mi cuenta CTG One
+          </a>
+        </div>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
         <div className="border-pisao-gold/10 mt-6 border-t pt-5">
           <p className="text-pisao-cream-muted text-xs font-semibold">
-            Acceso con correo y contraseña
+            Acceso interno de empleados PISÁO
           </p>
 
           <form onSubmit={onSubmit} className="mt-4">
             <p className="text-pisao-cream-muted mb-4 text-xs leading-relaxed">
-              Usa las credenciales asignadas a tu perfil administrativo u operativo de PISÁO.
+              Usa únicamente las credenciales internas asignadas por PISÁO. Este formulario no valida contraseñas de CTG One.
             </p>
 
             <div className="space-y-4">
