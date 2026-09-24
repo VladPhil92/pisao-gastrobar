@@ -148,13 +148,43 @@ export default function HomePage() {
         <ImageMarquee photos={visualStrip} />
       </section>
 
+      <section className="border-pisao-gold/10 bg-pisao-noche border-b py-16 sm:py-24">
+        <Container className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+          <Reveal className="relative min-h-[560px] overflow-hidden rounded-[2.5rem] border border-pisao-gold/15 sm:min-h-[680px]">
+            {/* Google Drive serves the original 1188×1600 JPEG without an extra lossy re-encode in the app. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://drive.google.com/thumbnail?id=1lY9FmPQBnsyzMcPFd1fQZziMqMZ34UkH&sz=w1600"
+              alt="Un momento de sabor en PISÁO"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              loading="eager"
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-transparent" />
+          </Reveal>
+          <Reveal delay={100} className="lg:pl-6">
+            <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">Así se vive PISÁO</p>
+            <h2 className="font-display text-pisao-cream mt-3 max-w-[12ch] text-5xl leading-[.98] sm:text-6xl">
+              Hay antojos que no se explican.
+            </h2>
+            <p className="text-pisao-cream-muted mt-5 max-w-lg text-base leading-relaxed sm:text-lg">
+              Se piden, se comparten y se disfrutan. Ven con hambre; del resto nos encargamos nosotros.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button href="/menu" variant="primary">Ver la carta</Button>
+              <Button href="/reservas" variant="outline">Reservar mesa</Button>
+            </div>
+          </Reveal>
+        </Container>
+      </section>
+
       <section id="elige-tu-plan" className="py-20 sm:py-28">
         <Container>
           <Reveal className="max-w-3xl">
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">¿Qué plan tienes?</p>
             <h2 className="font-display text-pisao-cream mt-3 max-w-[18ch] text-4xl leading-[1.02] text-balance sm:text-5xl lg:text-6xl">
-              No empieces por leer.
-              <span className="block text-pisao-gold">Empieza por sentir hambre.</span>
+              El plan empieza aquí.
+              <span className="block text-pisao-gold">¿Qué te provoca hoy?</span>
             </h2>
             <p className="text-pisao-cream-muted mt-5 max-w-2xl text-sm leading-relaxed sm:text-base">
               ¿Vienes a comer, a tomar algo o a pasar un buen rato? Empieza por ahí.
@@ -264,11 +294,11 @@ export default function HomePage() {
           <Reveal>
             <div className="border-pisao-gold/15 bg-pisao-noche inline-flex items-center gap-2 rounded-full border px-4 py-2">
               <Sparkles className="text-pisao-gold size-3.5" />
-              <span className="text-pisao-cream-muted text-xs font-semibold tracking-wider uppercase">Concierge IA PISÁO</span>
+              <span className="text-pisao-cream-muted text-xs font-semibold tracking-wider uppercase">PISÁO te ayuda</span>
             </div>
             <h2 className="font-display text-pisao-cream mt-5 max-w-2xl text-4xl leading-tight sm:text-6xl">
-              Menos chatbot.
-              <span className="text-pisao-gold block">Más mesa.</span>
+              Pide ayuda.
+              <span className="text-pisao-gold block">Nosotros te guiamos.</span>
             </h2>
             <p className="text-pisao-cream-muted mt-5 max-w-xl leading-relaxed">
               Te ayudamos a elegir según tus gustos, tu parche y tu presupuesto. Fácil, rápido y sin vueltas.
