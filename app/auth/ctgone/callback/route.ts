@@ -14,6 +14,7 @@ import {
   federationStateMatches,
   isValidFederationCallback,
   readFederationTransaction,
+  pisaoPublicUrl,
 } from "@/lib/auth/ctgone-federation";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,6 @@ function clearTransaction(response: NextResponse) {
 }
 
 function failureDestination(
-  request: NextRequest,
   transaction: { next: string } | null,
   code: string,
 ) {
@@ -41,7 +41,7 @@ function failureDestination(
     adminDestination
       ? `/admin/login?ctgone=${encodeURIComponent(code)}`
       : `/?ctgone=${encodeURIComponent(code)}`,
-    request.url,
+    pisaoPublicUrl("/"),
   );
 }
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   if (!transaction || !isValidFederationCallback(code, state) || !federationStateMatches(transaction.state, state!)) {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_invalid"),
+      failureDestination(transaction, "federation_invalid"),
       302,
     );
     clearTransaction(response);
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
   const secret = process.env.PISAO_FEDERATION_SECRET?.trim() ?? "";
   if (secret.length < 32) {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_unavailable"),
+      failureDestination(transaction, "federation_unavailable"),
       302,
     );
     clearTransaction(response);
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_unavailable"),
+      failureDestination(transaction, "federation_unavailable"),
       302,
     );
     clearTransaction(response);
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
   if (!exchange.ok) {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_exchange_failed"),
+      failureDestination(transaction, "federation_exchange_failed"),
       302,
     );
     clearTransaction(response);
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     data = (await exchange.json()) as ExchangeResponse;
   } catch {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_exchange_failed"),
+      failureDestination(transaction, "federation_exchange_failed"),
       302,
     );
     clearTransaction(response);
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     data.email_verified !== true
   ) {
     const response = NextResponse.redirect(
-      failureDestination(request, transaction, "federation_exchange_failed"),
+      failureDestination(transaction, "federation_exchange_failed"),
       302,
     );
     clearTransaction(response);
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
   if (adminDestination) {
     if (data.role !== "admin") {
       const response = NextResponse.redirect(
-        failureDestination(request, transaction, "admin_required"),
+        failureDestination(transaction, "admin_required"),
         302,
       );
       clearTransaction(response);
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
       localAdmin = await ensureFederatedAdminUser(data.subject, localRole);
     } catch {
       const response = NextResponse.redirect(
-        failureDestination(request, transaction, "local_actor_failed"),
+        failureDestination(transaction, "local_actor_failed"),
         302,
       );
       clearTransaction(response);
@@ -159,14 +159,14 @@ export async function GET(request: NextRequest) {
     );
     if (!adminSession) {
       const response = NextResponse.redirect(
-        new URL("/admin/login?ctgone=admin_required", request.url),
+        pisaoPublicUrl("/admin/login?ctgone=admin_required"),
         302,
       );
       clearTransaction(response);
       return response;
     }
 
-    const response = NextResponse.redirect(new URL(transaction.next, request.url), 302);
+    const response = NextResponse.redirect(pisaoPublicUrl(transaction.next), 302);
     clearTransaction(response);
     response.cookies.set(
       CTG_ONE_ADMIN_SESSION_COOKIE,
@@ -180,12 +180,12 @@ export async function GET(request: NextRequest) {
 
   const session = createCustomerSession(data.subject, data.email);
   if (!session) {
-    const response = NextResponse.redirect(new URL("/?ctgone=federation_exchange_failed", request.url), 302);
+    const response = NextResponse.redirect(pisaoPublicUrl("/?ctgone=federation_exchange_failed"), 302);
     clearTransaction(response);
     return response;
   }
 
-  const response = NextResponse.redirect(new URL(transaction.next, request.url), 302);
+  const response = NextResponse.redirect(pisaoPublicUrl(transaction.next), 302);
   clearTransaction(response);
   response.cookies.set(
     CTG_ONE_SESSION_COOKIE,
