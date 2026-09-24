@@ -7,6 +7,7 @@ import {
   CUSTOMER_SESSION_COOKIE,
   customerCookieOptions,
 } from "@/lib/auth/customer-session";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,14 @@ export async function POST(request: Request) {
       lastLoginAt: new Date(),
     },
     select: { id: true, nombre: true, email: true },
+  });
+
+  await resolveCrmCustomerProfile({
+    nombre: cliente.nombre,
+    email: cliente.email,
+    telefono: telefono || null,
+    source: "ACCOUNT",
+    accountClienteId: cliente.id,
   });
 
   const token = createCustomerLocalSession({
