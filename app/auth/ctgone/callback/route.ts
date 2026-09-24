@@ -127,9 +127,18 @@ export async function GET(request: NextRequest) {
     transaction.next === "/admin" || transaction.next.startsWith("/admin/");
 
   if (adminDestination) {
+    if (data.role !== "admin") {
+      const response = NextResponse.redirect(
+        failureDestination(request, transaction, "admin_required"),
+        302,
+      );
+      clearTransaction(response);
+      return response;
+    }
+
     let localAdmin;
     try {
-      localAdmin = await ensureFederatedAdminUser(data.email);
+      localAdmin = await ensureFederatedAdminUser(data.subject);
     } catch {
       const response = NextResponse.redirect(
         failureDestination(request, transaction, "local_actor_failed"),
