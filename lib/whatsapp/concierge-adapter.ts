@@ -84,31 +84,31 @@ export async function processWhatsAppInbound(
   });
   if (!claimed) return;
 
-  await recordWhatsAppInbound({
-    waId: message.from,
-    phoneNumberId: message.phoneNumberId,
-  });
-
-  if (
-    await whatsappHumanHandoffActive(
-      message.from,
-      message.phoneNumberId,
-    )
-  ) {
-    await markWhatsAppWebhookProcessed(eventKey);
-    return;
-  }
-
-  const identity = deriveWhatsAppIdentity(message.from);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "x-real-ip": identity.identity,
-  };
-
-  const edgeSecret = process.env.PISAO_EDGE_SECRET?.trim();
-  if (edgeSecret) headers["x-pisao-edge-secret"] = edgeSecret;
-
   try {
+    await recordWhatsAppInbound({
+      waId: message.from,
+      phoneNumberId: message.phoneNumberId,
+    });
+
+    if (
+      await whatsappHumanHandoffActive(
+        message.from,
+        message.phoneNumberId,
+      )
+    ) {
+      await markWhatsAppWebhookProcessed(eventKey);
+      return;
+    }
+
+    const identity = deriveWhatsAppIdentity(message.from);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-real-ip": identity.identity,
+    };
+
+    const edgeSecret = process.env.PISAO_EDGE_SECRET?.trim();
+    if (edgeSecret) headers["x-pisao-edge-secret"] = edgeSecret;
+
     const request = new Request(
       "https://pisaogastrobar.com/api/ai/concierge",
       {
