@@ -771,6 +771,22 @@ model AiTransactionCommand {
 }
 
 
+
+/// Auditoría mínima de solicitudes de eliminación recibidas desde Meta.
+/// Nunca conserva el user_id de Meta en claro: solo SHA-256 y código de confirmación.
+model MetaDataDeletionRequest {
+  id                 String   @id @default(cuid())
+  providerUserIdHash String   @db.VarChar(64)
+  confirmationCode   String   @unique @db.VarChar(64)
+  status             String   @default("COMPLETED") @db.VarChar(48)
+  requestedAt        DateTime @default(now())
+  completedAt        DateTime?
+
+  @@index([providerUserIdHash, requestedAt])
+  @@index([status, requestedAt])
+  @@map("meta_data_deletion_requests")
+}
+
 /// Conexión WhatsApp Cloud API/Coexistence administrada por PISÁO.
 /// El token nunca se guarda en claro: se cifra con AES-256-GCM.
 /// Configuración no secreta del onboarding de Meta para WhatsApp.
