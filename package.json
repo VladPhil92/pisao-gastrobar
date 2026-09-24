@@ -39,7 +39,8 @@
     "test:ctgone-auth": "node scripts/test-ctgone-admin-sso.mjs",
     "test:whatsapp-config": "node scripts/test-whatsapp-meta-config.mjs",
     "test:whatsapp-activation": "node scripts/test-whatsapp-activation-v4.mjs",
-    "test:whatsapp-operations": "node scripts/test-whatsapp-operations-v5.mjs"
+    "test:whatsapp-operations": "node scripts/test-whatsapp-operations-v5.mjs",
+    "test:whatsapp-meta-onboarding": "node scripts/test-whatsapp-meta-onboarding-v6.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
