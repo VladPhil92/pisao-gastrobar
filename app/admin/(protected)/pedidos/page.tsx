@@ -6,6 +6,7 @@ import {
 } from "@/lib/payments/onchain";
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
 import { OrderStatusControls } from "@/components/admin/OrderStatusControls";
+import { PaymentNotificationRetryButton } from "@/components/admin/PaymentNotificationRetryButton";
 
 const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
 
@@ -58,6 +59,7 @@ async function getPedidos() {
           orderBy: { createdAt: "desc" },
           take: 1,
           select: {
+            id: true,
             status: true,
             provider: true,
             attempts: true,
@@ -212,6 +214,11 @@ export default async function AdminPedidosPage() {
                             {p.adminNotifications[0].provider ?? "sin canal"} ·{" "}
                             {p.adminNotifications[0].attempts} intento(s)
                           </p>
+                          {p.adminNotifications[0].status !== "DELIVERED" && (
+                            <PaymentNotificationRetryButton
+                              notificationId={p.adminNotifications[0].id}
+                            />
+                          )}
                         </div>
                       ) : (
                         <span className="text-pisao-cream-muted">—</span>
