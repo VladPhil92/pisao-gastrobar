@@ -43,7 +43,7 @@ assert.match(
 );
 assert.match(
   callback,
-  /ensureFederatedAdminUser\(data\.email\)/,
+  /ensureFederatedAdminUser\(data\.subject\)/,
   "Federated admins must be mapped to a local PISÁO actor before access.",
 );
 assert.match(
@@ -53,8 +53,27 @@ assert.match(
 );
 assert.match(
   federatedAdmin,
+  /federated\.pisao\.invalid/,
+  "Federated administrators must use a dedicated synthetic local actor identity.",
+);
+assert.match(
+  federatedAdmin,
+  /randomBytes\(32\)/,
+  "Federated admin actors must never retain a stable local password.",
+);
+assert.match(
+  federatedAdmin,
   /prisma\.usuario\.(findUnique|create|update)/,
   "Federated admin provisioning must resolve a real local Usuario row.",
+);
+
+const roleGateIndex = callback.indexOf('data.role !== "admin"');
+const actorProvisionIndex = callback.indexOf("ensureFederatedAdminUser(data.subject)");
+assert.ok(
+  roleGateIndex >= 0 &&
+    actorProvisionIndex >= 0 &&
+    roleGateIndex < actorProvisionIndex,
+  "CTG One admin role must be validated before any local actor mutation.",
 );
 assert.match(
   authIndex,
