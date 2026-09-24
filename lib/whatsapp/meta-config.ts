@@ -124,3 +124,114 @@ export async function recordWhatsAppProbe(params: {
     },
   });
 }
+
+
+export const META_ACCESS_VERIFICATION_STATUSES = [
+  "NOT_STARTED",
+  "PENDING",
+  "VERIFIED",
+  "REJECTED",
+] as const;
+
+export const META_APP_REVIEW_STATUSES = [
+  "NOT_STARTED",
+  "READY",
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export type MetaAccessVerificationStatus =
+  (typeof META_ACCESS_VERIFICATION_STATUSES)[number];
+export type MetaAppReviewStatus =
+  (typeof META_APP_REVIEW_STATUSES)[number];
+
+function normalizeStatus<T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): T[number] | null {
+  return typeof value === "string" && allowed.includes(value)
+    ? (value as T[number])
+    : null;
+}
+
+export async function getMetaReviewLifecycle() {
+  const saved = await prisma.whatsAppMetaConfig.findUnique({
+    where: { id: PRIMARY_ID },
+    select: {
+      metaAccessVerificationStatus: true,
+      metaAccessVerificationUpdatedAt: true,
+      metaAppReviewStatus: true,
+      metaAppReviewUpdatedAt: true,
+    },
+  });
+
+  return {
+    accessVerificationStatus:
+      normalizeStatus(
+        saved?.metaAccessVerificationStatus,
+        META_ACCESS_VERIFICATION_STATUSES,
+      ) ?? "PENDING",
+    accessVerificationUpdatedAt:
+      saved?.metaAccessVerificationUpdatedAt ?? null,
+    appReviewStatus:
+      normalizeStatus(saved?.metaAppReviewStatus, META_APP_REVIEW_STATUSES) ??
+      "NOT_STARTED",
+    appReviewUpdatedAt: saved?.metaAppReviewUpdatedAt ?? null,
+  };
+}
+
+export async function saveMetaReviewLifecycle(params: {
+  accessVerificationStatus?: unknown;
+  appReviewStatus?: unknown;
+  updatedByUserId?: string | null;
+}) {
+  const accessVerificationStatus = normalizeStatus(
+    params.accessVerificationStatus,
+    META_ACCESS_VERIFICATION_STATUSES,
+  );
+  const appReviewStatus = normalizeStatus(
+    params.appReviewStatus,
+    META_APP_REVIEW_STATUSES,
+  );
+
+  if (!accessVerificationStatus && !appReviewStatus) {
+    throw new Error("INVALID_META_REVIEW_STATUS");
+  }
+
+  const now = new Date();
+  return prisma.whatsAppMetaConfig.upsert({
+    where: { id: PRIMARY_ID },
+    create: {
+      id: PRIMARY_ID,
+      ...(accessVerificationStatus
+        ? {
+            metaAccessVerificationStatus: accessVerificationStatus,
+            metaAccessVerificationUpdatedAt: now,
+          }
+        : {}),
+      ...(appReviewStatus
+        ? {
+            metaAppReviewStatus: appReviewStatus,
+            metaAppReviewUpdatedAt: now,
+          }
+        : {}),
+      updatedByUserId: params.updatedByUserId?.slice(0, 64) || null,
+    },
+    update: {
+      ...(accessVerificationStatus
+        ? {
+            metaAccessVerificationStatus: accessVerificationStatus,
+            metaAccessVerificationUpdatedAt: now,
+          }
+        : {}),
+      ...(appReviewStatus
+        ? {
+            metaAppReviewStatus: appReviewStatus,
+            metaAppReviewUpdatedAt: now,
+          }
+        : {}),
+      updatedByUserId: params.updatedByUserId?.slice(0, 64) || null,
+    },
+  });
+}
