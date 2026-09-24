@@ -11,7 +11,7 @@ function federatedActorEmail(subject: string) {
   return `ctgone+${digest}@federated.pisao.invalid`;
 }
 
-export async function ensureFederatedAdminUser(subject: string) {
+export async function ensureFederatedAdminUser(subject: string, desiredRole: "SUPER_ADMIN" | "ADMIN" = "ADMIN") {
   const actorEmail = federatedActorEmail(subject);
 
   const existing = await prisma.usuario.findUnique({
@@ -19,14 +19,14 @@ export async function ensureFederatedAdminUser(subject: string) {
   });
 
   if (existing) {
-    if (existing.rol === "ADMIN" && existing.activo) return existing;
+    if (existing.rol === desiredRole && existing.activo) return existing;
 
     // This address is reserved for federation-only actors. Rotating the random
     // hash on repair guarantees there is never a stable local credential.
     return prisma.usuario.update({
       where: { id: existing.id },
       data: {
-        rol: "ADMIN",
+        rol: desiredRole,
         activo: true,
         passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
       },
@@ -41,7 +41,7 @@ export async function ensureFederatedAdminUser(subject: string) {
         nombre: "CTG One Federated Admin",
         email: actorEmail,
         passwordHash,
-        rol: "ADMIN",
+        rol: desiredRole,
         activo: true,
       },
     });
@@ -55,7 +55,7 @@ export async function ensureFederatedAdminUser(subject: string) {
       return prisma.usuario.update({
         where: { email: actorEmail },
         data: {
-          rol: "ADMIN",
+          rol: desiredRole,
           activo: true,
           passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
         },
