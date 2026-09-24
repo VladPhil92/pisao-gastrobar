@@ -32,7 +32,6 @@
     "test:profit": "tsx --test lib/revenue/profit-core.test.ts lib/revenue/profit-surface.test.ts",
     "test:payments": "tsx --test lib/payments/onchain.test.ts lib/payments/crypto-intent.test.ts lib/payments/crypto-treasury-core.test.ts",
     "test:tracking": "tsx --test lib/orders/tracking.test.ts lib/orders/status.test.ts",
-    "security:audit-baseline": "node scripts/audit-security-baseline.mjs",
     "test:whatsapp": "tsx --test lib/whatsapp/coexistence.test.ts",
     "test:inventory": "tsx --test lib/inventory/core.test.ts",
     "test:certification": "tsx --test lib/integrations/certification-core.test.ts lib/integrations/public-web-certification-core.test.ts",
