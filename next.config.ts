@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
+const releaseSha =
+  process.env.RENDER_GIT_COMMIT?.trim() ||
+  process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
+  "unknown";
+
 const securityHeaders = [
+  { key: "X-PISAO-Release", value: releaseSha },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
@@ -22,6 +28,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  deploymentId: releaseSha === "unknown" ? undefined : releaseSha,
   // TypeScript ya es un gate obligatorio en GitHub CI (npx tsc --noEmit).
   // En Render evitamos repetir ese chequeo dentro de next build porque la
   // instancia de build de 512 MB agotó el heap al duplicar el typecheck.

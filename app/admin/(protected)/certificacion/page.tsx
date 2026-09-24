@@ -60,7 +60,7 @@ export default async function ProductionCertificationPage() {
       <div className="flex flex-col gap-5 border-b border-pisao-gold/10 pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
-            Production Certification · V3
+            Production Certification · V4
           </p>
           <h1 className="font-display text-pisao-cream mt-2 text-4xl">
             Certificación de integraciones
