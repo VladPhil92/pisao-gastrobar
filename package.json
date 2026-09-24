@@ -24,7 +24,7 @@
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
-    "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts lib/governance/kev-inbound-security.test.ts",
+    "test:security": "tsx --test lib/security/rate-limit.test.ts lib/security/edge-origin.test.ts lib/governance/kev-inbound-security.test.ts lib/governance/kev-intelligence.test.ts",
     "test:revenue": "tsx --test lib/analytics/revenue-attribution.test.ts",
     "test:revenue-actions": "tsx --test lib/revenue/revenue-action-core.test.ts",
     "test:revenue-experiments": "tsx --test lib/revenue/revenue-experiment-core.test.ts",
