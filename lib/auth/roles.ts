@@ -14,6 +14,9 @@ export const PERMISOS_ADMIN: Record<string, Rol[]> = {
   "/admin/experimentos": ["ADMIN"],
   "/admin/politicas": ["ADMIN"],
   "/admin/comportamiento": ["ADMIN"],
+  "/admin/certificacion": ["ADMIN"],
+  "/admin/cripto": ["ADMIN"],
+  "/admin/whatsapp": ["ADMIN"],
 };
 
 export function tieneAcceso(ruta: string, rol: Rol) {
