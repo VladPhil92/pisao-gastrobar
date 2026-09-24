@@ -19,22 +19,23 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Block critical production advisories
-        run: npm audit --omit=dev --audit-level=critical
+      - name: Audit all dependencies
+        run: npm audit --audit-level=low
 
-      - name: Block new high-severity production advisories
-        run: npm run security:audit-baseline
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=low
 
-      - name: Trace high-severity audit paths
-        run: |
-          npm audit --omit=dev --audit-level=high || true
-          npm ls --omit=dev --all prisma @prisma/config @prisma/dev mysql2 deepmerge-ts fast-uri nanoid hono @hono/node-server baseline-browser-mapping || true
+      - name: Verify hardened dependency tree
+        run: npm ls --all prisma @prisma/config @prisma/dev mysql2 deepmerge-ts fast-uri nanoid hono @hono/node-server baseline-browser-mapping brace-expansion browserslist js-yaml
+
+      - name: Prisma CLI compatibility
+        run: npx prisma validate
 
       - name: Generate image manifest
         run: npm run images:optimize
