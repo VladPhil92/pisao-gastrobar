@@ -5,6 +5,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 export const CTG_ONE_ORIGIN = (process.env.CTG_ONE_ORIGIN || "https://ctgone.com").replace(/\/$/, "");
 export const CTG_ONE_TRANSACTION_COOKIE = "pisao_ctgone_tx";
 export const CTG_ONE_SESSION_COOKIE = "pisao_ctgone_session";
+export const CTG_ONE_ADMIN_SESSION_COOKIE = "pisao_ctgone_admin_session";
 
 const TRANSACTION_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -23,6 +24,15 @@ export type CtgOneCustomerSession = {
   sub: string;
   email: string;
   emailVerified: true;
+  issuedAt: number;
+  exp: number;
+};
+
+export type CtgOneAdminSession = {
+  sub: string;
+  email: string;
+  emailVerified: true;
+  rol: "ADMIN";
   issuedAt: number;
   exp: number;
 };
@@ -129,6 +139,47 @@ export function readCustomerSession(raw: string | undefined): CtgOneCustomerSess
   const session = decodeSigned<CtgOneCustomerSession>(raw);
   if (!session) return null;
   if (!session.sub || !session.email || session.emailVerified !== true) return null;
+  if (typeof session.exp !== "number" || session.exp <= Date.now()) return null;
+  return session;
+}
+
+export function createAdminSession(
+  subject: string,
+  email: string,
+  ctgRole: unknown,
+): string | null {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (
+    !subject ||
+    !normalizedEmail ||
+    !normalizedEmail.includes("@") ||
+    ctgRole !== "admin"
+  ) {
+    return null;
+  }
+
+  const issuedAt = Date.now();
+  return encodeSigned({
+    sub: subject,
+    email: normalizedEmail,
+    emailVerified: true,
+    rol: "ADMIN",
+    issuedAt,
+    exp: issuedAt + SESSION_TTL_MS,
+  } satisfies CtgOneAdminSession);
+}
+
+export function readAdminSession(raw: string | undefined): CtgOneAdminSession | null {
+  const session = decodeSigned<CtgOneAdminSession>(raw);
+  if (!session) return null;
+  if (
+    !session.sub ||
+    !session.email ||
+    session.emailVerified !== true ||
+    session.rol !== "ADMIN"
+  ) {
+    return null;
+  }
   if (typeof session.exp !== "number" || session.exp <= Date.now()) return null;
   return session;
 }
