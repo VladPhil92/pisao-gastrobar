@@ -6,6 +6,45 @@ const expectedRelease = process.env.PISAO_EXPECTED_RELEASE?.trim() || null;
 const maxWaitMs = Number(process.env.PISAO_RELEASE_WAIT_MS || 480000);
 const pollMs = Number(process.env.PISAO_RELEASE_POLL_MS || 15000);
 
+function readJpegDimensions(buffer) {
+  const view = new DataView(buffer);
+  if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return null;
+
+  const sofMarkers = new Set([
+    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+  ]);
+
+  let offset = 2;
+  while (offset + 3 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    const marker = view.getUint8(offset + 1);
+    offset += 2;
+
+    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      continue;
+    }
+    if (marker === 0xda || offset + 2 > view.byteLength) break;
+
+    const segmentLength = view.getUint16(offset, false);
+    if (segmentLength < 2 || offset + segmentLength > view.byteLength) break;
+
+    if (sofMarkers.has(marker) && segmentLength >= 7) {
+      return {
+        height: view.getUint16(offset + 3, false),
+        width: view.getUint16(offset + 5, false),
+      };
+    }
+
+    offset += segmentLength;
+  }
+
+  return null;
+}
+
 async function request(path, options = {}) {
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
@@ -110,7 +149,28 @@ async function main() {
 
   const imageType = image.headers.get("content-type") || "";
   assert.match(imageType, /^image\//, "Experience media route is not returning an image");
-  assert.ok(imageBytes.byteLength >= 50000, "Experience image payload is unexpectedly small");
+  assert.ok(imageBytes.byteLength >= 120000, "Experience image payload is below the HD quality floor");
+  const imageDimensions = readJpegDimensions(imageBytes);
+  assert.ok(imageDimensions, "Experience image must remain a valid JPEG");
+  assert.ok(
+    imageDimensions.width >= 1188 && imageDimensions.height >= 1600,
+    `Experience image resolution regressed: ${imageDimensions.width}x${imageDimensions.height}`,
+  );
+  assert.equal(
+    image.headers.get("x-pisao-image-quality"),
+    "hd-certified",
+    "Experience image did not pass the server-side HD gate",
+  );
+  assert.equal(
+    Number(image.headers.get("x-pisao-image-width")),
+    imageDimensions.width,
+    "Experience image width header disagrees with payload",
+  );
+  assert.equal(
+    Number(image.headers.get("x-pisao-image-height")),
+    imageDimensions.height,
+    "Experience image height header disagrees with payload",
+  );
 
   assert.equal(
     home.headers.get("x-content-type-options"),
@@ -139,6 +199,9 @@ async function main() {
           release: release.status,
         },
         imageBytes: imageBytes.byteLength,
+        imageDimensions,
+        imageQuality: image.headers.get("x-pisao-image-quality"),
+        imageSource: image.headers.get("x-pisao-image-source"),
         database: healthJson.database,
         timestamp: new Date().toISOString(),
       },
