@@ -144,7 +144,7 @@ export default async function AdminReservasPage() {
   ]);
   const config = getReservationConfig();
   const canConfigure =
-    (session?.user as { rol?: string } | undefined)?.rol === "ADMIN";
+    ["SUPER_ADMIN", "ADMIN"].includes((session?.user as { rol?: string } | undefined)?.rol ?? "");
   const today = bogotaDateString();
 
   const reservas = data?.reservas ?? null;
