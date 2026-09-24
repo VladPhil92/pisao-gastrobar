@@ -13,6 +13,8 @@ type FacebookLoginResponse = {
 type EmbeddedSignupData = {
   waba_id?: string;
   phone_number_id?: string;
+  current_step?: string;
+  error_message?: string;
 };
 
 type EmbeddedSignupEvent = {
@@ -112,7 +114,18 @@ export function WhatsAppCoexistenceSetup({
         );
       } else if (parsed.event === "CANCEL") {
         setState("idle");
-        setMessage("El onboarding fue cancelado antes de completarse.");
+        setMessage(
+          parsed.data?.current_step
+            ? `Meta canceló el onboarding en el paso “${parsed.data.current_step}”. Puedes reintentarlo sin perder la configuración.`
+            : "El onboarding fue cancelado antes de completarse.",
+        );
+      } else if (parsed.event === "ERROR") {
+        completionStarted.current = false;
+        setState("error");
+        setMessage(
+          parsed.data?.error_message ||
+            "Meta reportó un error durante Embedded Signup. Revisa la configuración v4, los permisos y el dominio permitido.",
+        );
       }
     }
 
@@ -246,9 +259,14 @@ export function WhatsAppCoexistenceSetup({
         onLoad={initializeSdk}
       />
 
-      <h2 className="font-display text-pisao-cream text-2xl">
-        Conectar con Coexistence
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-pisao-cream text-2xl">
+          Conectar con Coexistence
+        </h2>
+        <span className="rounded-full bg-pisao-gold/10 px-2.5 py-1 text-[10px] font-semibold text-pisao-gold">
+          Embedded Signup v4
+        </span>
+      </div>
       <p className="text-pisao-cream-muted mt-2 text-sm leading-relaxed">
         Este flujo conserva WhatsApp Business en el teléfono y agrega Cloud API.
         No ejecuta migración convencional ni registra el número por fuera de
@@ -315,8 +333,9 @@ export function WhatsAppCoexistenceSetup({
 
       {!activeConfigId ? (
         <p className="mt-3 text-xs leading-relaxed text-amber-300">
-          Falta el Configuration ID de Embedded Signup. En Meta, crea la configuración
-          de onboarding para WhatsApp Business App/Coexistence y pega aquí el ID.
+          Falta el Configuration ID. En Meta crea una configuración de Facebook Login
+          for Business con la variación “WhatsApp Embedded Signup”, copia el ID resultante
+          y pégalo aquí.
         </p>
       ) : (
         <p className="mt-3 text-xs leading-relaxed text-emerald-300">
