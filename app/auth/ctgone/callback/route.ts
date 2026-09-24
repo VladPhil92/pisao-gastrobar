@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  createAdminSession,
   createCustomerSession,
+  CTG_ONE_ADMIN_SESSION_COOKIE,
   CTG_ONE_ORIGIN,
   CTG_ONE_SESSION_COOKIE,
   CTG_ONE_SESSION_MAX_AGE_SECONDS,
@@ -19,6 +21,7 @@ type ExchangeResponse = {
   subject?: unknown;
   email?: unknown;
   email_verified?: unknown;
+  role?: unknown;
 };
 
 function clearTransaction(response: NextResponse) {
@@ -83,6 +86,32 @@ export async function GET(request: NextRequest) {
   ) {
     const response = NextResponse.redirect(new URL("/?ctgone=federation_exchange_failed", request.url), 302);
     clearTransaction(response);
+    return response;
+  }
+
+  const adminDestination =
+    transaction.next === "/admin" || transaction.next.startsWith("/admin/");
+
+  if (adminDestination) {
+    const adminSession = createAdminSession(data.subject, data.email, data.role);
+    if (!adminSession) {
+      const response = NextResponse.redirect(
+        new URL("/admin/login?ctgone=admin_required", request.url),
+        302,
+      );
+      clearTransaction(response);
+      return response;
+    }
+
+    const response = NextResponse.redirect(new URL(transaction.next, request.url), 302);
+    clearTransaction(response);
+    response.cookies.set(
+      CTG_ONE_ADMIN_SESSION_COOKIE,
+      adminSession,
+      federationCookieOptions(CTG_ONE_SESSION_MAX_AGE_SECONDS),
+    );
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
     return response;
   }
 
