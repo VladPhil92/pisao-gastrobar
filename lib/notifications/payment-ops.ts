@@ -19,6 +19,51 @@ function retryAt(attempts: number) {
   return new Date(Date.now() + minutes * 60_000);
 }
 
+
+export function paymentReviewSlaMinutes() {
+  const parsed = Number(process.env.PAYMENT_REVIEW_SLA_MINUTES ?? "10");
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.min(120, Math.max(2, Math.round(parsed)));
+}
+
+export async function enqueueOverduePaymentReviewNotifications(limit = 50) {
+  const slaMinutes = paymentReviewSlaMinutes();
+  const cutoff = new Date(Date.now() - slaMinutes * 60_000);
+  const payments = await prisma.pago.findMany({
+    where: {
+      estado: "EN_VERIFICACION",
+      comprobanteRecibidoEn: { lte: cutoff },
+      comprobanteSha256: { not: null },
+      pedido: { is: { estado: "PENDIENTE_VERIFICACION" } },
+    },
+    orderBy: { comprobanteRecibidoEn: "asc" },
+    take: Math.min(Math.max(limit, 1), 100),
+    select: {
+      pedidoId: true,
+      comprobanteSha256: true,
+    },
+  });
+
+  const data = payments.flatMap((payment) => {
+    if (!payment.comprobanteSha256) return [];
+    return [{
+      eventKey: `PAYMENT_REVIEW_OVERDUE:${payment.pedidoId}:${payment.comprobanteSha256}`,
+      event: "PAYMENT_REVIEW_OVERDUE",
+      pedidoId: payment.pedidoId,
+      proofSha256: payment.comprobanteSha256,
+      status: "PENDING",
+      nextAttemptAt: new Date(),
+    }];
+  });
+
+  if (!data.length) return 0;
+  const created = await prisma.paymentAdminNotification.createMany({
+    data,
+    skipDuplicates: true,
+  });
+  return created.count;
+}
+
 export async function enqueuePaymentEvidenceNotification(input: {
   pedidoId: string;
   proofSha256: string;
@@ -92,6 +137,10 @@ async function loadNotificationPayload(notificationId: string) {
       walletDireccion: pago.walletDireccion,
       cryptoTxHash: pago.txHash,
       cryptoConfirmations: pago.confirmacionesOnchain,
+      alertReason:
+        notification.event === "PAYMENT_REVIEW_OVERDUE"
+          ? `SLA de revisión vencido. Este pago lleva más de ${paymentReviewSlaMinutes()} minutos pendiente de validación.`
+          : null,
       items: order.items.map((item) => ({
         nombre: item.producto.nombre,
         cantidad: item.cantidad,
@@ -196,6 +245,7 @@ export async function processPaymentAdminNotification(
 }
 
 export async function processDuePaymentAdminNotifications(limit = 20) {
+  const escalated = await enqueueOverduePaymentReviewNotifications();
   const due = await prisma.paymentAdminNotification.findMany({
     where: {
       status: { in: ["PENDING", "FAILED"] },
@@ -212,6 +262,7 @@ export async function processDuePaymentAdminNotifications(limit = 20) {
     results.push(await processPaymentAdminNotification(item.id));
   }
   return {
+    escalated,
     processed: results.length,
     delivered: results.filter((item) => item.status === "DELIVERED").length,
     failed: results.filter((item) => item.status === "FAILED").length,
