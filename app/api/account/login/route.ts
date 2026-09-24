@@ -7,6 +7,7 @@ import {
   CUSTOMER_SESSION_COOKIE,
   customerCookieOptions,
 } from "@/lib/auth/customer-session";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,14 @@ export async function POST(request: Request) {
   await prisma.cliente.update({
     where: { id: cliente.id },
     data: { lastLoginAt: new Date() },
+  });
+
+  await resolveCrmCustomerProfile({
+    nombre: cliente.nombre,
+    email: cliente.email,
+    telefono: cliente.telefono,
+    source: "ACCOUNT",
+    accountClienteId: cliente.id,
   });
 
   const token = createCustomerLocalSession({

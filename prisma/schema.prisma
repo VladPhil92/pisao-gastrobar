@@ -146,8 +146,56 @@ model Cliente {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  crmProfile CrmCustomerProfile?
+
   @@index([activo, createdAt])
   @@map("clientes")
+}
+
+
+model CrmCustomerProfile {
+  id               String   @id @default(cuid())
+  identityKey      String   @unique @db.VarChar(220)
+  nombre           String   @db.VarChar(120)
+  emailNormalized  String?  @db.VarChar(180)
+  phoneNormalized  String?  @db.VarChar(32)
+  source           String   @default("GUEST") @db.VarChar(24)
+  marketingConsent Boolean  @default(false)
+  lastActivityAt   DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  accountClienteId String?  @unique
+  accountCliente   Cliente? @relation(fields: [accountClienteId], references: [id], onDelete: SetNull)
+
+  orders         Pedido[]
+  reservations   Reserva[]
+  loyaltyEntries CustomerLoyaltyEntry[]
+
+  @@index([emailNormalized])
+  @@index([phoneNormalized])
+  @@index([lastActivityAt])
+  @@map("crm_customer_profiles")
+}
+
+/// Ledger idempotente de fidelización.
+/// Los puntos son un score acumulativo; la redención permanece deshabilitada
+/// hasta que exista una política comercial explícita.
+model CustomerLoyaltyEntry {
+  id                String             @id @default(cuid())
+  customerProfileId String
+  customerProfile   CrmCustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  eventKey          String             @unique @db.VarChar(180)
+  event             String             @db.VarChar(48)
+  points            Int
+  amountCop         Decimal?           @db.Decimal(12, 2)
+  referenceType     String?            @db.VarChar(32)
+  referenceId       String?            @db.VarChar(96)
+  createdAt         DateTime           @default(now())
+
+  @@index([customerProfileId, createdAt])
+  @@index([event, createdAt])
+  @@map("customer_loyalty_entries")
 }
 
 model Categoria {
@@ -285,10 +333,14 @@ model Pedido {
   adminNotifications PaymentAdminNotification[]
   customerNotifications CustomerOrderNotification[]
 
+  customerProfileId String?
+  customerProfile   CrmCustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([estado, entregadoAt])
+  @@index([customerProfileId, createdAt])
   @@map("pedidos")
 }
 
@@ -439,10 +491,14 @@ model Reserva {
   mesas  String[]      @default([])
   estado EstadoReserva @default(PENDIENTE)
 
+  customerProfileId String?
+  customerProfile   CrmCustomerProfile? @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([fecha])
+  @@index([customerProfileId, fecha])
   @@map("reservas")
 }
 

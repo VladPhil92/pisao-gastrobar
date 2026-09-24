@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -114,6 +114,9 @@ jobs:
 
       - name: Owner Governance and IAM tests
         run: npm run test:owner-governance
+
+      - name: Customer CRM and Loyalty tests
+        run: npm run test:crm-loyalty
 
       - name: Production certification tests
         run: npm run test:certification

@@ -19,6 +19,7 @@ import {
   BrainCircuit,
   Boxes,
   UsersRound,
+  ContactRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Rol } from "@/lib/auth/roles";
@@ -112,6 +113,12 @@ const items = [
     href: "/admin/reportes",
     label: "Reportes",
     icon: BarChart3,
+    roles: ["SUPER_ADMIN", "ADMIN"],
+  },
+  {
+    href: "/admin/clientes",
+    label: "Clientes CRM",
+    icon: ContactRound,
     roles: ["SUPER_ADMIN", "ADMIN"],
   },
   {
