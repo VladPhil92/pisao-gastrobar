@@ -7,6 +7,7 @@ import {
   CTG_ONE_TRANSACTION_MAX_AGE_SECONDS,
   federationCookieOptions,
   normalizeFederationNext,
+  pisaoPublicUrl,
 } from "@/lib/auth/ctgone-federation";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const adminDestination = next === "/admin" || next.startsWith("/admin/");
     if (adminDestination) {
       return NextResponse.redirect(
-        new URL("/admin/login?ctgone=federation_unavailable", request.url),
+        pisaoPublicUrl("/admin/login?ctgone=federation_unavailable"),
         302,
       );
     }
