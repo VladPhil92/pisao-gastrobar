@@ -3,6 +3,35 @@ import "server-only";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const CTG_ONE_ORIGIN = (process.env.CTG_ONE_ORIGIN || "https://ctgone.com").replace(/\/$/, "");
+
+function resolvePisaoPublicOrigin(): string {
+  const candidates = [
+    process.env.PISAO_PUBLIC_ORIGIN,
+    process.env.NEXTAUTH_URL,
+    "https://pisaogastrobar.com",
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      if (url.protocol === "https:" || (process.env.NODE_ENV !== "production" && url.protocol === "http:")) {
+        return url.origin;
+      }
+    } catch {
+      // Ignore malformed configuration and continue to the canonical fallback.
+    }
+  }
+
+  return "https://pisaogastrobar.com";
+}
+
+export const PISAO_PUBLIC_ORIGIN = resolvePisaoPublicOrigin();
+
+export function pisaoPublicUrl(path: string): URL {
+  return new URL(path, PISAO_PUBLIC_ORIGIN);
+}
+
 export const CTG_ONE_TRANSACTION_COOKIE = "pisao_ctgone_tx";
 export const CTG_ONE_SESSION_COOKIE = "pisao_ctgone_session";
 export const CTG_ONE_ADMIN_SESSION_COOKIE = "pisao_ctgone_admin_session";
