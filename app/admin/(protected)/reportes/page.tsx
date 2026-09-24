@@ -1,5 +1,4 @@
 import {
-import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Activity,
   BadgeCheck,
   Bike,
@@ -15,6 +14,7 @@ import { requireAdminRoute } from "@/lib/auth/require-admin-route";
   Users,
   WalletCards,
 } from "lucide-react";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getCommercialIntelligence } from "@/lib/analytics/commercial-intelligence";
 import { formatCurrency } from "@/lib/utils";
 
