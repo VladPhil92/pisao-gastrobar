@@ -14,6 +14,7 @@ import {
   emitKevGovernanceEvent,
   governanceRef,
 } from "@/lib/governance/kev-bridge";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 
 export class ReservationConflictError extends Error {
   code: "DUPLICATE" | "NO_AVAILABILITY";
@@ -112,6 +113,19 @@ export async function createConfirmedReservation(
       },
     });
   });
+
+  const customerProfile = await resolveCrmCustomerProfile({
+    nombre,
+    email,
+    telefono: cleanPhone,
+    source: "RESERVATION",
+  });
+  if (customerProfile) {
+    await prisma.reserva.update({
+      where: { id: reserva.id },
+      data: { customerProfileId: customerProfile.id },
+    });
+  }
 
   await notifyReservationCreated({
     id: reserva.id,

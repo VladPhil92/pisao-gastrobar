@@ -115,6 +115,9 @@ jobs:
       - name: Owner Governance and IAM tests
         run: npm run test:owner-governance
 
+      - name: Customer CRM and Loyalty tests
+        run: npm run test:crm-loyalty
+
       - name: Production certification tests
         run: npm run test:certification
 
