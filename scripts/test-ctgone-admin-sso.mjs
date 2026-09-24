@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [federation, callback, authIndex, login, signout] = await Promise.all([
+const [
+  federation,
+  callback,
+  startRoute,
+  authIndex,
+  loginPage,
+  loginForm,
+  federatedAdmin,
+  signout,
+] = await Promise.all([
   readFile("lib/auth/ctgone-federation.ts", "utf8"),
   readFile("app/auth/ctgone/callback/route.ts", "utf8"),
+  readFile("app/auth/ctgone/start/route.ts", "utf8"),
   readFile("lib/auth/index.ts", "utf8"),
   readFile("app/admin/login/page.tsx", "utf8"),
+  readFile("components/admin/AdminLoginForm.tsx", "utf8"),
+  readFile("lib/auth/federated-admin.ts", "utf8"),
   readFile("app/auth/ctgone/signout/route.ts", "utf8"),
 ]);
 
@@ -20,34 +32,62 @@ assert.match(
   "Only the canonical CTG One admin role may mint a PISÁO admin session.",
 );
 assert.match(
+  federation,
+  /candidate\.includes\("\\\\"\)/,
+  "Federation redirect normalization must reject backslashes.",
+);
+assert.match(
   callback,
   /transaction\.next\.startsWith\("\/admin\/"\)/,
   "Admin federation must be scoped to backoffice destinations.",
 );
 assert.match(
   callback,
-  /createAdminSession\(data\.subject, data\.email, data\.role\)/,
-  "The callback must derive PISÁO authority from the exchanged CTG One role.",
+  /ensureFederatedAdminUser\(data\.email\)/,
+  "Federated admins must be mapped to a local PISÁO actor before access.",
+);
+assert.match(
+  callback,
+  /createAdminSession\([\s\S]*?data\.subject,[\s\S]*?localAdmin\.id,[\s\S]*?data\.email,[\s\S]*?data\.role/,
+  "The signed admin session must bind CTG identity, local actor id and canonical role.",
+);
+assert.match(
+  federatedAdmin,
+  /prisma\.usuario\.(findUnique|create|update)/,
+  "Federated admin provisioning must resolve a real local Usuario row.",
 );
 assert.match(
   authIndex,
-  /readAdminSession/,
-  "Backoffice auth must recognize the signed CTG One admin session.",
+  /federated\.localUserId/,
+  "Database writes must use the local PISÁO user id rather than the external CTG subject.",
+);
+const federatedReadIndex = authIndex.indexOf("readAdminSession");
+const localSessionIndex = authIndex.lastIndexOf("nextAuth.auth()");
+assert.ok(
+  federatedReadIndex >= 0 &&
+    localSessionIndex >= 0 &&
+    federatedReadIndex < localSessionIndex,
+  "Federated ADMIN authority must take precedence over stale local staff sessions.",
 );
 assert.match(
-  authIndex,
-  /rol\s*=\s*federated\.rol/,
-  "Federated admins must enter PISÁO with ADMIN authorization.",
-);
-assert.match(
-  login,
+  loginForm,
   /\/auth\/ctgone\/start\?next=\/admin\/dashboard/,
-  "The admin login page must make CTG One SSO the primary path.",
+  "The admin login UI must make CTG One SSO the primary path.",
 );
 assert.match(
-  login,
+  loginForm,
   /Acceso local de staff/,
   "Local credentials must remain explicitly scoped to operational staff.",
+);
+assert.match(
+  loginPage,
+  /federationMessage/,
+  "Federation failures must render on the admin login page.",
+);
+assert.match(
+  startRoute,
+  /admin\/login\?ctgone=federation_unavailable/,
+  "Unavailable admin federation must return to the backoffice login.",
 );
 assert.match(
   signout,
