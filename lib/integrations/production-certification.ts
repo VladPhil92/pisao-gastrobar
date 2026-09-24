@@ -15,6 +15,7 @@ import {
   publicWebEvidence,
   type PublicWebProbe,
 } from "@/lib/integrations/public-web-certification-core";
+import { runtimeReleaseSha } from "@/lib/release/runtime";
 
 type EvidenceDetail = Record<string, string | number | boolean | null>;
 
@@ -73,6 +74,10 @@ async function probePublicWeb(): Promise<PublicWebProbe> {
     return {
       configured: false,
       homeOk: false,
+      releaseEndpointOk: false,
+      releaseCoherent: false,
+      publicRelease: null,
+      expectedRelease: null,
       currentRelease: false,
       legacyReleaseAbsent: false,
       healthOk: false,
@@ -84,34 +89,53 @@ async function probePublicWeb(): Promise<PublicWebProbe> {
   }
 
   try {
-    const [homeResponse, healthResponse, imageResponse] = await Promise.all([
+    const [homeResponse, healthResponse, imageResponse, releaseResponse] = await Promise.all([
       fetch(`${baseUrl}/`, {
         cache: "no-store",
         signal: AbortSignal.timeout(6_000),
-        headers: { "User-Agent": "PISAO-Certification/3.0" },
+        headers: { "User-Agent": "PISAO-Certification/4.0" },
       }),
       fetch(`${baseUrl}/api/health`, {
         cache: "no-store",
         signal: AbortSignal.timeout(6_000),
-        headers: { "User-Agent": "PISAO-Certification/3.0" },
+        headers: { "User-Agent": "PISAO-Certification/4.0" },
       }),
       fetch(`${baseUrl}/api/media/pisao-experience`, {
         cache: "no-store",
         signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "PISAO-Certification/3.0" },
+        headers: { "User-Agent": "PISAO-Certification/4.0" },
+      }),
+      fetch(`${baseUrl}/api/release`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(6_000),
+        headers: { "User-Agent": "PISAO-Certification/4.0" },
       }),
     ]);
 
-    const [homeHtml, healthPayload, imageBytes] = await Promise.all([
+    const [homeHtml, healthPayload, imageBytes, releasePayload] = await Promise.all([
       homeResponse.text(),
       healthResponse.json().catch(() => null) as Promise<{
         status?: string;
         database?: string;
       } | null>,
       imageResponse.arrayBuffer(),
+      releaseResponse.json().catch(() => null) as Promise<{
+        releaseSha?: string;
+      } | null>,
     ]);
 
     const contentType = imageResponse.headers.get("content-type") ?? "";
+    const expectedReleaseRaw = runtimeReleaseSha();
+    const expectedRelease =
+      expectedReleaseRaw === "unknown" ? null : expectedReleaseRaw;
+    const publicReleaseRaw = releasePayload?.releaseSha?.trim() ?? "";
+    const publicRelease =
+      publicReleaseRaw && publicReleaseRaw !== "unknown" ? publicReleaseRaw : null;
+    const releaseEndpointOk = releaseResponse.ok && Boolean(publicRelease);
+    const releaseCoherent =
+      releaseEndpointOk &&
+      (expectedRelease ? publicRelease === expectedRelease : Boolean(publicRelease));
+
     const securityHeadersOk =
       homeResponse.headers.get("x-content-type-options") === "nosniff" &&
       Boolean(homeResponse.headers.get("strict-transport-security")) &&
@@ -120,6 +144,10 @@ async function probePublicWeb(): Promise<PublicWebProbe> {
     return {
       configured,
       homeOk: homeResponse.ok,
+      releaseEndpointOk,
+      releaseCoherent,
+      publicRelease,
+      expectedRelease,
       currentRelease:
         homeHtml.includes("Patacones · Cerveza artesanal · Terraza") &&
         homeHtml.includes("Así se vive PISÁO"),
@@ -136,6 +164,10 @@ async function probePublicWeb(): Promise<PublicWebProbe> {
     return {
       configured,
       homeOk: false,
+      releaseEndpointOk: false,
+      releaseCoherent: false,
+      publicRelease: null,
+      expectedRelease: null,
       currentRelease: false,
       legacyReleaseAbsent: false,
       healthOk: false,
@@ -349,9 +381,13 @@ export async function getProductionCertificationSummary() {
         ? "Configura PISAO_PUBLIC_URL con un dominio HTTPS."
         : !publicWeb.homeOk
           ? "Revisa dominio, SSL, Cloudflare y estado del servicio en Render."
-          : !publicWeb.currentRelease || !publicWeb.legacyReleaseAbsent
-            ? "El dominio no está sirviendo el release esperado; revisa caché/CDN y deployment activo."
-            : !publicWeb.imageOk || publicWeb.imageBytes < 50_000
+          : !publicWeb.releaseEndpointOk
+            ? "Verifica que /api/release esté disponible públicamente y sin caché intermedia."
+            : !publicWeb.releaseCoherent
+              ? "El dominio público apunta a un release distinto del proceso actual; corrige routing, CDN o caché."
+              : !publicWeb.currentRelease || !publicWeb.legacyReleaseAbsent
+                ? "El dominio conserva HTML antiguo; purga caché/CDN o revisa la política de cache del Home."
+                : !publicWeb.imageOk || publicWeb.imageBytes < 50_000
               ? "Corrige la entrega de /api/media/pisao-experience hasta que responda una imagen válida."
               : !publicWeb.healthOk || !publicWeb.databaseOk
                 ? "Revisa /api/health y la conexión productiva con PostgreSQL."
@@ -361,6 +397,8 @@ export async function getProductionCertificationSummary() {
       checks: [
         { label: "Dominio público HTTPS", ok: publicWeb.configured },
         { label: "Home responde 200", ok: publicWeb.homeOk },
+        { label: "Huella de release pública", ok: publicWeb.releaseEndpointOk },
+        { label: "Release dominio = proceso actual", ok: publicWeb.releaseCoherent },
         { label: "Release actual visible", ok: publicWeb.currentRelease },
         { label: "Copy legacy ausente", ok: publicWeb.legacyReleaseAbsent },
         { label: "Health + base de datos", ok: publicWeb.healthOk && publicWeb.databaseOk },
@@ -507,7 +545,7 @@ export async function getProductionCertificationSummary() {
   ];
 
   return {
-    engineVersion: "production_certification_v3",
+    engineVersion: "production_certification_v4",
     windowDays,
     overall: deriveOverallCertification(gates.map((gate) => gate.state)),
     certifiedCount: gates.filter((gate) => gate.state === "CERTIFIED").length,
