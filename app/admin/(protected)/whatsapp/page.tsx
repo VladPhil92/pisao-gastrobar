@@ -2,6 +2,7 @@ import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistence
 import { WhatsAppRuntimeControl } from "@/components/admin/WhatsAppRuntimeControl";
 import { WhatsAppOperationsPanel } from "@/components/admin/WhatsAppOperationsPanel";
 import { MetaEmbeddedSignupGuide } from "@/components/admin/MetaEmbeddedSignupGuide";
+import { MetaAppReviewEvidenceCenter } from "@/components/admin/MetaAppReviewEvidenceCenter";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
 import {
@@ -9,6 +10,7 @@ import {
   getWhatsAppRuntimeState,
 } from "@/lib/whatsapp/meta-config";
 import { getWhatsAppOperationsSummary } from "@/lib/whatsapp/operations";
+import { getMetaAppReviewReadiness } from "@/lib/whatsapp/meta-review";
 
 function Status({
   label,
@@ -38,12 +40,14 @@ function Status({
 
 export default async function AdminWhatsAppPage() {
   await requireAdminRoute("/admin/whatsapp");
-  const [integration, configId, runtime, operations] = await Promise.all([
-    getWhatsAppIntegrationSummary(),
-    getEmbeddedSignupConfigId(),
-    getWhatsAppRuntimeState(),
-    getWhatsAppOperationsSummary(),
-  ]);
+  const [integration, configId, runtime, operations, reviewReadiness] =
+    await Promise.all([
+      getWhatsAppIntegrationSummary(),
+      getEmbeddedSignupConfigId(),
+      getWhatsAppRuntimeState(),
+      getWhatsAppOperationsSummary(),
+      getMetaAppReviewReadiness(),
+    ]);
   const appId = process.env.NEXT_PUBLIC_META_APP_ID?.trim() || null;
 
   const appSecretReady = Boolean(process.env.WHATSAPP_META_APP_SECRET?.trim());
@@ -136,6 +140,8 @@ export default async function AdminWhatsAppPage() {
       />
 
       <WhatsAppOperationsPanel summary={operations} />
+
+      <MetaAppReviewEvidenceCenter initial={reviewReadiness} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <WhatsAppCoexistenceSetup appId={appId} configId={configId} />
