@@ -792,17 +792,21 @@ model MetaDataDeletionRequest {
 /// Configuración no secreta del onboarding de Meta para WhatsApp.
 /// Permite administrar el Configuration ID desde el backoffice sin redeploy.
 model WhatsAppMetaConfig {
-  id                       String    @id @default("primary") @db.VarChar(24)
-  embeddedSignupConfigId   String?   @db.VarChar(128)
-  runtimeEnabled           Boolean?
-  lastProbeAt              DateTime?
-  lastProbeStatus          String?   @db.VarChar(24)
-  lastProbeCode            String?   @db.VarChar(64)
-  lastAutoPauseAt          DateTime?
-  lastAutoPauseReason      String?   @db.VarChar(96)
-  updatedByUserId          String?   @db.VarChar(64)
-  updatedAt                DateTime  @updatedAt
-  createdAt                DateTime  @default(now())
+  id                              String    @id @default("primary") @db.VarChar(24)
+  embeddedSignupConfigId          String?   @db.VarChar(128)
+  runtimeEnabled                  Boolean?
+  lastProbeAt                     DateTime?
+  lastProbeStatus                 String?   @db.VarChar(24)
+  lastProbeCode                   String?   @db.VarChar(64)
+  lastAutoPauseAt                 DateTime?
+  lastAutoPauseReason             String?   @db.VarChar(96)
+  metaAccessVerificationStatus    String    @default("PENDING") @db.VarChar(24)
+  metaAccessVerificationUpdatedAt DateTime?
+  metaAppReviewStatus             String    @default("NOT_STARTED") @db.VarChar(24)
+  metaAppReviewUpdatedAt          DateTime?
+  updatedByUserId                 String?   @db.VarChar(64)
+  updatedAt                       DateTime  @updatedAt
+  createdAt                       DateTime  @default(now())
 
   @@map("whatsapp_meta_config")
 }
