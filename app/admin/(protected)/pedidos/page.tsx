@@ -7,6 +7,7 @@ import {
 import { VerificarPagoButtons } from "@/components/admin/VerificarPagoButtons";
 import { OrderStatusControls } from "@/components/admin/OrderStatusControls";
 import { PaymentNotificationRetryButton } from "@/components/admin/PaymentNotificationRetryButton";
+import { paymentReviewSlaMinutes } from "@/lib/notifications/payment-ops";
 
 const CRYPTO_ASSETS = new Set<OnchainCrypto>(["BNB", "USDT", "ETH", "BTC"]);
 
@@ -60,6 +61,7 @@ async function getPedidos() {
           take: 1,
           select: {
             id: true,
+            event: true,
             status: true,
             provider: true,
             attempts: true,
@@ -77,6 +79,8 @@ async function getPedidos() {
 
 export default async function AdminPedidosPage() {
   const pedidos = await getPedidos();
+  const slaMinutes = paymentReviewSlaMinutes();
+  const now = Date.now();
 
   return (
     <div>
@@ -101,6 +105,7 @@ export default async function AdminPedidosPage() {
                 <th className="px-4 py-3">Total</th>
                 <th className="px-4 py-3">On-chain</th>
                 <th className="px-4 py-3">Comprobante</th>
+                <th className="px-4 py-3">SLA pago</th>
                 <th className="px-4 py-3">Alerta admin</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -114,6 +119,19 @@ export default async function AdminPedidosPage() {
                 const reconciliationState = cryptoReconciliationState(
                   p.pago?.payloadProveedor,
                 );
+                const reviewAgeMinutes = p.pago?.comprobanteRecibidoEn
+                  ? Math.max(
+                      0,
+                      Math.floor(
+                        (now - new Date(p.pago.comprobanteRecibidoEn).getTime()) /
+                          60_000,
+                      ),
+                    )
+                  : null;
+                const paymentReviewOverdue =
+                  p.estado === "PENDIENTE_VERIFICACION" &&
+                  reviewAgeMinutes !== null &&
+                  reviewAgeMinutes >= slaMinutes;
 
                 return (
                   <tr key={p.id} className="border-t border-pisao-gold/10">
@@ -197,6 +215,27 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
+                      {reviewAgeMinutes !== null &&
+                      p.estado === "PENDIENTE_VERIFICACION" ? (
+                        <div className="space-y-1 text-xs">
+                          <p
+                            className={
+                              paymentReviewOverdue
+                                ? "font-semibold text-red-300"
+                                : "font-semibold text-emerald-300"
+                            }
+                          >
+                            {paymentReviewOverdue ? "FUERA DE SLA" : "EN SLA"}
+                          </p>
+                          <p className="text-pisao-cream-muted">
+                            {reviewAgeMinutes} min · objetivo {slaMinutes} min
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-pisao-cream-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       {p.adminNotifications[0] ? (
                         <div className="space-y-1 text-xs">
                           <p
@@ -214,6 +253,12 @@ export default async function AdminPedidosPage() {
                             {p.adminNotifications[0].provider ?? "sin canal"} ·{" "}
                             {p.adminNotifications[0].attempts} intento(s)
                           </p>
+                          {p.adminNotifications[0].event ===
+                            "PAYMENT_REVIEW_OVERDUE" && (
+                            <p className="font-semibold text-red-300">
+                              Escalación SLA
+                            </p>
+                          )}
                           {p.adminNotifications[0].status !== "DELIVERED" && (
                             <PaymentNotificationRetryButton
                               notificationId={p.adminNotifications[0].id}
@@ -242,7 +287,7 @@ export default async function AdminPedidosPage() {
               {pedidos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-4 py-6 text-center text-pisao-cream-muted"
                   >
                     Aún no hay pedidos.
