@@ -28,6 +28,16 @@ assert.match(
 );
 assert.match(
   federation,
+  /PISAO_PUBLIC_ORIGIN/,
+  "Federated redirects must resolve against the canonical PISÁO public origin.",
+);
+assert.match(
+  federation,
+  /pisaoPublicUrl/,
+  "Federated routes must share a canonical public URL builder.",
+);
+assert.match(
+  federation,
   /ctgRole !== "admin"/,
   "Only the canonical CTG One admin role may mint a PISÁO admin session.",
 );
@@ -122,6 +132,22 @@ assert.match(
   signout,
   /CTG_ONE_ADMIN_SESSION_COOKIE/,
   "Signout must revoke the federated admin cookie.",
+);
+for (const [name, source] of [
+  ["callback", callback],
+  ["start", startRoute],
+  ["signout", signout],
+]) {
+  assert.doesNotMatch(
+    source,
+    /new URL\([^\n]*request\.url|new URL\([\s\S]{0,160}?request\.url/,
+    `${name} must never build browser redirects from Render's internal request.url.`,
+  );
+}
+assert.match(
+  callback,
+  /pisaoPublicUrl\(transaction\.next\)/,
+  "Successful federation must return to the canonical public PISÁO origin.",
 );
 
 console.log("CTG One admin SSO invariants: PASS");
