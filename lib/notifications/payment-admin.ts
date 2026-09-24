@@ -29,7 +29,7 @@ export type PaymentAdminOrder = {
 
 export type PaymentAdminNotificationResult = {
   delivery: "automatic" | "manual";
-  provider: "whatsapp_cloud" | "webhook" | "click_to_chat";
+  provider: "whatsapp_cloud" | "email" | "webhook" | "click_to_chat";
   whatsappUrl: string;
 };
 
@@ -49,7 +49,7 @@ export type CryptoConfirmationAdminInput = {
 
 export type CryptoConfirmationNotificationResult = {
   delivery: "automatic" | "pending";
-  provider: "whatsapp_cloud" | "webhook" | "unavailable";
+  provider: "whatsapp_cloud" | "email" | "webhook" | "unavailable";
 };
 
 function digitsOnly(value: string) {
@@ -60,6 +60,62 @@ export function paymentAdminNumber() {
   return digitsOnly(
     process.env.PAYMENT_ADMIN_WHATSAPP_NUMBER?.trim() || "573186428218",
   );
+}
+
+function paymentAdminEmail() {
+  return process.env.PAYMENT_ADMIN_NOTIFY_EMAIL?.trim() || "";
+}
+
+function adminOrdersUrl() {
+  const origin =
+    process.env.PISAO_PUBLIC_ORIGIN?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    "https://pisaogastrobar.com";
+
+  return `${origin.replace(/\/$/, "")}/admin/pedidos`;
+}
+
+async function notifyPaymentAdminEmail(params: {
+  orderNumber: number;
+  subject: string;
+  message: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
+  const to = paymentAdminEmail();
+
+  if (!apiKey || !from || !to) return false;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: params.subject,
+      text: [
+        params.message,
+        "",
+        `Revisar y aprobar en el dashboard: ${adminOrdersUrl()}`,
+        "",
+        "El comprobante permanece almacenado de forma segura en PISÁO y no se adjunta al correo.",
+      ].join("\n"),
+    }),
+    signal: AbortSignal.timeout(8_000),
+  });
+
+  if (!response.ok) {
+    console.warn("[PISAO PAYMENTS] Admin email notification failed", {
+      order: params.orderNumber,
+      status: response.status,
+    });
+    return false;
+  }
+
+  return true;
 }
 
 export function buildPaymentAdminMessage(order: PaymentAdminOrder) {
@@ -318,14 +374,38 @@ export async function notifyCryptoConfirmationAdmin(
     });
   }
 
-  try {
-    if (await notifyCryptoConfirmationViaWebhook(input, message)) {
-      return { delivery: "automatic", provider: "webhook" };
-    }
-  } catch (error) {
+  const [emailFallback, webhookFallback] = await Promise.allSettled([
+    notifyPaymentAdminEmail({
+      orderNumber: input.numero,
+      subject: `PISÁO · Pago cripto confirmado · Pedido #${input.numero}`,
+      message,
+    }),
+    notifyCryptoConfirmationViaWebhook(input, message),
+  ]);
+
+  if (emailFallback.status === "fulfilled" && emailFallback.value) {
+    return { delivery: "automatic", provider: "email" };
+  }
+  if (emailFallback.status === "rejected") {
+    console.warn("[PISAO PAYMENTS] Crypto confirmation email failed", {
+      order: input.numero,
+      error:
+        emailFallback.reason instanceof Error
+          ? emailFallback.reason.name
+          : "UnknownError",
+    });
+  }
+
+  if (webhookFallback.status === "fulfilled" && webhookFallback.value) {
+    return { delivery: "automatic", provider: "webhook" };
+  }
+  if (webhookFallback.status === "rejected") {
     console.warn("[PISAO PAYMENTS] Crypto confirmation webhook failed", {
       order: input.numero,
-      error: error instanceof Error ? error.name : "UnknownError",
+      error:
+        webhookFallback.reason instanceof Error
+          ? webhookFallback.reason.name
+          : "UnknownError",
     });
   }
 
@@ -354,18 +434,46 @@ export async function notifyPaymentAdmin(
     });
   }
 
-  try {
-    if (await notifyViaWebhook(order, evidence, message)) {
-      return {
-        delivery: "automatic",
-        provider: "webhook",
-        whatsappUrl,
-      };
-    }
-  } catch (error) {
+  const [emailFallback, webhookFallback] = await Promise.allSettled([
+    notifyPaymentAdminEmail({
+      orderNumber: order.numero,
+      subject: `PISÁO · Pago por validar · Pedido #${order.numero}`,
+      message,
+    }),
+    notifyViaWebhook(order, evidence, message),
+  ]);
+
+  if (emailFallback.status === "fulfilled" && emailFallback.value) {
+    return {
+      delivery: "automatic",
+      provider: "email",
+      whatsappUrl,
+    };
+  }
+  if (emailFallback.status === "rejected") {
+    console.warn("[PISAO PAYMENTS] Payment email notification failed", {
+      order: order.numero,
+      error:
+        emailFallback.reason instanceof Error
+          ? emailFallback.reason.name
+          : "UnknownError",
+    });
+  }
+
+  if (webhookFallback.status === "fulfilled" && webhookFallback.value) {
+    return {
+      delivery: "automatic",
+      provider: "webhook",
+      whatsappUrl,
+    };
+  }
+  if (webhookFallback.status === "rejected") {
     console.warn("[PISAO PAYMENTS] Payment webhook notification failed", {
       order: order.numero,
-      error: error instanceof Error ? error.name : "UnknownError",
+      error:
+        webhookFallback.reason instanceof Error
+          ? webhookFallback.reason.name
+          : "UnknownError",
     });
   }
 
