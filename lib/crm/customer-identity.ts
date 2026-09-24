@@ -41,7 +41,10 @@ export async function resolveCrmCustomerProfile(input: {
       return prisma.crmCustomerProfile.update({
         where: { id: byEmail.id },
         data: {
-          nombre,
+          nombre:
+            input.source === "CTG_ONE" && byEmail.nombre
+              ? byEmail.nombre
+              : nombre,
           phoneNormalized: phone ?? byEmail.phoneNormalized,
           source: input.accountClienteId ? "ACCOUNT" : byEmail.source,
           accountClienteId:
