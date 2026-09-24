@@ -12,6 +12,7 @@ import {
 
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getKevControlPlaneSnapshot } from "@/lib/governance/kev-control-plane";
+import { fetchKevIntelligenceSnapshot } from "@/lib/governance/kev-intelligence";
 
 const stateCopy = {
   UNCONFIGURED: {
@@ -47,7 +48,10 @@ function formatDate(value: string | null) {
 
 export default async function KevControlPlanePage() {
   await requireAdminRoute("/admin/kev");
-  const snapshot = await getKevControlPlaneSnapshot();
+  const [snapshot, intelligence] = await Promise.all([
+    getKevControlPlaneSnapshot(),
+    fetchKevIntelligenceSnapshot(),
+  ]);
   const current = stateCopy[snapshot.state];
   const StateIcon = current.icon;
 
@@ -141,6 +145,114 @@ export default async function KevControlPlanePage() {
             <ArrowRight className="size-4" />
           </Link>
         </div>
+      </section>
+
+      <section className="border-pisao-gold/10 bg-pisao-noche rounded-3xl border p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-pisao-gold text-[10px] font-semibold tracking-[.16em] uppercase">
+              Kev Intelligence Mirror
+            </p>
+            <h2 className="font-display text-pisao-cream mt-1 text-2xl">
+              Lo que Kev está observando
+            </h2>
+            <p className="text-pisao-cream-muted mt-2 max-w-3xl text-xs leading-relaxed">
+              Snapshot agregado del Cortex de Kev. No contiene identidad de clientes,
+              conversaciones ni eventos operativos crudos.
+            </p>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+            intelligence.available
+              ? "bg-emerald-400/10 text-emerald-300"
+              : "bg-amber-400/10 text-amber-300"
+          }`}>
+            {intelligence.available ? "Conectado" : "No disponible"}
+          </span>
+        </div>
+
+        {intelligence.available ? (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-2xl border p-4">
+                <p className="text-pisao-cream-muted text-[10px] uppercase">Señales observadas</p>
+                <p className="font-display text-pisao-cream mt-2 text-3xl">
+                  {intelligence.data.coverage.event_count}
+                </p>
+                <p className="text-pisao-cream-muted mt-1 text-[10px]">
+                  muestra {intelligence.data.coverage.sample_quality}
+                </p>
+              </div>
+              <div className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-2xl border p-4">
+                <p className="text-pisao-cream-muted text-[10px] uppercase">Rechazo reservas</p>
+                <p className="font-display text-pisao-cream mt-2 text-3xl">
+                  {Math.round(intelligence.data.reservations.rejection_rate * 100)}%
+                </p>
+                <p className="text-pisao-cream-muted mt-1 text-[10px]">
+                  {intelligence.data.reservations.attempts_observed} intentos
+                </p>
+              </div>
+              <div className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-2xl border p-4">
+                <p className="text-pisao-cream-muted text-[10px] uppercase">Fallback Concierge</p>
+                <p className="font-display text-pisao-cream mt-2 text-3xl">
+                  {Math.round(intelligence.data.concierge.fallback_rate * 100)}%
+                </p>
+                <p className="text-pisao-cream-muted mt-1 text-[10px]">
+                  {intelligence.data.concierge.provider_errors} errores de proveedor
+                </p>
+              </div>
+              <div className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-2xl border p-4">
+                <p className="text-pisao-cream-muted text-[10px] uppercase">Cancelación pedidos</p>
+                <p className="font-display text-pisao-cream mt-2 text-3xl">
+                  {Math.round(intelligence.data.orders.cancellation_rate * 100)}%
+                </p>
+                <p className="text-pisao-cream-muted mt-1 text-[10px]">
+                  {intelligence.data.orders.orders_observed} pedidos observados
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-pisao-cream text-sm font-semibold">
+                  Recomendaciones actuales
+                </h3>
+                <span className="text-pisao-cream-muted text-[10px]">
+                  Solo recomendación · sin autoridad de mutación
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                {intelligence.data.recommendations.slice(0, 6).map((recommendation) => (
+                  <article
+                    key={recommendation.code}
+                    className="border-pisao-gold/10 bg-pisao-carbon-soft rounded-2xl border p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="text-pisao-cream text-sm font-semibold">
+                        {recommendation.title}
+                      </h4>
+                      <span className="bg-pisao-gold/10 text-pisao-gold rounded-full px-2 py-1 text-[9px] font-semibold uppercase">
+                        {recommendation.priority}
+                      </span>
+                    </div>
+                    <p className="text-pisao-cream-muted mt-2 text-xs leading-relaxed">
+                      {recommendation.rationale}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="border-pisao-gold/10 bg-pisao-carbon-soft mt-5 rounded-2xl border p-5">
+            <p className="text-pisao-cream text-sm font-semibold">
+              El snapshot de inteligencia no respondió.
+            </p>
+            <p className="text-pisao-cream-muted mt-2 text-xs">
+              Motivo técnico: {intelligence.reason}
+              {intelligence.status ? ` · HTTP ${intelligence.status}` : ""}
+            </p>
+          </div>
+        )}
       </section>
 
       <section>
