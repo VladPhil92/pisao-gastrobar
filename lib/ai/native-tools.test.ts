@@ -188,3 +188,35 @@ test("consulta disponibilidad mediante una función inyectada", async () => {
 
   assert.match(result.output.output, /"available":true/);
 });
+
+
+test("verifica un pedido sin exponer PII", async () => {
+  const result = await executeNativeToolCall({
+    call: {
+      type: "function_call",
+      call_id: "call_order",
+      name: "get_order_status",
+      arguments: JSON.stringify({
+        numero: 321,
+        telefono: "3186428218",
+      }),
+    },
+    products,
+    activeProposal,
+    latestUserMessage: "¿Cómo va mi pedido 321? Mi teléfono es 3186428218",
+    checkAvailability: async () => {
+      throw new Error("no debería ejecutarse");
+    },
+    lookupOrderStatus: async ({ numero, telefono }) => {
+      assert.equal(numero, 321);
+      assert.equal(telefono, "3186428218");
+      return {
+        stage: { code: "PREPARING", label: "En preparación" },
+        payment: { estado: "APROBADO" },
+      };
+    },
+  });
+
+  assert.match(result.output.output, /"PREPARING"/);
+  assert.doesNotMatch(result.output.output, /clienteNombre|clienteEmail|direccion/);
+});
