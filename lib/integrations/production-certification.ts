@@ -206,8 +206,9 @@ export async function getProductionCertificationSummary() {
     whatsappIntegration?.status === "ACTIVE";
   const whatsappConfigured =
     whatsappServerConfig &&
-    whatsappWebhookEnabled &&
-    whatsappIntegrationActive;
+    whatsappIntegrationActive &&
+    whatsappProbePassed &&
+    whatsappWebhookEnabled;
   const whatsappEvidence = Boolean(
     lastWhatsappWebhook?.processedAt &&
       lastWhatsappConversation?.lastInboundAt &&
