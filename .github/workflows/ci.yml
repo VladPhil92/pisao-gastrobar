@@ -93,6 +93,9 @@ jobs:
       - name: WhatsApp Embedded Signup config tests
         run: npm run test:whatsapp-config
 
+      - name: WhatsApp production activation tests
+        run: npm run test:whatsapp-activation
+
       - name: Production certification tests
         run: npm run test:certification
 
