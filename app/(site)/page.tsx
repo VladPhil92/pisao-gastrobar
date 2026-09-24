@@ -26,7 +26,7 @@ const experiences = [
   {
     eyebrow: "Quiero comer ya",
     title: "Arma tu pedido",
-    body: "Explora la carta, activa Modo Plan o construye tu Mesa Visual plato a plato.",
+    body: "Mira la carta, arma tu antojo y pide lo que de verdad te provoca.",
     href: "/menu",
     cta: "Entrar a la carta",
     icon: ShoppingBag,
@@ -35,7 +35,7 @@ const experiences = [
   {
     eyebrow: "Quiero salir",
     title: "Reserva con vista",
-    body: "Haz que la terraza sea parte del plan antes de llegar a Mall Plaza Cartagena.",
+    body: "Una mesa, buena brisa y Cartagena de fondo. Reserva tu lugar en la terraza.",
     href: "/reservas",
     cta: "Reservar terraza",
     icon: CalendarCheck,
@@ -44,7 +44,7 @@ const experiences = [
   {
     eyebrow: "No sé qué elegir",
     title: "Pregúntale a PISÁO",
-    body: "Cuéntanos cuántos son, qué les provoca y cuánto quieren gastar. Te ayudamos a aterrizar la mesa.",
+    body: "Dinos qué te provoca y con quién vienes. Te ayudamos a encontrar algo bueno para la mesa.",
     href: whatsappLink("Hola PISÁO, quiero que me ayuden a elegir qué pedir."),
     cta: "Hablar con PISÁO",
     icon: MessageCircle,
@@ -134,7 +134,7 @@ export default function HomePage() {
               <Image src="/gallery/laguna_azul_burger.jpg" alt="Laguna Azul Burger" fill sizes="18vw" className="object-cover" />
             </div>
             <div className="border-pisao-gold/30 bg-pisao-carbon/80 absolute left-[7%] top-[18%] rounded-full border px-4 py-2 text-[10px] font-semibold tracking-[.2em] text-pisao-gold uppercase backdrop-blur-xl">
-              No es catálogo. Es antojo.
+              Aquí se viene a antojarse.
             </div>
           </div>
         </Container>
@@ -157,7 +157,7 @@ export default function HomePage() {
               <span className="block text-pisao-gold">Empieza por sentir hambre.</span>
             </h2>
             <p className="text-pisao-cream-muted mt-5 max-w-2xl text-sm leading-relaxed sm:text-base">
-              La navegación se organiza alrededor de lo que quieres hacer, no alrededor de una lista de enlaces.
+              ¿Vienes a comer, a tomar algo o a pasar un buen rato? Empieza por ahí.
             </p>
           </Reveal>
 
@@ -204,7 +204,7 @@ export default function HomePage() {
             <div className="max-w-3xl">
               <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">Lo que vino a buscar</p>
               <h2 className="font-display text-pisao-cream mt-3 text-4xl leading-[.98] sm:text-6xl">
-                La carta también puede ser una galería.
+                Esto entra por los ojos.
               </h2>
             </div>
             <Button href="/menu" variant="outline">Ver carta completa</Button>
@@ -219,7 +219,7 @@ export default function HomePage() {
                   <div className="absolute right-0 bottom-0 left-0 p-6">
                     <p className="font-display text-pisao-cream text-2xl sm:text-3xl">{plate.label}</p>
                     <span className="text-pisao-gold mt-2 inline-flex items-center gap-2 text-[10px] font-semibold tracking-[.18em] uppercase">
-                      Llevar a mi mesa <ArrowRight className="size-3.5" />
+                      Lo quiero <ArrowRight className="size-3.5" />
                     </span>
                   </div>
                 </Link>
@@ -249,7 +249,7 @@ export default function HomePage() {
             <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.22em] uppercase">La experiencia</p>
             <h2 className="font-display text-pisao-cream mt-3 text-4xl leading-tight sm:text-6xl">No todo pasa en el plato.</h2>
             <p className="text-pisao-cream-muted mt-5 max-w-xl leading-relaxed">
-              La luz cambia, llega la cerveza, alguien pide otra ronda y la mesa se alarga. La terraza es parte del producto: no un fondo, sino una razón para venir.
+              Cae la tarde, llega la cerveza y la conversación se alarga. Arriba, Cartagena se disfruta distinto.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button href="/reservas" variant="primary">Quiero venir</Button>
@@ -271,7 +271,7 @@ export default function HomePage() {
               <span className="text-pisao-gold block">Más mesa.</span>
             </h2>
             <p className="text-pisao-cream-muted mt-5 max-w-xl leading-relaxed">
-              El asistente consulta la carta disponible y ayuda a convertir una conversación en una decisión gastronómica concreta según grupo, gusto y presupuesto.
+              Te ayudamos a elegir según tus gustos, tu parche y tu presupuesto. Fácil, rápido y sin vueltas.
             </p>
             <div className="mt-7 flex flex-wrap gap-2 text-xs">
               {["Recomendaciones", "Presupuesto", "Reservas", "Domicilios", "Eventos"].map((item) => (
@@ -291,7 +291,7 @@ export default function HomePage() {
               </div>
               <p className="text-pisao-cream-muted mt-5 text-xs">PISÁO Concierge</p>
               <div className="border-pisao-gold/10 bg-pisao-carbon text-pisao-cream mt-2 max-w-[94%] rounded-2xl rounded-bl-md border px-4 py-4 text-sm leading-relaxed">
-                Te ayudo a construir una mesa con opciones reales de la carta y a ver el total antes de pedir.
+                De una. Te armo una combinación para compartir y te muestro cuánto queda antes de pedir.
               </div>
             </div>
           </Reveal>
@@ -314,7 +314,7 @@ export default function HomePage() {
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.24em] uppercase">PISÁO donde estés</p>
             <h2 className="font-display text-pisao-cream mt-3 text-4xl leading-tight sm:text-6xl">El plan también puede llegar a tu casa.</h2>
             <p className="text-pisao-cream-muted mt-4 max-w-xl leading-relaxed">
-              Haz tu pedido desde la carta o continúa por WhatsApp. El recorrido mantiene la misma identidad visual: primero antojo, después decisión.
+              Pide desde la carta o escríbenos por WhatsApp. Tú eliges cómo; nosotros ponemos el sabor.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button href="/menu" variant="primary">Armar pedido</Button>
