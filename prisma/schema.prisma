@@ -15,6 +15,7 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum RolUsuario {
+  SUPER_ADMIN
   ADMIN
   CAJERO
   COCINA
