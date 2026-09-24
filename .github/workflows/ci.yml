@@ -105,6 +105,9 @@ jobs:
       - name: Meta compliance readiness tests
         run: npm run test:meta-compliance
 
+      - name: Meta App Review evidence tests
+        run: npm run test:meta-app-review
+
       - name: Production certification tests
         run: npm run test:certification
 
