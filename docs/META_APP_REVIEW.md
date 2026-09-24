@@ -61,3 +61,31 @@ El sitio también publica instrucciones de eliminación directa para usuarios.
 
 La memoria persistente de PISÁO Concierge no conserva transcripciones completas.
 La consola operacional de WhatsApp usa identificadores pseudónimos y metadatos técnicos, no teléfonos ni cuerpos de mensajes.
+
+
+## V9 — Automated Review Evidence
+
+PISÁO registra automáticamente evidencia técnica sin PII para App Review.
+
+Eventos persistidos bajo `integration=META_REVIEW`:
+
+- `embedded_signup_completed`: la WABA y el Phone Number ID quedaron vinculados mediante Embedded Signup.
+- `waba_probe_verified`: Meta Graph API aceptó el token y confirmó el Phone Number ID.
+- `whatsapp_inbound_processed`: un inbound real fue procesado por el webhook.
+- `whatsapp_ai_outbound_sent`: Cloud API aceptó una respuesta generada por PISÁO Concierge.
+- `review_snapshot`: fotografía manual del estado de todos los gates, generada desde el backoffice.
+
+El ledger no almacena texto de mensajes, números de clientes, tokens, payloads de Meta ni credenciales.
+
+### Gate estricto
+
+El estado `LISTO PARA APP REVIEW` requiere simultáneamente:
+
+1. Access Verification = VERIFIED.
+2. Configuration ID presente.
+3. Integración WhatsApp = ACTIVE.
+4. Probe contra Meta = SUCCESS.
+5. Evidencia V9 de Embedded Signup + Graph probe.
+6. Evidencia V9 de inbound + outbound IA.
+
+Las señales históricas previas a V9 pueden mostrarse como contexto, pero no satisfacen por sí solas el gate estricto.
