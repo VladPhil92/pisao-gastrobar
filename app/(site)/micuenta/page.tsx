@@ -186,6 +186,24 @@ export default async function MiCuentaPage() {
             <div className="mb-8 rounded-2xl border border-pisao-gold/15 bg-pisao-noche p-5 text-sm text-pisao-cream-muted">Tu identidad está activa, pero el historial transaccional no está disponible en este momento.</div>
           )}
 
+          <section className="mb-8 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-pisao-gold/12 bg-pisao-noche/70 p-5">
+              <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">Compra fácil</p>
+              <p className="font-display mt-2 text-2xl text-pisao-cream">Repite en un toque</p>
+              <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">Tus pedidos anteriores pueden volver al carrito con precios y disponibilidad actualizados.</p>
+            </div>
+            <div className="rounded-2xl border border-pisao-gold/12 bg-pisao-noche/70 p-5">
+              <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">Tu historial</p>
+              <p className="font-display mt-2 text-2xl text-pisao-cream">{pedidos.length} pedidos</p>
+              <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">Tu actividad queda reunida por tu cuenta para hacer más simples tus próximas compras.</p>
+            </div>
+            <div className="rounded-2xl border border-pisao-gold/12 bg-pisao-noche/70 p-5">
+              <p className="text-[9px] font-semibold tracking-[.16em] text-pisao-gold uppercase">Beneficios PISÁO</p>
+              <p className="font-display mt-2 text-2xl text-pisao-cream">Perfil reconocido</p>
+              <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">Esta cuenta ya puede servir como base para beneficios, promociones y recompensas sin exigir CTG One.</p>
+            </div>
+          </section>
+
           <div className="grid gap-8 lg:grid-cols-2">
             <Reveal>
               <section aria-labelledby="pedidos-title" className="h-full rounded-[2.25rem] border border-pisao-gold/12 bg-pisao-noche/70 p-5 sm:p-7">
