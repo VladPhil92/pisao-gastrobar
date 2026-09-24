@@ -150,25 +150,30 @@ export default function HomePage() {
         <ImageMarquee photos={visualStrip} />
       </section>
 
-      <section className="border-pisao-gold/10 bg-pisao-noche border-b py-14 sm:py-24">
-        <Container className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-          <Reveal className="relative min-h-[430px] overflow-hidden rounded-[2rem] border border-pisao-gold/15 sm:min-h-[600px] sm:rounded-[2.5rem] lg:min-h-[680px]">
+      <section className="border-pisao-gold/10 bg-pisao-noche relative overflow-hidden border-b py-14 sm:py-20 lg:py-24">
+        <div className="pisao-ambient-glow absolute -left-40 top-24 size-[34rem] rounded-full bg-pisao-gold/8 blur-[110px]" />
+        <Container className="relative grid gap-9 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:gap-16">
+          <Reveal className="relative mx-auto aspect-[3/4] w-full max-w-[620px] overflow-hidden rounded-[2rem] border border-pisao-gold/15 shadow-2xl sm:aspect-[4/5] sm:rounded-[2.5rem] lg:mx-0 lg:max-h-[760px]">
             <Image
               src="/api/media/pisao-experience"
               alt="Un momento de sabor en PISÁO"
               fill
               unoptimized
-              sizes="(min-width: 1024px) 52vw, 100vw"
-              className="object-cover object-center"
+              sizes="(min-width: 1024px) 42vw, 100vw"
+              className="object-cover object-[50%_44%]"
             />
-            <div className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_52%,rgba(8,8,8,.58)_100%)]" />
+            <div className="border-pisao-gold/20 bg-pisao-carbon/75 absolute right-4 bottom-4 left-4 rounded-2xl border px-4 py-3 backdrop-blur-xl sm:right-6 sm:bottom-6 sm:left-6 sm:px-5 sm:py-4">
+              <p className="text-pisao-gold text-[9px] font-semibold tracking-[.2em] uppercase">Un momento PISÁO</p>
+              <p className="font-display text-pisao-cream mt-1 text-xl sm:text-2xl">Se comparte mejor cuando llega caliente a la mesa.</p>
+            </div>
           </Reveal>
-          <Reveal delay={100} className="lg:pl-6">
+          <Reveal delay={100} className="lg:pl-2">
             <p className="text-pisao-gold text-xs font-semibold tracking-[0.25em] uppercase">Así se vive PISÁO</p>
-            <h2 className="font-display text-pisao-cream mt-3 max-w-[12ch] text-4xl leading-[.98] sm:text-6xl">
+            <h2 className="font-display text-pisao-cream mt-3 max-w-[11ch] text-4xl leading-[.98] text-balance sm:text-6xl lg:text-7xl">
               Hay antojos que no se explican.
             </h2>
-            <p className="text-pisao-cream-muted mt-5 max-w-lg text-base leading-relaxed sm:text-lg">
+            <p className="text-pisao-cream-muted mt-5 max-w-xl text-base leading-relaxed sm:text-lg">
               Se piden, se comparten y se disfrutan. Ven con hambre; del resto nos encargamos nosotros.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
