@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
+import { PaymentNotificationTestButton } from "@/components/admin/PaymentNotificationTestButton";
 import {
   AlertTriangle,
   Bot,
@@ -181,6 +182,19 @@ export default async function ProductionCertificationPage() {
             </article>
           );
         })}
+      </section>
+
+      <section className="mt-6 rounded-3xl border border-pisao-gold/10 bg-pisao-carbon-soft p-5 sm:p-6">
+        <h2 className="font-display text-pisao-cream text-2xl">
+          Payment Operations Reliability V2
+        </h2>
+        <p className="text-pisao-cream-muted mt-3 max-w-3xl text-sm leading-relaxed">
+          Ejecuta una alerta sintética sin crear una venta ni aprobar un pago. Sirve para
+          validar la ruta de respaldo por email mientras WhatsApp completa su certificación.
+        </p>
+        <div className="mt-4">
+          <PaymentNotificationTestButton />
+        </div>
       </section>
 
       <section className="mt-6 rounded-3xl border border-pisao-gold/10 bg-pisao-carbon-soft p-5 sm:p-6">
