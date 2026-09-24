@@ -340,6 +340,7 @@ model Pedido {
   updatedAt DateTime @updatedAt
 
   @@index([estado, entregadoAt])
+  @@index([customerProfileId, createdAt])
   @@map("pedidos")
 }
 
@@ -497,6 +498,7 @@ model Reserva {
   updatedAt DateTime @updatedAt
 
   @@index([fecha])
+  @@index([customerProfileId, fecha])
   @@map("reservas")
 }
 
