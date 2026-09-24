@@ -53,6 +53,7 @@ const typeLabel: Record<string, string> = {
   RESERVATION_FRICTION_REVIEW: "Reservas",
   ATTRIBUTION_COVERAGE_REVIEW: "Atribución",
   CONCIERGE_DISCOVERY: "Experimentación",
+  KEV_ADVISORY: "Kev · recomendación",
 };
 
 function numberValue(value: unknown) {
