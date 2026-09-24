@@ -7,6 +7,11 @@ import {
   getMetaReviewLifecycle,
   getWhatsAppRuntimeState,
 } from "@/lib/whatsapp/meta-config";
+import {
+  getMetaReviewEvidenceLedger,
+  latestMetaReviewEvidenceByEvent,
+  META_REVIEW_EVENTS,
+} from "@/lib/whatsapp/meta-review-evidence";
 
 export type MetaReviewPermission = {
   id:
@@ -20,6 +25,26 @@ export type MetaReviewPermission = {
   state: "WAITING_EXTERNAL" | "READY_TO_RECORD" | "EVIDENCE_AVAILABLE";
 };
 
+const evidenceLabels: Record<string, string> = {
+  [META_REVIEW_EVENTS.embeddedSignupCompleted]:
+    "Embedded Signup completado",
+  [META_REVIEW_EVENTS.wabaProbeVerified]:
+    "WABA validada contra Meta Graph",
+  [META_REVIEW_EVENTS.inboundProcessed]:
+    "Webhook inbound procesado",
+  [META_REVIEW_EVENTS.aiOutboundSent]:
+    "Respuesta IA aceptada por Cloud API",
+  [META_REVIEW_EVENTS.reviewSnapshot]:
+    "Snapshot de App Review",
+};
+
+function ageHours(iso: string) {
+  return Math.max(
+    0,
+    Math.round(((Date.now() - new Date(iso).getTime()) / 3_600_000) * 10) / 10,
+  );
+}
+
 export async function getMetaAppReviewReadiness() {
   const [
     lifecycle,
@@ -28,6 +53,8 @@ export async function getMetaAppReviewReadiness() {
     integration,
     lastInbound,
     lastAiReply,
+    latestEvidence,
+    ledger,
   ] = await Promise.all([
     getMetaReviewLifecycle(),
     getEmbeddedSignupConfigId(),
@@ -43,6 +70,8 @@ export async function getMetaAppReviewReadiness() {
       orderBy: { lastAiMessageAt: "desc" },
       select: { lastAiMessageAt: true },
     }),
+    latestMetaReviewEvidenceByEvent(),
+    getMetaReviewEvidenceLedger(),
   ]);
 
   const accessVerified =
@@ -50,9 +79,30 @@ export async function getMetaAppReviewReadiness() {
   const configReady = Boolean(configId);
   const integrationActive = integration?.status === "ACTIVE";
   const probeReady = runtime.lastProbeStatus === "SUCCESS";
-  const liveMessagingEvidence = Boolean(
+
+  const embeddedEvidence = Boolean(
+    latestEvidence[META_REVIEW_EVENTS.embeddedSignupCompleted],
+  );
+  const probeEvidence = Boolean(
+    latestEvidence[META_REVIEW_EVENTS.wabaProbeVerified],
+  );
+  const inboundEvidence = Boolean(
+    latestEvidence[META_REVIEW_EVENTS.inboundProcessed],
+  );
+  const outboundEvidence = Boolean(
+    latestEvidence[META_REVIEW_EVENTS.aiOutboundSent],
+  );
+
+  const automatedManagementEvidence =
+    embeddedEvidence && probeEvidence;
+  const automatedMessagingEvidence =
+    inboundEvidence && outboundEvidence;
+
+  const legacyMessagingSignal = Boolean(
     lastInbound?.processedAt && lastAiReply?.lastAiMessageAt,
   );
+  const liveMessagingEvidence =
+    automatedMessagingEvidence || legacyMessagingSignal;
 
   const permissions: MetaReviewPermission[] = [
     {
@@ -85,9 +135,9 @@ export async function getMetaAppReviewReadiness() {
       evidence: [
         "Mostrar la WABA seleccionada.",
         "Mostrar WABA ID y Phone Number ID guardados tras Embedded Signup.",
-        "Mostrar conexión ACTIVE en PISÁO.",
+        "Mostrar conexión ACTIVE y probe exitoso en PISÁO.",
       ],
-      state: integrationActive
+      state: automatedManagementEvidence
         ? "EVIDENCE_AVAILABLE"
         : accessVerified
           ? "READY_TO_RECORD"
@@ -103,7 +153,7 @@ export async function getMetaAppReviewReadiness() {
         "Mostrar webhook procesado.",
         "Mostrar respuesta del Concierge recibida en WhatsApp.",
       ],
-      state: liveMessagingEvidence
+      state: automatedMessagingEvidence
         ? "EVIDENCE_AVAILABLE"
         : integrationActive && probeReady
           ? "READY_TO_RECORD"
@@ -137,10 +187,22 @@ export async function getMetaAppReviewReadiness() {
       detail: runtime.lastProbeStatus ?? "SIN EJECUTAR",
     },
     {
+      id: "management-evidence",
+      label: "Evidencia automática de WABA",
+      ok: automatedManagementEvidence,
+      detail: automatedManagementEvidence
+        ? "EMBEDDED SIGNUP + GRAPH PROBE"
+        : "PENDIENTE",
+    },
+    {
       id: "live-messaging",
       label: "Evidencia inbound + respuesta IA",
-      ok: liveMessagingEvidence,
-      detail: liveMessagingEvidence ? "DISPONIBLE" : "PENDIENTE",
+      ok: automatedMessagingEvidence,
+      detail: automatedMessagingEvidence
+        ? "LEDGER AUTOMÁTICO"
+        : liveMessagingEvidence
+          ? "SEÑAL HISTÓRICA; FALTA LEDGER V9"
+          : "PENDIENTE",
     },
   ];
 
@@ -149,9 +211,11 @@ export async function getMetaAppReviewReadiness() {
     configReady &&
     integrationActive &&
     probeReady &&
-    liveMessagingEvidence;
+    automatedManagementEvidence &&
+    automatedMessagingEvidence;
 
   return {
+    engineVersion: "meta_review_evidence_v9",
     lifecycle: {
       accessVerificationStatus: lifecycle.accessVerificationStatus,
       accessVerificationUpdatedAt:
@@ -163,6 +227,23 @@ export async function getMetaAppReviewReadiness() {
     readyForSubmission,
     checklist,
     permissions,
+    automatedEvidence: ledger.map((item) => ({
+      id: item.id,
+      event: item.event,
+      label: evidenceLabels[item.event] ?? item.event,
+      status: item.status,
+      capturedAt: item.createdAt,
+      ageHours: ageHours(item.createdAt),
+      detail: item.detail,
+    })),
+    evidenceCoverage: {
+      embeddedSignup: embeddedEvidence,
+      graphProbe: probeEvidence,
+      inbound: inboundEvidence,
+      aiOutbound: outboundEvidence,
+      strictE2E:
+        automatedManagementEvidence && automatedMessagingEvidence,
+    },
     publicUrls: {
       service: "https://pisaogastrobar.com/concierge",
       privacy: "https://pisaogastrobar.com/privacidad",
