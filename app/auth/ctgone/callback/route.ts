@@ -37,11 +37,10 @@ function failureDestination(
 ) {
   const adminDestination =
     transaction?.next === "/admin" || transaction?.next.startsWith("/admin/");
-  return new URL(
+  return pisaoPublicUrl(
     adminDestination
       ? `/admin/login?ctgone=${encodeURIComponent(code)}`
       : `/?ctgone=${encodeURIComponent(code)}`,
-    pisaoPublicUrl("/"),
   );
 }
 
