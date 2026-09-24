@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
 
             <Button
               type="submit"
-              variant="secondary"
+              variant="outline"
               className="mt-5 w-full"
               disabled={loading}
             >
