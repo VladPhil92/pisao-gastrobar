@@ -80,7 +80,6 @@ async function getPedidos() {
 export default async function AdminPedidosPage() {
   const pedidos = await getPedidos();
   const slaMinutes = paymentReviewSlaMinutes();
-  const now = Date.now();
 
   return (
     <div>
@@ -119,19 +118,9 @@ export default async function AdminPedidosPage() {
                 const reconciliationState = cryptoReconciliationState(
                   p.pago?.payloadProveedor,
                 );
-                const reviewAgeMinutes = p.pago?.comprobanteRecibidoEn
-                  ? Math.max(
-                      0,
-                      Math.floor(
-                        (now - new Date(p.pago.comprobanteRecibidoEn).getTime()) /
-                          60_000,
-                      ),
-                    )
-                  : null;
                 const paymentReviewOverdue =
                   p.estado === "PENDIENTE_VERIFICACION" &&
-                  reviewAgeMinutes !== null &&
-                  reviewAgeMinutes >= slaMinutes;
+                  p.adminNotifications[0]?.event === "PAYMENT_REVIEW_OVERDUE";
 
                 return (
                   <tr key={p.id} className="border-t border-pisao-gold/10">
@@ -215,7 +204,7 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {reviewAgeMinutes !== null &&
+                      {p.pago?.comprobanteRecibidoEn &&
                       p.estado === "PENDIENTE_VERIFICACION" ? (
                         <div className="space-y-1 text-xs">
                           <p
@@ -225,10 +214,12 @@ export default async function AdminPedidosPage() {
                                 : "font-semibold text-emerald-300"
                             }
                           >
-                            {paymentReviewOverdue ? "FUERA DE SLA" : "EN SLA"}
+                            {paymentReviewOverdue
+                              ? "FUERA DE SLA"
+                              : "EN REVISIÓN"}
                           </p>
                           <p className="text-pisao-cream-muted">
-                            {reviewAgeMinutes} min · objetivo {slaMinutes} min
+                            Objetivo ≤ {slaMinutes} min
                           </p>
                         </div>
                       ) : (
