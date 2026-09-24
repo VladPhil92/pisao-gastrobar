@@ -7,6 +7,7 @@ import { createCryptoPaymentIntent } from "@/lib/payments/crypto-intent";
 import { resolveRevenueAttribution } from "@/lib/analytics/revenue-attribution";
 import type { CartItem } from "@/lib/cart/types";
 import { issueOrderTrackingAccess } from "@/lib/orders/tracking-access";
+import { resolveCrmCustomerProfile } from "@/lib/crm/customer-identity";
 
 type ValidatedOrderItem = CartItem & {
   costoUnitario: number | null;
@@ -114,6 +115,13 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
     ? await resolveRevenueAttribution(input.attributionSessionId)
     : null;
 
+  const customerProfile = await resolveCrmCustomerProfile({
+    nombre: input.cliente.nombre,
+    email: input.cliente.email,
+    telefono: input.cliente.telefono,
+    source: "ORDER",
+  });
+
   const pedido = await prisma.pedido.create({
     data: {
       clienteNombre: input.cliente.nombre,
@@ -122,6 +130,7 @@ export async function crearPedido(input: CrearPedidoInput, baseUrl: string) {
       tipoEntrega: input.tipoEntrega,
       direccionEntrega: input.direccionEntrega,
       notas: input.notas,
+      customerProfileId: customerProfile?.id,
       subtotal,
       descuento,
       total,
