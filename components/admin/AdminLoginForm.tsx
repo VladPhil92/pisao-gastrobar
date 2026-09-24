@@ -57,9 +57,8 @@ export function AdminLoginForm({
           PISÁO Admin
         </p>
         <p className="text-pisao-cream-muted mt-1 text-sm leading-relaxed">
-          Administradores: usa tu identidad central de CTG One. Si ya tienes una
-          sesión abierta en ctgone.com, el acceso será directo; de lo contrario,
-          CTG One solicitará tus mismas credenciales.
+          Administradores y empleados pueden ingresar con sus credenciales de PISÁO.
+          Si tu cuenta está federada, también puedes continuar con CTG One.
         </p>
 
         <a
@@ -73,14 +72,13 @@ export function AdminLoginForm({
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
         <div className="border-pisao-gold/10 mt-6 border-t pt-5">
-          <summary className="text-pisao-cream-muted hover:text-pisao-cream cursor-pointer text-xs font-semibold">
-            Acceso local de staff — Cajero / Cocina
-          </summary>
+          <p className="text-pisao-cream-muted text-xs font-semibold">
+            Acceso con correo y contraseña
+          </p>
 
           <form onSubmit={onSubmit} className="mt-4">
             <p className="text-pisao-cream-muted mb-4 text-xs leading-relaxed">
-              Este formulario usa credenciales propias de PISÁO y no la
-              contraseña de CTG One.
+              Usa las credenciales asignadas a tu perfil administrativo u operativo de PISÁO.
             </p>
 
             <div className="space-y-4">
