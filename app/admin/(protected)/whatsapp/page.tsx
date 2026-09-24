@@ -1,6 +1,7 @@
 import { WhatsAppCoexistenceSetup } from "@/components/admin/WhatsAppCoexistenceSetup";
 import { WhatsAppRuntimeControl } from "@/components/admin/WhatsAppRuntimeControl";
 import { WhatsAppOperationsPanel } from "@/components/admin/WhatsAppOperationsPanel";
+import { MetaEmbeddedSignupGuide } from "@/components/admin/MetaEmbeddedSignupGuide";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getWhatsAppIntegrationSummary } from "@/lib/whatsapp/integration-store";
 import {
@@ -124,6 +125,14 @@ export default async function AdminWhatsAppPage() {
         initialProbeStatus={runtime.lastProbeStatus}
         initialProbeCode={runtime.lastProbeCode}
         initialProbeAt={runtime.lastProbeAt?.toISOString() ?? null}
+      />
+
+      <MetaEmbeddedSignupGuide
+        appId={appId}
+        configIdReady={Boolean(configId)}
+        appSecretReady={appSecretReady}
+        webhookTokenReady={webhookTokenReady}
+        vaultReady={vaultReady}
       />
 
       <WhatsAppOperationsPanel summary={operations} />
