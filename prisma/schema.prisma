@@ -89,6 +89,8 @@ model Usuario {
   passwordHash String
   rol          RolUsuario @default(CAJERO)
   activo       Boolean    @default(true)
+  sessionVersion Int       @default(1)
+  lastLoginAt  DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -100,10 +102,35 @@ model Usuario {
   revenuePoliciesActivated  RevenuePolicy[] @relation("RevenuePolicyActivatedBy")
   revenuePoliciesRolledBack RevenuePolicy[] @relation("RevenuePolicyRolledBackBy")
   movimientosInventario     MovimientoInventario[]
+  adminAuditEvents           AdminAuditEvent[] @relation("AdminAuditActor")
 
   @@map("usuarios")
 }
 
+
+
+
+/// Bitácora append-only de gobierno administrativo.
+/// No almacena secretos, contraseñas, tokens ni cuerpos de mensajes.
+model AdminAuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorRole   String   @db.VarChar(24)
+  action      String   @db.VarChar(64)
+  targetType  String   @db.VarChar(48)
+  targetId    String?  @db.VarChar(96)
+  outcome     String   @default("SUCCESS") @db.VarChar(24)
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  actor Usuario? @relation("AdminAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("admin_audit_events")
+}
 
 /// Perfil de cliente final de PISÁO. Separado de Usuario para evitar que
 /// una cuenta comercial pueda adquirir permisos de backoffice.

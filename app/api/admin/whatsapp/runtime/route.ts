@@ -4,6 +4,7 @@ import {
   setWhatsAppRuntimeEnabled,
 } from "@/lib/whatsapp/meta-config";
 import { probeWhatsAppIntegration } from "@/lib/whatsapp/readiness";
+import { recordAdminAudit } from "@/lib/admin/audit";
 
 export async function GET() {
   const session = await auth();
@@ -51,6 +52,18 @@ export async function PUT(request: Request) {
 
   try {
     await setWhatsAppRuntimeEnabled(body.enabled, user.id);
+    await recordAdminAudit({
+      actorUserId: user.id,
+      actorRole: user.rol,
+      action: body.enabled
+        ? "WHATSAPP_RUNTIME_ENABLED"
+        : "WHATSAPP_RUNTIME_DISABLED",
+      targetType: "WhatsAppRuntime",
+      targetId: "primary",
+      detail: {
+        enabled: body.enabled,
+      },
+    });
   } catch (error) {
     if (
       error instanceof Error &&

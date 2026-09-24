@@ -1,6 +1,7 @@
 import NextAuth, { type Session } from "next-auth";
 import { cookies } from "next/headers";
 import { authConfig } from "./config";
+import { prisma } from "@/lib/prisma";
 import {
   CTG_ONE_ADMIN_SESSION_COOKIE,
   readAdminSession,
@@ -44,5 +45,43 @@ export async function auth(): Promise<Session | null> {
   );
   if (federated) return federatedSession(federated);
 
-  return nextAuth.auth();
+  const session = await nextAuth.auth();
+  const localUser = session?.user as
+    | {
+        id?: string;
+        rol?: string;
+        sessionVersion?: number;
+        authSource?: string;
+      }
+    | undefined;
+
+  if (!session?.user || !localUser?.id) return session;
+
+  // Los actores locales se revalidan contra PostgreSQL para que desactivar,
+  // cambiar rol o revocar sesiones tenga efecto en el siguiente request.
+  if ((localUser.authSource ?? "local") === "local") {
+    const current = await prisma.usuario.findUnique({
+      where: { id: localUser.id },
+      select: {
+        activo: true,
+        rol: true,
+        sessionVersion: true,
+        nombre: true,
+        email: true,
+      },
+    });
+
+    if (
+      !current?.activo ||
+      current.sessionVersion !== localUser.sessionVersion
+    ) {
+      return null;
+    }
+
+    localUser.rol = current.rol;
+    session.user.name = current.nombre;
+    session.user.email = current.email;
+  }
+
+  return session;
 }

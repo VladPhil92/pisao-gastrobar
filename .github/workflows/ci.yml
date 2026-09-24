@@ -108,6 +108,12 @@ jobs:
       - name: Meta App Review evidence tests
         run: npm run test:meta-app-review
 
+      - name: Meta automated review evidence tests
+        run: npm run test:meta-review-evidence
+
+      - name: Owner Governance and IAM tests
+        run: npm run test:owner-governance
+
       - name: Production certification tests
         run: npm run test:certification
 

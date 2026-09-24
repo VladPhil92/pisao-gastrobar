@@ -29,17 +29,27 @@ export const authConfig: NextAuthConfig = {
         const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
 
-        const usuario = await prisma.usuario.findUnique({ where: { email } });
+        const normalizedEmail = email.trim().toLowerCase();
+        const usuario = await prisma.usuario.findUnique({
+          where: { email: normalizedEmail },
+        });
         if (!usuario || !usuario.activo) return null;
 
         const valido = await bcrypt.compare(password, usuario.passwordHash);
         if (!valido) return null;
+
+        await prisma.usuario.update({
+          where: { id: usuario.id },
+          data: { lastLoginAt: new Date() },
+        });
 
         return {
           id: usuario.id,
           name: usuario.nombre,
           email: usuario.email,
           rol: usuario.rol,
+          sessionVersion: usuario.sessionVersion,
+          authSource: "local",
         };
       },
     }),
@@ -47,14 +57,35 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     jwt: ({ token, user }) => {
       if (user) {
-        token.rol = (user as { rol?: string }).rol;
+        const typed = user as {
+          rol?: string;
+          sessionVersion?: number;
+          authSource?: string;
+        };
+        token.rol = typed.rol;
+        token.sessionVersion = typed.sessionVersion;
+        token.authSource = typed.authSource ?? "local";
       }
       return token;
     },
     session: ({ session, token }) => {
       if (session.user) {
-        (session.user as { rol?: string }).rol = token.rol as string;
-        (session.user as { id?: string }).id = token.sub;
+        const user = session.user as {
+          id?: string;
+          rol?: string;
+          sessionVersion?: number;
+          authSource?: string;
+        };
+        user.rol = token.rol as string;
+        user.id = token.sub;
+        user.sessionVersion =
+          typeof token.sessionVersion === "number"
+            ? token.sessionVersion
+            : undefined;
+        user.authSource =
+          typeof token.authSource === "string"
+            ? token.authSource
+            : "local";
       }
       return session;
     },

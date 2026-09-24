@@ -8,6 +8,7 @@ import {
   saveEmbeddedSignupConfigId,
   saveMetaReviewLifecycle,
 } from "@/lib/whatsapp/meta-config";
+import { recordAdminAudit } from "@/lib/admin/audit";
 
 function authorized(role: string | undefined) {
   return role === "SUPER_ADMIN" || role === "ADMIN";
@@ -53,6 +54,14 @@ export async function PUT(request: Request) {
     }
 
     await saveEmbeddedSignupConfigId(configId, user.id);
+    await recordAdminAudit({
+      actorUserId: user.id,
+      actorRole: user.rol ?? "UNKNOWN",
+      action: "META_EMBEDDED_SIGNUP_CONFIG_UPDATED",
+      targetType: "WhatsAppMetaConfig",
+      targetId: "primary",
+      detail: { configured: true },
+    });
     return NextResponse.json({ ok: true, configId });
   }
 
@@ -61,6 +70,23 @@ export async function PUT(request: Request) {
       accessVerificationStatus: body?.accessVerificationStatus,
       appReviewStatus: body?.appReviewStatus,
       updatedByUserId: user.id,
+    });
+    await recordAdminAudit({
+      actorUserId: user.id,
+      actorRole: user.rol ?? "UNKNOWN",
+      action: "META_REVIEW_STATE_UPDATED",
+      targetType: "WhatsAppMetaConfig",
+      targetId: "primary",
+      detail: {
+        accessVerificationStatus:
+          typeof body?.accessVerificationStatus === "string"
+            ? body.accessVerificationStatus
+            : null,
+        appReviewStatus:
+          typeof body?.appReviewStatus === "string"
+            ? body.appReviewStatus
+            : null,
+      },
     });
   } catch {
     return NextResponse.json(
