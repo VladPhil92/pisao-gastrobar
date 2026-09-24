@@ -54,6 +54,18 @@ async function getPedidos() {
             payloadProveedor: true,
           },
         },
+        adminNotifications: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            status: true,
+            provider: true,
+            attempts: true,
+            deliveredAt: true,
+            lastAttemptAt: true,
+            nextAttemptAt: true,
+          },
+        },
       },
     });
   } catch {
@@ -87,6 +99,7 @@ export default async function AdminPedidosPage() {
                 <th className="px-4 py-3">Total</th>
                 <th className="px-4 py-3">On-chain</th>
                 <th className="px-4 py-3">Comprobante</th>
+                <th className="px-4 py-3">Alerta admin</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -182,6 +195,29 @@ export default async function AdminPedidosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
+                      {p.adminNotifications[0] ? (
+                        <div className="space-y-1 text-xs">
+                          <p
+                            className={
+                              p.adminNotifications[0].status === "DELIVERED"
+                                ? "font-semibold text-emerald-300"
+                                : p.adminNotifications[0].status === "DEAD_LETTER"
+                                  ? "font-semibold text-red-300"
+                                  : "font-semibold text-amber-200"
+                            }
+                          >
+                            {p.adminNotifications[0].status}
+                          </p>
+                          <p className="text-pisao-cream-muted">
+                            {p.adminNotifications[0].provider ?? "sin canal"} ·{" "}
+                            {p.adminNotifications[0].attempts} intento(s)
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-pisao-cream-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="space-y-2">
                         {p.estado === "PENDIENTE_VERIFICACION" && (
                           <VerificarPagoButtons pedidoId={p.id} />
@@ -199,7 +235,7 @@ export default async function AdminPedidosPage() {
               {pedidos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-4 py-6 text-center text-pisao-cream-muted"
                   >
                     Aún no hay pedidos.
