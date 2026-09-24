@@ -64,6 +64,9 @@ export function WhatsAppCoexistenceSetup({
   configId: string | null;
 }) {
   const [sdkReady, setSdkReady] = useState(false);
+  const [activeConfigId, setActiveConfigId] = useState<string | null>(configId);
+  const [configDraft, setConfigDraft] = useState(configId ?? "");
+  const [configSaving, setConfigSaving] = useState(false);
   const [authCode, setAuthCode] = useState<string | null>(null);
   const [wabaId, setWabaId] = useState<string | null>(null);
   const [phoneNumberId, setPhoneNumberId] = useState<string | null>(null);
@@ -156,8 +159,47 @@ export function WhatsAppCoexistenceSetup({
       });
   }, [authCode, wabaId, phoneNumberId]);
 
+  async function saveConfigId() {
+    const value = configDraft.trim();
+    if (!value) {
+      setState("error");
+      setMessage("Pega el Configuration ID generado por Meta.");
+      return;
+    }
+
+    setConfigSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/whatsapp/meta-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configId: value }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        configId?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.ok || !payload.configId) {
+        throw new Error(payload.error || "No fue posible guardar el Configuration ID.");
+      }
+
+      setActiveConfigId(payload.configId);
+      setConfigDraft(payload.configId);
+      setState("idle");
+      setMessage("Configuration ID guardado. Ya puedes abrir Embedded Signup sin hacer otro rebuild.");
+    } catch (error) {
+      setState("error");
+      setMessage(
+        error instanceof Error ? error.message : "No fue posible guardar el Configuration ID.",
+      );
+    } finally {
+      setConfigSaving(false);
+    }
+  }
+
   function launch() {
-    if (!window.FB || !appId || !configId) return;
+    if (!window.FB || !appId || !activeConfigId) return;
 
     completionStarted.current = false;
     setAuthCode(null);
@@ -181,7 +223,7 @@ export function WhatsAppCoexistenceSetup({
         setAuthCode(code);
       },
       {
-        config_id: configId,
+        config_id: activeConfigId,
         response_type: "code",
         override_default_response_type: true,
         auth_type: "rerequest",
@@ -194,7 +236,7 @@ export function WhatsAppCoexistenceSetup({
     );
   }
 
-  const ready = Boolean(appId && configId && sdkReady);
+  const ready = Boolean(appId && activeConfigId && sdkReady);
 
   return (
     <div className="rounded-2xl border border-pisao-gold/15 bg-pisao-carbon-soft p-5">
@@ -222,10 +264,40 @@ export function WhatsAppCoexistenceSetup({
         </p>
         <p className="text-pisao-cream-muted">
           Embedded Signup Configuration ID:{" "}
-          <span className={configId ? "text-emerald-300" : "text-amber-300"}>
-            {configId ? "configurado" : "pendiente"}
+          <span className={activeConfigId ? "text-emerald-300" : "text-amber-300"}>
+            {activeConfigId ? "configurado" : "pendiente"}
           </span>
         </p>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-pisao-gold/10 bg-black/10 p-4">
+        <label
+          htmlFor="embedded-signup-config-id"
+          className="text-pisao-cream text-xs font-semibold uppercase tracking-wider"
+        >
+          Configuration ID de Embedded Signup
+        </label>
+        <p className="text-pisao-cream-muted mt-1 text-xs leading-relaxed">
+          No es un secreto. Cópialo desde la configuración de WhatsApp Embedded Signup en Meta y guárdalo aquí.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            id="embedded-signup-config-id"
+            value={configDraft}
+            onChange={(event) => setConfigDraft(event.target.value)}
+            placeholder="Ej. 123456789012345"
+            autoComplete="off"
+            className="border-pisao-gold/20 bg-pisao-carbon text-pisao-cream min-h-11 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:border-pisao-gold/60"
+          />
+          <button
+            type="button"
+            onClick={() => void saveConfigId()}
+            disabled={configSaving}
+            className="border-pisao-gold/30 text-pisao-gold hover:bg-pisao-gold/10 min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40"
+          >
+            {configSaving ? "Guardando…" : "Guardar ID"}
+          </button>
+        </div>
       </div>
 
       <button
@@ -241,12 +313,16 @@ export function WhatsAppCoexistenceSetup({
             : "Conectar WhatsApp Business"}
       </button>
 
-      {!configId ? (
+      {!activeConfigId ? (
         <p className="mt-3 text-xs leading-relaxed text-amber-300">
-          Falta el Configuration ID de Embedded Signup. Meta debe crearlo después
-          de habilitar la app como Tech Provider/Embedded Signup.
+          Falta el Configuration ID de Embedded Signup. En Meta, crea la configuración
+          de onboarding para WhatsApp Business App/Coexistence y pega aquí el ID.
         </p>
-      ) : null}
+      ) : (
+        <p className="mt-3 text-xs leading-relaxed text-emerald-300">
+          Configuration ID listo. No necesitas volver a Render para este dato.
+        </p>
+      )}
 
       {message ? (
         <p
