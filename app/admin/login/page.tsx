@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -14,16 +14,6 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("ctgone");
-    if (code === "admin_required") {
-      setError("La cuenta autenticada en CTG One no tiene rol administrativo.");
-    } else if (code === "federation_unavailable") {
-      setError("La federación con CTG One no está disponible temporalmente.");
-    } else if (code === "federation_exchange_failed") {
-      setError("No fue posible validar la sesión de CTG One. Intenta nuevamente.");
-    }
-  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
