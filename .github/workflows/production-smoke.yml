@@ -2,16 +2,22 @@ name: Production Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   schedule:
     - cron: "23 */6 * * *"
 
 permissions:
   contents: read
 
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,8 +27,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Run production smoke certification
+      - name: Wait for and certify production release
         env:
           PISAO_PRODUCTION_URL: https://pisaogastrobar.com
+          PISAO_EXPECTED_RELEASE: ${{ github.sha }}
           PISAO_SMOKE_TIMEOUT_MS: 12000
+          PISAO_RELEASE_WAIT_MS: 480000
+          PISAO_RELEASE_POLL_MS: 15000
         run: node scripts/test-production-smoke.mjs
