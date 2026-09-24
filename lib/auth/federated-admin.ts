@@ -1,41 +1,45 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-function normalizedEmail(value: string) {
-  return value.trim().toLowerCase();
+function federatedActorEmail(subject: string) {
+  const normalized = subject.trim();
+  if (!normalized) throw new Error("INVALID_FEDERATED_ADMIN_SUBJECT");
+  const digest = createHash("sha256").update(normalized, "utf8").digest("hex").slice(0, 32);
+  return `ctgone+${digest}@federated.pisao.invalid`;
 }
 
-export async function ensureFederatedAdminUser(email: string) {
-  const canonicalEmail = normalizedEmail(email);
-  if (!canonicalEmail || !canonicalEmail.includes("@")) {
-    throw new Error("INVALID_FEDERATED_ADMIN_EMAIL");
-  }
+export async function ensureFederatedAdminUser(subject: string) {
+  const actorEmail = federatedActorEmail(subject);
 
   const existing = await prisma.usuario.findUnique({
-    where: { email: canonicalEmail },
+    where: { email: actorEmail },
   });
 
   if (existing) {
     if (existing.rol === "ADMIN" && existing.activo) return existing;
+
+    // This address is reserved for federation-only actors. Rotating the random
+    // hash on repair guarantees there is never a stable local credential.
     return prisma.usuario.update({
       where: { id: existing.id },
-      data: { rol: "ADMIN", activo: true },
+      data: {
+        rol: "ADMIN",
+        activo: true,
+        passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
+      },
     });
   }
 
-  // Federated administrators never authenticate with this local password.
-  // A random bcrypt hash satisfies the legacy staff schema without creating
-  // a second usable credential that could drift from CTG One.
   const passwordHash = await bcrypt.hash(randomBytes(32).toString("hex"), 12);
 
   try {
     return await prisma.usuario.create({
       data: {
-        nombre: "CTG One Admin",
-        email: canonicalEmail,
+        nombre: "CTG One Federated Admin",
+        email: actorEmail,
         passwordHash,
         rol: "ADMIN",
         activo: true,
@@ -49,8 +53,12 @@ export async function ensureFederatedAdminUser(email: string) {
       (error as { code?: string }).code === "P2002"
     ) {
       return prisma.usuario.update({
-        where: { email: canonicalEmail },
-        data: { rol: "ADMIN", activo: true },
+        where: { email: actorEmail },
+        data: {
+          rol: "ADMIN",
+          activo: true,
+          passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
+        },
       });
     }
     throw error;
