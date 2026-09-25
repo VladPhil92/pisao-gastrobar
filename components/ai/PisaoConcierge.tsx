@@ -59,6 +59,19 @@ type HospitalityState = {
   profile: HospitalityProfile;
 };
 
+type ContextualRecommendation = {
+  id: string;
+  version: string;
+  product: {
+    productoId: string;
+    nombre: string;
+    slug: string;
+    precio: number;
+    imagenUrl?: string | null;
+    categoriaSlug?: string | null;
+  };
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
@@ -66,6 +79,7 @@ type Message = {
   reservation?: ReservationState | null;
   hospitality?: HospitalityState | null;
   action?: ConciergeActionPlan | null;
+  contextualRecommendation?: ContextualRecommendation | null;
   commands?: TransactionCommandClient[];
 };
 
@@ -133,6 +147,7 @@ export function PisaoConcierge() {
   const [commandSubmittingId, setCommandSubmittingId] = useState<string | null>(null);
   const [createdReservations, setCreatedReservations] = useState<Record<string, string>>({});
   const [addedProposals, setAddedProposals] = useState<Record<string, boolean>>({});
+  const [addedRecommendations, setAddedRecommendations] = useState<Record<string, boolean>>({});
   const [hospitalityProfile, setHospitalityProfile] =
     useState<HospitalityProfile | null>(null);
   const [conciergeIdentity, setConciergeIdentity] =
@@ -191,6 +206,7 @@ export function PisaoConcierge() {
         reservation?: ReservationState | null;
         hospitality?: HospitalityState | null;
         action?: ConciergeActionPlan | null;
+        contextualRecommendation?: ContextualRecommendation | null;
         commands?: TransactionCommandClient[];
       };
 
@@ -215,6 +231,15 @@ export function PisaoConcierge() {
         });
       }
 
+      if (payload.contextualRecommendation) {
+        trackBehavior("concierge_nba_view", {
+          surface: "concierge",
+          productSlug: payload.contextualRecommendation.product.slug,
+          categorySlug:
+            payload.contextualRecommendation.product.categoriaSlug ?? undefined,
+        });
+      }
+
       if (payload.hospitality?.profile) {
         setHospitalityProfile(payload.hospitality.profile);
         saveHospitalityProfile(payload.hospitality.profile);
@@ -229,6 +254,7 @@ export function PisaoConcierge() {
           reservation: payload.reservation,
           hospitality: payload.hospitality,
           action: payload.action,
+          contextualRecommendation: payload.contextualRecommendation,
           commands: payload.commands,
         },
       ]);
@@ -502,6 +528,44 @@ export function PisaoConcierge() {
     void sendMessage(input);
   }
 
+  function addContextualRecommendation(
+    recommendation: ContextualRecommendation,
+  ) {
+    if (addedRecommendations[recommendation.id]) return;
+
+    const product = recommendation.product;
+    addItems([
+      {
+        item: {
+          productoId: product.productoId,
+          nombre: product.nombre,
+          slug: product.slug,
+          precio: product.precio,
+          imagenUrl: product.imagenUrl ?? undefined,
+          categoriaSlug: product.categoriaSlug ?? undefined,
+        },
+        cantidad: 1,
+      },
+    ]);
+
+    setAddedRecommendations((current) => ({
+      ...current,
+      [recommendation.id]: true,
+    }));
+    trackBehavior("concierge_nba_add", {
+      surface: "concierge",
+      productSlug: product.slug,
+      categorySlug: product.categoriaSlug ?? undefined,
+    });
+    trackBehavior("cart_add", {
+      surface: "concierge",
+      productSlug: product.slug,
+      categorySlug: product.categoriaSlug ?? undefined,
+      itemCount: 1,
+    });
+    openCart();
+  }
+
   function addProposalToTable(proposal: ConversationalProposal) {
     if (addedProposals[proposal.id]) return;
 
@@ -719,6 +783,74 @@ export function PisaoConcierge() {
                           <MessageCircle className="size-4" />
                           {message.action.label}
                         </a>
+                      </div>
+                    )}
+
+                  {message.role === "assistant" &&
+                    message.contextualRecommendation && (
+                      <div className="border-pisao-gold/20 bg-pisao-noche/95 mt-2 overflow-hidden rounded-2xl border">
+                        <div className="flex items-center gap-3 px-3 py-3">
+                          <Link
+                            href={`/menu/${message.contextualRecommendation.product.slug}`}
+                            className="bg-pisao-carbon relative size-14 shrink-0 overflow-hidden rounded-xl border border-pisao-gold/10"
+                          >
+                            {message.contextualRecommendation.product.imagenUrl ? (
+                              <Image
+                                src={message.contextualRecommendation.product.imagenUrl}
+                                alt={message.contextualRecommendation.product.nombre}
+                                fill
+                                sizes="56px"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span className="text-pisao-gold flex h-full items-center justify-center text-sm font-bold">
+                                P
+                              </span>
+                            )}
+                          </Link>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-pisao-gold text-[9px] font-bold tracking-[.16em] uppercase">
+                              Sugerencia opcional
+                            </p>
+                            <p className="text-pisao-cream mt-1 truncate text-xs font-semibold">
+                              {message.contextualRecommendation.product.nombre}
+                            </p>
+                            <p className="text-pisao-gold mt-1 text-xs font-bold">
+                              {money(message.contextualRecommendation.product.precio)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="border-pisao-gold/10 border-t p-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              addContextualRecommendation(
+                                message.contextualRecommendation!,
+                              )
+                            }
+                            disabled={
+                              addedRecommendations[
+                                message.contextualRecommendation.id
+                              ] === true
+                            }
+                            className="bg-pisao-gold text-pisao-carbon disabled:bg-pisao-green/20 disabled:text-pisao-cream flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold"
+                          >
+                            {addedRecommendations[
+                              message.contextualRecommendation.id
+                            ] ? (
+                              <>
+                                <Check className="size-4" /> Añadida a Mesa Visual
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingBag className="size-4" /> Añadir a Mesa Visual
+                              </>
+                            )}
+                          </button>
+                          <p className="text-pisao-cream-muted/70 mt-2 text-center text-[9px]">
+                            Solo se agrega si tú lo eliges. Puedes quitarlo o ajustarlo antes de pagar.
+                          </p>
+                        </div>
                       </div>
                     )}
 

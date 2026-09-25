@@ -21,6 +21,8 @@ const ASSIST_BY_EVENT: Record<string, readonly RevenueAssist[]> = {
   concierge_open: ["CONCIERGE"],
   concierge_proposal_view: ["CONCIERGE"],
   concierge_proposal_add: ["CONCIERGE"],
+  concierge_nba_view: ["CONCIERGE"],
+  concierge_nba_add: ["CONCIERGE"],
   concierge_reservation_ready: ["CONCIERGE"],
   concierge_action_executed: ["CONCIERGE"],
   concierge_handoff_whatsapp: ["CONCIERGE", "WHATSAPP"],

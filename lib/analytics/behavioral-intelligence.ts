@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { summarizeContextualCommerceLearning } from "@/lib/revenue/contextual-learning-core";
 
 const DAY_MS = 86_400_000;
 
@@ -23,26 +24,67 @@ export async function getBehavioralIntelligence() {
   const since7 = new Date(now.getTime() - 7 * DAY_MS);
 
   try {
-    const events = await prisma.eventoAnalitico.findMany({
-      where: { createdAt: { gte: since30 } },
-      select: {
-        tipo: true,
-        sessionId: true,
-        pathname: true,
-        surface: true,
-        productSlug: true,
-        categorySlug: true,
-        intent: true,
-        step: true,
-        paymentMethod: true,
-        deviceClass: true,
-        budgetTier: true,
-        diners: true,
-        itemCount: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    });
+    const [events, paidOrders] = await Promise.all([
+      prisma.eventoAnalitico.findMany({
+        where: { createdAt: { gte: since30 } },
+        select: {
+          tipo: true,
+          sessionId: true,
+          pathname: true,
+          surface: true,
+          productSlug: true,
+          categorySlug: true,
+          intent: true,
+          step: true,
+          paymentMethod: true,
+          deviceClass: true,
+          budgetTier: true,
+          diners: true,
+          itemCount: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.pedido.findMany({
+        where: {
+          createdAt: { gte: since30 },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          pago: { select: { estado: true } },
+          attribution: { select: { sessionId: true } },
+          items: {
+            select: {
+              cantidad: true,
+              subtotal: true,
+              producto: { select: { slug: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const contextualLearning = summarizeContextualCommerceLearning(
+      events.map((event) => ({
+        tipo: event.tipo,
+        sessionId: event.sessionId,
+        productSlug: event.productSlug,
+        createdAt: event.createdAt,
+      })),
+      paidOrders
+        .filter((order) => order.pago?.estado === "APROBADO")
+        .map((order) => ({
+        id: order.id,
+        sessionId: order.attribution?.sessionId ?? null,
+        createdAt: order.createdAt,
+        items: order.items.map((item) => ({
+          productSlug: item.producto.slug,
+          quantity: item.cantidad,
+          subtotalCop: Number(item.subtotal),
+        })),
+      })),
+    );
 
     const sessions = distinctSessions(events);
     const events7 = events.filter((event) => event.createdAt >= since7);
@@ -83,7 +125,12 @@ export async function getBehavioralIntelligence() {
 
     for (const event of events) {
       if (!event.productSlug) continue;
-      if (!['product_view', 'cart_add', 'visual_table_suggestion_add'].includes(event.tipo)) continue;
+      if (
+        !["product_view", "cart_add", "visual_table_suggestion_add"].includes(
+          event.tipo,
+        )
+      )
+        continue;
 
       const current = productMap.get(event.productSlug) ?? {
         slug: event.productSlug,
@@ -93,7 +140,9 @@ export async function getBehavioralIntelligence() {
       };
 
       if (event.tipo === "product_view") current.views += 1;
-      if (["cart_add", "visual_table_suggestion_add"].includes(event.tipo)) current.adds += 1;
+      if (["cart_add", "visual_table_suggestion_add"].includes(event.tipo)) {
+        current.adds += 1;
+      }
       current.sessions.add(event.sessionId);
       productMap.set(event.productSlug, current);
     }
@@ -227,6 +276,20 @@ export async function getBehavioralIntelligence() {
       });
     }
 
+    if (contextualLearning.exposures >= 5) {
+      signals.push({
+        tone:
+          contextualLearning.addRatePct >= 30
+            ? "positive"
+            : contextualLearning.addRatePct < 10
+              ? "attention"
+              : "neutral",
+        title: "Contextual Commerce V19 ya es medible",
+        detail:
+          `${contextualLearning.accepted} de ${contextualLearning.exposures} exposiciones terminaron en un agregado explícito (${contextualLearning.addRatePct}%). ${contextualLearning.matchedPaidOrders} pedido(s) pago(s) incluyeron el mismo producto sugerido dentro de la ventana first-party. Es una asociación observada, no una atribución causal.`,
+      });
+    }
+
     if (signals.length === 0) {
       signals.push({
         tone: "neutral",
@@ -250,6 +313,7 @@ export async function getBehavioralIntelligence() {
       funnel,
       productInterest,
       categoryInterest,
+      contextualLearning,
       devices,
       assists: {
         planOpenSessions,
@@ -276,6 +340,7 @@ export async function getBehavioralIntelligence() {
       funnel: [],
       productInterest: [],
       categoryInterest: [],
+      contextualLearning: summarizeContextualCommerceLearning([], []),
       devices: [],
       assists: {
         planOpenSessions: 0,

@@ -48,3 +48,19 @@ test("non-assist events remain a tracked direct session", () => {
   assert.equal(result.touchCount, 0);
   assert.equal(result.observedFrom, null);
 });
+
+
+test("contextual recommendation exposure and acceptance remain Concierge assists", () => {
+  const base = new Date("2026-09-25T02:40:00.000Z");
+  const result = summarizeRevenueTouches([
+    { tipo: "concierge_nba_view", createdAt: base },
+    {
+      tipo: "concierge_nba_add",
+      createdAt: new Date(base.getTime() + 1_000),
+    },
+  ]);
+
+  assert.deepEqual(result.assists, ["CONCIERGE"]);
+  assert.equal(result.lastAssist, "CONCIERGE");
+  assert.equal(result.touchCount, 2);
+});

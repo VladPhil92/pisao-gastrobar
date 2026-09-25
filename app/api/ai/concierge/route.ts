@@ -715,6 +715,27 @@ export async function POST(request: Request) {
       autonomous_discount: false,
     });
 
+    const recommendedProduct = contextualCommerce.action
+      ? catalog.products.find(
+          (product) => product.id === contextualCommerce.action?.productId,
+        )
+      : null;
+    const contextualRecommendation =
+      contextualCommerce.status === "READY" && recommendedProduct
+        ? {
+            id: crypto.randomUUID(),
+            version: contextualCommerce.version,
+            product: {
+              productoId: recommendedProduct.id,
+              nombre: recommendedProduct.nombre,
+              slug: recommendedProduct.slug,
+              precio: Number(recommendedProduct.precio),
+              imagenUrl: recommendedProduct.imagenUrl ?? null,
+              categoriaSlug: recommendedProduct.categoriaSlug ?? null,
+            },
+          }
+        : null;
+
     const clientRequestId = crypto.randomUUID();
     const nativeTools = buildNativeToolDefinitions({
       allowTableMutation:
@@ -947,6 +968,7 @@ REGLAS ADICIONALES
       proposal: responseProposal,
       reservation: reservationPayload,
       action,
+      contextualRecommendation,
       commands,
       fallback: !modelText,
       agent: agent.id,
