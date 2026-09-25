@@ -20,16 +20,26 @@ function segmentClass(segment: string) {
   return "bg-pisao-cream/10 text-pisao-cream-muted";
 }
 
+function lifecycleClass(stage: string) {
+  if (stage === "LOYAL") return "bg-emerald-500/15 text-emerald-300";
+  if (stage === "ACTIVE") return "bg-sky-500/15 text-sky-300";
+  if (stage === "NEW_CUSTOMER") return "bg-pisao-gold/15 text-pisao-gold";
+  if (stage === "AT_RISK") return "bg-amber-500/15 text-amber-300";
+  if (stage === "DORMANT") return "bg-rose-500/15 text-rose-300";
+  return "bg-pisao-cream/10 text-pisao-cream-muted";
+}
+
 export default async function AdminClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; segment?: string }>;
+  searchParams: Promise<{ q?: string; segment?: string; lifecycle?: string }>;
 }) {
   await requireAdminRoute("/admin/clientes");
   const data = await getCrmDashboard();
   const params = await searchParams;
   const query = params.q?.trim().toLowerCase() ?? "";
   const segment = params.segment?.trim().toUpperCase() ?? "";
+  const lifecycle = params.lifecycle?.trim().toUpperCase() ?? "";
 
   const customers = data.customers.filter((customer) => {
     const matchesQuery =
@@ -38,30 +48,34 @@ export default async function AdminClientesPage({
       customer.email?.toLowerCase().includes(query) ||
       customer.telefono?.toLowerCase().includes(query);
     const matchesSegment = !segment || customer.segment === segment;
-    return matchesQuery && matchesSegment;
+    const matchesLifecycle = !lifecycle || customer.lifecycle.stage === lifecycle;
+    return matchesQuery && matchesSegment && matchesLifecycle;
   });
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-7">
       <header>
         <p className="text-pisao-gold text-[10px] font-bold uppercase tracking-[.22em]">
-          Customer CRM & Loyalty V11
+          Customer Lifecycle Operations V16
         </p>
         <h1 className="font-display text-pisao-cream mt-2 text-4xl">
           Clientes
         </h1>
         <p className="text-pisao-cream-muted mt-3 max-w-3xl text-sm leading-relaxed">
-          Vista unificada de cuentas, pedidos, reservas, recurrencia y
-          fidelización. El CRM reconoce clientes con cuenta y también compras o
-          reservas como invitado.
+          Vista operativa de cuentas, pedidos, reservas, recurrencia, PISÁO Points
+          y ciclo de vida. El motor distingue prospectos, clientes activos,
+          fieles y señales de riesgo sin habilitar contacto saliente cuando no
+          existe consentimiento.
         </p>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
         {[
           ["Perfiles CRM", data.summary.profiles],
           ["Con cuenta", data.summary.accountLinked],
           ["Recurrentes", data.summary.repeatCustomers],
+          ["En riesgo", data.summary.lifecycle.atRisk],
+          ["Reactivables", data.summary.lifecycle.reactivationReady],
           ["Ventas aprobadas", money(data.summary.totalApprovedSpend)],
           ["Puntos emitidos", data.summary.loyaltyPoints],
         ].map(([label, value]) => (
@@ -90,13 +104,14 @@ export default async function AdminClientesPage({
             </h2>
             <p className="text-pisao-cream-muted mt-2 max-w-2xl text-xs leading-relaxed">
               {data.policy.pointsPer1000Cop} punto por cada COP 1.000 de pedidos
-              pagados y entregados. La redención automática permanece
-              deshabilitada en V11; por ahora el saldo funciona como score de
-              fidelidad auditable.
+              pagados y entregados. V16 usa ese saldo junto con recurrencia y
+              recencia para priorizar la atención comercial. La redención
+              automática sigue deshabilitada hasta que exista una política
+              económica aprobada.
             </p>
           </div>
 
-          <form className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_180px_auto]">
+          <form className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_170px_170px_auto]">
             <input
               name="q"
               defaultValue={params.q ?? ""}
@@ -114,6 +129,19 @@ export default async function AdminClientesPage({
               <option value="RECURRENTE">Recurrente</option>
               <option value="FRECUENTE">Frecuente</option>
             </select>
+            <select
+              name="lifecycle"
+              defaultValue={lifecycle}
+              className="border-pisao-gold/15 bg-pisao-carbon text-pisao-cream rounded-xl border px-3 py-2.5 text-sm"
+            >
+              <option value="">Todo el ciclo de vida</option>
+              <option value="PROSPECT">Prospecto</option>
+              <option value="NEW_CUSTOMER">Cliente nuevo</option>
+              <option value="ACTIVE">Activo</option>
+              <option value="LOYAL">Fiel</option>
+              <option value="AT_RISK">En riesgo</option>
+              <option value="DORMANT">Dormido</option>
+            </select>
             <button
               type="submit"
               className="bg-pisao-gold text-pisao-carbon rounded-xl px-4 py-2.5 text-sm font-bold"
@@ -125,17 +153,19 @@ export default async function AdminClientesPage({
       </section>
 
       <section className="border-pisao-gold/10 overflow-x-auto rounded-2xl border">
-        <table className="min-w-[1160px] w-full text-left text-sm">
+        <table className="min-w-[1500px] w-full text-left text-sm">
           <thead className="bg-pisao-carbon-soft text-pisao-cream-muted">
             <tr>
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Segmento</th>
+              <th className="px-4 py-3">Ciclo de vida</th>
               <th className="px-4 py-3">Pedidos</th>
               <th className="px-4 py-3">Entregados</th>
               <th className="px-4 py-3">Gasto aprobado</th>
               <th className="px-4 py-3">Ticket prom.</th>
               <th className="px-4 py-3">Reservas</th>
               <th className="px-4 py-3">Puntos</th>
+              <th className="px-4 py-3">Siguiente acción</th>
               <th className="px-4 py-3">Última actividad</th>
             </tr>
           </thead>
@@ -166,6 +196,16 @@ export default async function AdminClientesPage({
                     {customer.segment.replaceAll("_", " ")}
                   </span>
                 </td>
+                <td className="px-4 py-4">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${lifecycleClass(customer.lifecycle.stage)}`}
+                  >
+                    {customer.lifecycle.stage.replaceAll("_", " ")}
+                  </span>
+                  <p className="text-pisao-cream-muted mt-1 text-[10px]">
+                    {customer.lifecycle.daysSinceLastActivity} días
+                  </p>
+                </td>
                 <td className="text-pisao-cream-muted px-4 py-4">
                   {customer.orders}
                 </td>
@@ -184,6 +224,16 @@ export default async function AdminClientesPage({
                 <td className="text-pisao-gold px-4 py-4 font-semibold">
                   {customer.loyaltyPoints}
                 </td>
+                <td className="px-4 py-4">
+                  <p className="text-pisao-cream max-w-[260px] text-xs font-semibold">
+                    {customer.lifecycle.nextBestAction}
+                  </p>
+                  <p className={`mt-1 text-[10px] ${customer.lifecycle.outreachAllowed ? "text-emerald-300" : "text-pisao-cream-muted"}`}>
+                    {customer.lifecycle.outreachAllowed
+                      ? "Contacto consentido disponible"
+                      : "Sin contacto saliente"}
+                  </p>
+                </td>
                 <td className="text-pisao-cream-muted px-4 py-4 text-xs">
                   {new Date(customer.lastActivityAt).toLocaleString("es-CO")}
                 </td>
@@ -192,7 +242,7 @@ export default async function AdminClientesPage({
             {!customers.length ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={11}
                   className="text-pisao-cream-muted px-4 py-10 text-center"
                 >
                   No encontramos clientes con esos filtros.

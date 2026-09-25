@@ -11,6 +11,7 @@ const migration = read(
 const identity = read("lib/crm/customer-identity.ts");
 const loyalty = read("lib/crm/loyalty.ts");
 const dashboard = read("lib/crm/dashboard.ts");
+const lifecycle = read("lib/crm/lifecycle-core.ts");
 const orderCreate = read("lib/orders/create-order.ts");
 const reservationCreate = read("lib/reservas/create-reservation.ts");
 const orderStatus = read("app/api/admin/pedidos/[id]/estado/route.ts");
@@ -46,14 +47,19 @@ assert.match(loyalty, /eventKey = `order:\$\{order\.id\}:delivered`/);
 assert.match(orderStatus, /awardDeliveredOrderPoints/);
 
 assert.match(dashboard, /segmentForDeliveredOrders/);
-assert.match(crmPage, /Customer CRM & Loyalty V11/);
+assert.match(dashboard, /classifyCustomerLifecycle/);
+assert.match(lifecycle, /CUSTOMER_LIFECYCLE_ENGINE_VERSION/);
+assert.match(lifecycle, /outreachAllowed/);
+assert.match(lifecycle, /marketingConsent && input\.hasContact/);
+assert.match(crmPage, /Customer Lifecycle Operations V16/);
+assert.match(crmPage, /Sin contacto saliente/);
 assert.match(crmDetail, /Customer 360/);
 assert.match(account, /PISÁO Points/);
 assert.match(account, /El canje todavía no está habilitado/);
 assert.match(roles, /"\/admin\/clientes": ALL_ADMIN/);
 assert.match(sidebar, /href: "\/admin\/clientes"/);
 
-for (const source of [identity, loyalty, dashboard, crmPage, crmDetail]) {
+for (const source of [identity, loyalty, dashboard, lifecycle, crmPage, crmDetail]) {
   assert.doesNotMatch(
     source,
     /passwordHash|accessTokenCiphertext|WHATSAPP_META_APP_SECRET/,
@@ -61,4 +67,4 @@ for (const source of [identity, loyalty, dashboard, crmPage, crmDetail]) {
   );
 }
 
-console.log("Customer CRM & Loyalty V11 invariants: OK");
+console.log("Customer CRM & Loyalty V11 + Customer Lifecycle V16 invariants: OK");

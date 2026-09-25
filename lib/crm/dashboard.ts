@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { loyaltyPolicy } from "@/lib/crm/loyalty";
+import { classifyCustomerLifecycle } from "@/lib/crm/lifecycle-core";
 
 function money(value: { toString(): string }) {
   return Number(value.toString());
@@ -51,6 +52,7 @@ export async function getCrmDashboard() {
     },
   });
 
+  const lifecycleNow = new Date();
   const customers = profiles.map((profile) => {
     const approvedOrders = profile.orders.filter(
       (order) => order.pago?.estado === "APROBADO" && order.estado !== "CANCELADO",
@@ -69,6 +71,16 @@ export async function getCrmDashboard() {
     const completedReservations = profile.reservations.filter(
       (reservation) => reservation.estado === "COMPLETADA",
     ).length;
+    const lifecycle = classifyCustomerLifecycle(
+      {
+        deliveredOrders: deliveredOrders.length,
+        loyaltyPoints: points,
+        lastActivityAt: profile.lastActivityAt,
+        marketingConsent: profile.marketingConsent,
+        hasContact: Boolean(profile.emailNormalized || profile.phoneNormalized),
+      },
+      lifecycleNow,
+    );
 
     return {
       id: profile.id,
@@ -94,6 +106,7 @@ export async function getCrmDashboard() {
           : 0,
       loyaltyPoints: points,
       segment: segmentForDeliveredOrders(deliveredOrders.length),
+      lifecycle,
     };
   });
 
@@ -104,6 +117,19 @@ export async function getCrmDashboard() {
   const repeatCustomers = customers.filter(
     (customer) => customer.deliveredOrders >= 2,
   ).length;
+  const lifecycleSummary = {
+    prospects: customers.filter((customer) => customer.lifecycle.stage === "PROSPECT").length,
+    newCustomers: customers.filter((customer) => customer.lifecycle.stage === "NEW_CUSTOMER").length,
+    active: customers.filter((customer) => customer.lifecycle.stage === "ACTIVE").length,
+    loyal: customers.filter((customer) => customer.lifecycle.stage === "LOYAL").length,
+    atRisk: customers.filter((customer) => customer.lifecycle.stage === "AT_RISK").length,
+    dormant: customers.filter((customer) => customer.lifecycle.stage === "DORMANT").length,
+    reactivationReady: customers.filter(
+      (customer) =>
+        customer.lifecycle.outreachAllowed &&
+        ["AT_RISK", "DORMANT"].includes(customer.lifecycle.stage),
+    ).length,
+  };
 
   return {
     policy: loyaltyPolicy(),
@@ -117,6 +143,7 @@ export async function getCrmDashboard() {
         (sum, customer) => sum + customer.loyaltyPoints,
         0,
       ),
+      lifecycle: lifecycleSummary,
     },
   };
 }
