@@ -1,3 +1,8 @@
+import {
+  closedLoopAdjustment,
+  type ClosedLoopSignal,
+} from "./closed-loop-recommendation-core";
+
 export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v18";
 
 export type ContextualLifecycleMode =
@@ -39,6 +44,7 @@ export type ContextualCommerceInput = {
   noSpicy?: boolean;
   drinkPreference?: "sin-alcohol" | "cerveza" | "cualquiera";
   maxSuggestedUnitPrice?: number;
+  learningSignals?: ClosedLoopSignal[];
 };
 
 export type ContextualCommerceAction = {
@@ -48,6 +54,11 @@ export type ContextualCommerceAction = {
   productSlug: string;
   category: string | null;
   currentPrice: number;
+  learning: {
+    applied: boolean;
+    adjustment: number;
+    exposures: number;
+  };
   reason:
     | "explicit_repeat"
     | "explicit_category"
@@ -394,6 +405,9 @@ export function buildContextualCommerceGuidance(
     input.lifecycleMode === "RETURNING" ||
     input.lifecycleMode === "LOYALTY" ||
     input.lifecycleMode === "RETURN_RECOVERY";
+  const learningBySlug = new Map(
+    (input.learningSignals ?? []).map((signal) => [signal.productSlug, signal]),
+  );
 
   const ranked = candidates
     .map((product) => {
@@ -404,15 +418,26 @@ export function buildContextualCommerceGuidance(
       const categoryScore = drinkIntent || requiredMoment ? 140 : 0;
       const completionScore = reason === "table_completion" ? 40 : 0;
       const discoveryScore = discoveryIntent ? 35 : 0;
+      const learning = repeatIntent
+        ? {
+            eligible: false,
+            adjustment: 0,
+            exposures: 0,
+            addRatePct: 0,
+            paidMatchRatePct: 0,
+          }
+        : closedLoopAdjustment(learningBySlug.get(product.slug));
       return {
         product,
+        learning,
         score:
           repeatScore +
           categoryScore +
           completionScore +
           discoveryScore +
           favoriteScore +
-          marginAdjustment(product),
+          marginAdjustment(product) +
+          learning.adjustment,
         favoriteUnits,
       };
     })
@@ -424,7 +449,8 @@ export function buildContextualCommerceGuidance(
         a.product.name.localeCompare(b.product.name),
     );
 
-  const selected = ranked[0]?.product;
+  const selectedCandidate = ranked[0];
+  const selected = selectedCandidate?.product;
   if (!selected) {
     return noAction("CONTEXTUAL COMMERCE V18: sin acción aplicable.");
   }
@@ -436,6 +462,11 @@ export function buildContextualCommerceGuidance(
     productSlug: selected.slug,
     category: selected.category ?? null,
     currentPrice: selected.price,
+    learning: {
+      applied: selectedCandidate?.learning.eligible === true,
+      adjustment: selectedCandidate?.learning.adjustment ?? 0,
+      exposures: selectedCandidate?.learning.exposures ?? 0,
+    },
     reason,
   };
 
