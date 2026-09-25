@@ -90,6 +90,7 @@ type OpenAIResponse = {
 
 type MenuCatalog = {
   products: CommerceProduct[];
+  costByProductId: Record<string, number | null>;
   context: string;
   source: "database" | "fallback";
 };
@@ -205,15 +206,23 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
         inventarioBajo:
           product.inventarioBajo || product.inventarioBajoReceta,
         categoriaSlug: category.slug,
-        costoUnitario:
-          product.costoUnitario === null ? null : Number(product.costoUnitario),
       })),
+    );
+
+    const costByProductId: Record<string, number | null> = Object.fromEntries(
+      categories.flatMap((category) =>
+        category.productos.map((product) => [
+          product.id,
+          product.costoUnitario === null ? null : Number(product.costoUnitario),
+        ]),
+      ),
     );
 
     if (!products.length) throw new Error("Catálogo vacío");
 
     return {
       products,
+      costByProductId,
       context: menuContextFromProducts(products),
       source: "database",
     };
@@ -225,6 +234,7 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
 
     return {
       products,
+      costByProductId: {},
       context: menuContextFromProducts(products),
       source: "fallback",
     };
@@ -665,7 +675,7 @@ export async function POST(request: Request) {
         description: product.descripcion ?? undefined,
         category: product.categoriaSlug,
         price: Number(product.precio),
-        cost: product.costoUnitario ?? null,
+        cost: catalog.costByProductId[product.id] ?? null,
         available: product.disponible,
         lowInventory: product.inventarioBajo,
       })),
