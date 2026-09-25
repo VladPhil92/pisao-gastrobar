@@ -7,6 +7,7 @@ import {
 
 export interface CommerceProduct extends SuggestibleProduct {
   descripcion?: string;
+  costoUnitario?: number | null;
 }
 
 export interface CommerceProposalItem {
