@@ -48,12 +48,11 @@ export async function getBehavioralIntelligence() {
       prisma.pedido.findMany({
         where: {
           createdAt: { gte: since30 },
-          pago: { is: { estado: "APROBADO" } },
-          attribution: { isNot: null },
         },
         select: {
           id: true,
           createdAt: true,
+          pago: { select: { estado: true } },
           attribution: { select: { sessionId: true } },
           items: {
             select: {
@@ -73,7 +72,9 @@ export async function getBehavioralIntelligence() {
         productSlug: event.productSlug,
         createdAt: event.createdAt,
       })),
-      paidOrders.map((order) => ({
+      paidOrders
+        .filter((order) => order.pago?.estado === "APROBADO")
+        .map((order) => ({
         id: order.id,
         sessionId: order.attribution?.sessionId ?? null,
         createdAt: order.createdAt,
