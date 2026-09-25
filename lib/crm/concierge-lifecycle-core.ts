@@ -23,6 +23,12 @@ export type ConciergeLifecycleGuidance = {
     | "RETURNING"
     | "LOYALTY"
     | "RETURN_RECOVERY";
+  signals: {
+    authenticated: boolean;
+    deliveredOrders: number;
+    loyaltyPoints: number;
+    favorites: ConciergeFavorite[];
+  };
   context: string;
 };
 
@@ -31,18 +37,24 @@ function safeInteger(value: number) {
   return Math.max(0, Math.floor(value));
 }
 
-function favoriteLine(favorites: ConciergeFavorite[]) {
-  const safe = favorites
+function safeFavorites(favorites: ConciergeFavorite[]) {
+  return favorites
     .filter((item) => item.name.trim() && safeInteger(item.units) > 0)
-    .sort((a, b) => b.units - a.units)
+    .map((item) => ({
+      name: item.name.trim().slice(0, 120),
+      units: safeInteger(item.units),
+    }))
+    .sort((a, b) => b.units - a.units || a.name.localeCompare(b.name))
     .slice(0, 4);
+}
 
-  if (!safe.length) {
+function favoriteLine(favorites: ConciergeFavorite[]) {
+  if (!favorites.length) {
     return "Favoritos históricos verificables: sin señal suficiente.";
   }
 
-  return `Favoritos históricos verificables: ${safe
-    .map((item) => `${item.name} (${safeInteger(item.units)} uds.)`)
+  return `Favoritos históricos verificables: ${favorites
+    .map((item) => `${item.name} (${item.units} uds.)`)
     .join(", ")}. Son señales históricas, no disponibilidad actual.`;
 }
 
@@ -53,6 +65,12 @@ export function buildConciergeLifecycleGuidance(
     return {
       version: CONCIERGE_LIFECYCLE_VERSION,
       mode: "ANONYMOUS",
+      signals: {
+        authenticated: false,
+        deliveredOrders: 0,
+        loyaltyPoints: 0,
+        favorites: [],
+      },
       context:
         "No hay una cuenta PISÁO autenticada para este turno. No asumas historial, puntos, preferencias ni relación previa.",
     };
@@ -60,7 +78,7 @@ export function buildConciergeLifecycleGuidance(
 
   const deliveredOrders = safeInteger(input.deliveredOrders);
   const loyaltyPoints = safeInteger(input.loyaltyPoints);
-  const favorites = favoriteLine(input.favorites);
+  const favorites = safeFavorites(input.favorites);
 
   let mode: ConciergeLifecycleGuidance["mode"];
   let relationshipRule: string;
@@ -97,11 +115,17 @@ export function buildConciergeLifecycleGuidance(
   return {
     version: CONCIERGE_LIFECYCLE_VERSION,
     mode,
+    signals: {
+      authenticated: true,
+      deliveredOrders,
+      loyaltyPoints,
+      favorites,
+    },
     context: [
       "CUSTOMER LIFECYCLE PERSONALIZATION — ONSITE ONLY",
       `Pedidos pagados y entregados verificados: ${deliveredOrders}.`,
       `Saldo PISÁO Points: ${loyaltyPoints}. El canje automático NO está habilitado.`,
-      favorites,
+      favoriteLine(favorites),
       `Regla de relación: ${relationshipRule}`,
       "Gobierno:",
       "- Este contexto existe porque la persona inició sesión y está interactuando dentro de PISÁO; no autoriza contacto saliente.",
