@@ -61,7 +61,16 @@ export const behaviorEventSchema = z
     surface: z.enum(BEHAVIOR_SURFACES).optional(),
     productSlug: slugSchema.optional(),
     categorySlug: slugSchema.optional(),
-    intent: z.enum(["rapido", "compartir", "completa"]).optional(),
+    intent: z
+      .enum([
+        "rapido",
+        "compartir",
+        "completa",
+        "bandit_exploit",
+        "bandit_explore",
+        "bandit_holdout",
+      ])
+      .optional(),
     step: z.enum(["entrega", "metodo", "pago", "confirmacion"]).optional(),
     paymentMethod: z.enum(["QR_TRANSFERENCIA", "CRIPTO", "TARJETA"]).optional(),
     deviceClass: z.enum(["mobile", "tablet", "desktop"]).optional(),
