@@ -17,6 +17,7 @@ export type PisaoGovernanceEventType =
   | "pisao.concierge.command_executed"
   | "pisao.concierge.command_prepared"
   | "pisao.concierge.lifecycle_context"
+  | "pisao.concierge.next_best_action"
   | "pisao.order.created"
   | "pisao.order.confirmed"
   | "pisao.order.cancelled"

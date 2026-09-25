@@ -83,6 +83,9 @@ jobs:
       - name: Adaptive revenue policy tests
         run: npm run test:revenue-policies
 
+      - name: Contextual commerce V18 tests
+        run: npm run test:contextual-commerce
+
       - name: Profit and inventory guardrail tests
         run: npm run test:profit
 

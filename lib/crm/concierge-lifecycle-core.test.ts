@@ -16,6 +16,8 @@ test("anonymous sessions receive no historical assumptions", () => {
   });
 
   assert.equal(result.mode, "ANONYMOUS");
+  assert.equal(result.signals.authenticated, false);
+  assert.deepEqual(result.signals.favorites, []);
   assert.match(result.context, /No hay una cuenta PISÁO autenticada/);
   assert.doesNotMatch(result.context, /Favoritos históricos verificables:/);
 });
@@ -34,6 +36,11 @@ test("returning customers can use verified historical favorites without promises
 
   assert.equal(result.version, CONCIERGE_LIFECYCLE_VERSION);
   assert.equal(result.mode, "RETURNING");
+  assert.equal(result.signals.authenticated, true);
+  assert.deepEqual(result.signals.favorites[0], {
+    name: "Patacón Callejero",
+    units: 5,
+  });
   assert.match(result.context, /Patacón Callejero/);
   assert.match(result.context, /Golden Pale Ale/);
   assert.match(result.context, /canje automático NO está habilitado/);
