@@ -625,21 +625,25 @@ export async function POST(request: Request) {
       latestUserMessage: latestUserMessage.content,
     });
 
-    const [
-      revenuePlaybook,
-      adaptiveRevenueContext,
-      lifecycleContext,
-      contextualLearningSignals,
-    ] = await Promise.all([
-      getActiveRevenuePlaybook(),
-      getAdaptiveRevenueContext({
-        behaviorSessionId: body.behaviorSessionId,
-        latestUserMessage: latestUserMessage.content,
-        suppress: experimentContext.experiment?.eligible === true,
-      }),
-      getAuthenticatedConciergeLifecycleContext(),
-      getContextualProductLearning(catalog.products.map((product) => product.slug)),
-    ]);
+    const [revenuePlaybook, adaptiveRevenueContext, lifecycleContext] =
+      await Promise.all([
+        getActiveRevenuePlaybook(),
+        getAdaptiveRevenueContext({
+          behaviorSessionId: body.behaviorSessionId,
+          latestUserMessage: latestUserMessage.content,
+          suppress: experimentContext.experiment?.eligible === true,
+        }),
+        getAuthenticatedConciergeLifecycleContext(),
+      ]);
+
+    const controlledRevenueLayer =
+      experimentContext.experiment?.eligible === true ||
+      Boolean(adaptiveRevenueContext.policy);
+    const contextualLearningSignals = controlledRevenueLayer
+      ? []
+      : await getContextualProductLearning(
+          catalog.products.map((product) => product.slug),
+        );
 
     if (experimentContext.experiment) {
       void emitKevGovernanceEvent("pisao.revenue.experiment_assigned", {
