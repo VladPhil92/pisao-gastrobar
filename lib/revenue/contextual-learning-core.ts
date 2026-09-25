@@ -98,6 +98,7 @@ export function summarizeContextualCommerceLearning(
       exposures: Set<string>;
       accepted: Set<string>;
       paidOrderIds: Set<string>;
+      paidSessions: Set<string>;
       paidUnits: number;
       revenue: number;
     }
@@ -111,6 +112,7 @@ export function summarizeContextualCommerceLearning(
       exposures: new Set<string>(),
       accepted: new Set<string>(),
       paidOrderIds: new Set<string>(),
+      paidSessions: new Set<string>(),
       paidUnits: 0,
       revenue: 0,
     };
@@ -120,6 +122,7 @@ export function summarizeContextualCommerceLearning(
   }
 
   const matchedOrderIds = new Set<string>();
+  const matchedPairs = new Set<string>();
   let matchedPaidUnits = 0;
   let matchedProductRevenueCop = 0;
 
@@ -143,9 +146,11 @@ export function summarizeContextualCommerceLearning(
       const subtotalCop = finiteNonNegative(item.subtotalCop);
 
       current.paidOrderIds.add(order.id);
+      current.paidSessions.add(order.sessionId);
       current.paidUnits += quantity;
       current.revenue += subtotalCop;
       matchedOrderIds.add(order.id);
+      matchedPairs.add(key);
       matchedPaidUnits += quantity;
       matchedProductRevenueCop += subtotalCop;
     }
@@ -160,7 +165,7 @@ export function summarizeContextualCommerceLearning(
       matchedPaidOrders: value.paidOrderIds.size,
       matchedPaidUnits: value.paidUnits,
       matchedProductRevenueCop: Math.round(value.revenue),
-      paidMatchRatePct: pct(value.paidOrderIds.size, value.exposures.size),
+      paidMatchRatePct: pct(value.paidSessions.size, value.exposures.size),
     }))
     .sort(
       (a, b) =>
@@ -181,7 +186,7 @@ export function summarizeContextualCommerceLearning(
     matchedPaidOrders: matchedOrderIds.size,
     matchedPaidUnits,
     matchedProductRevenueCop: Math.round(matchedProductRevenueCop),
-    paidMatchRatePct: pct(matchedOrderIds.size, exposures),
+    paidMatchRatePct: pct(matchedPairs.size, exposures),
     products,
   };
 }
