@@ -16,6 +16,7 @@ export type ContextualCommerceProduct = {
   id: string;
   name: string;
   slug: string;
+  description?: string;
   category?: string;
   price: number;
   cost?: number | null;
@@ -34,6 +35,10 @@ export type ContextualCommerceInput = {
   requiresHumanValidation?: boolean;
   experimentEligible?: boolean;
   adaptivePolicyRelevant?: boolean;
+  vegetarian?: boolean;
+  noSpicy?: boolean;
+  drinkPreference?: "sin-alcohol" | "cerveza" | "cualquiera";
+  maxSuggestedUnitPrice?: number;
 };
 
 export type ContextualCommerceAction = {
@@ -62,12 +67,17 @@ export type ContextualCommerceGuidance = {
   context: string;
 };
 
-const DRINK_CATEGORIES = new Set([
+const DRINK_NON_ALCOHOLIC = new Set([
   "sodas-saborizadas",
   "limonadas",
   "gaseosas-y-bebidas",
-  "cervezas",
-  "cocteles",
+]);
+const DRINK_BEER = new Set(["cervezas"]);
+const DRINK_COCKTAIL = new Set(["cocteles"]);
+const DRINK_CATEGORIES = new Set([
+  ...DRINK_NON_ALCOHOLIC,
+  ...DRINK_BEER,
+  ...DRINK_COCKTAIL,
 ]);
 const MAIN_CATEGORIES = new Set([
   "patacones-insignia",
@@ -76,6 +86,10 @@ const MAIN_CATEGORIES = new Set([
 ]);
 const SHARE_CATEGORIES = new Set(["entradas"]);
 const SWEET_CATEGORIES = new Set(["postre"]);
+const SAFE_VEGETARIAN_CATEGORIES = new Set([
+  ...DRINK_CATEGORIES,
+  ...SWEET_CATEGORIES,
+]);
 
 function normalize(value: string) {
   return value
@@ -101,11 +115,44 @@ function contributionMarginPct(product: ContextualCommerceProduct) {
   return ((product.price - product.cost) / product.price) * 100;
 }
 
-function eligibleProducts(products: ContextualCommerceProduct[]) {
+function vegetarianEligible(product: ContextualCommerceProduct) {
+  const category = product.category ?? "";
+  const searchable = normalize(`${product.name} ${product.description ?? ""}`);
+
+  if (SAFE_VEGETARIAN_CATEGORIES.has(category)) return true;
+  if (product.slug === "vegetariano") return true;
+  if (category === "entradas") {
+    return !/(chicharr|carne|pollo|choriz|salchicha|costilla)/.test(searchable);
+  }
+  return false;
+}
+
+function eligibleProducts(
+  products: ContextualCommerceProduct[],
+  input: ContextualCommerceInput,
+) {
   return products.filter((product) => {
     if (!product.available || product.lowInventory === true) return false;
     if (!product.name.trim() || !product.slug.trim()) return false;
     if (!Number.isFinite(product.price) || product.price <= 0) return false;
+
+    if (
+      input.maxSuggestedUnitPrice &&
+      Number.isFinite(input.maxSuggestedUnitPrice) &&
+      input.maxSuggestedUnitPrice > 0 &&
+      product.price > input.maxSuggestedUnitPrice
+    ) {
+      return false;
+    }
+
+    const searchable = normalize(`${product.name} ${product.description ?? ""}`);
+    if (input.noSpicy && /(jalapeno|picante|aji\b)/.test(searchable)) {
+      return false;
+    }
+    if (input.vegetarian && !vegetarianEligible(product)) {
+      return false;
+    }
+
     const margin = contributionMarginPct(product);
     return margin == null || margin > 0;
   });
@@ -145,6 +192,19 @@ function matchesMoment(product: ContextualCommerceProduct, moment: string | null
   return categoryMoment(product.category) === moment;
 }
 
+function drinkCategories(
+  text: string,
+  preference: ContextualCommerceInput["drinkPreference"],
+) {
+  if (/(cerveza|birra)/.test(text)) return DRINK_BEER;
+  if (/(coctel|trago)/.test(text)) return DRINK_COCKTAIL;
+  if (preference === "cerveza") return DRINK_BEER;
+  if (preference === "cualquiera" && /(alcohol)/.test(text)) {
+    return DRINK_CATEGORIES;
+  }
+  return DRINK_NON_ALCOHOLIC;
+}
+
 function marginAdjustment(product: ContextualCommerceProduct) {
   const margin = contributionMarginPct(product);
   if (margin == null) return 0;
@@ -174,6 +234,16 @@ function actionContext(action: ContextualCommerceAction) {
     "- No reveles scoring, rentabilidad, costos, segmentación ni lógica interna de selección.",
     "- Si el usuario rechaza la sugerencia, abandónala y continúa con su solicitud sin insistir.",
   ].join("\n");
+}
+
+function noAction(context: string): ContextualCommerceGuidance {
+  return {
+    version: CONTEXTUAL_COMMERCE_VERSION,
+    status: "NO_ACTION",
+    suppressionReason: null,
+    action: null,
+    context,
+  };
 }
 
 export function buildContextualCommerceGuidance(
@@ -218,18 +288,16 @@ export function buildContextualCommerceGuidance(
       text,
     );
   const drinkIntent =
-    /(bebida|tomar|cerveza|birra|coctel|limonada|soda|gaseosa)/.test(text);
+    /(bebida|tomar|cerveza|birra|coctel|limonada|soda|gaseosa|trago)/.test(text);
   const sweetIntent = /(postre|dulce|algo dulce)/.test(text);
   const shareIntent = /(entrada|picar|para compartir|al centro)/.test(text);
   const complementIntent =
-    /(acompan|complement|que mas|qué mas|agregar|anadir|añadir|sumar|con esto)/.test(
-      text,
-    );
+    /(acompan|complement|que mas|agregar|anadir|sumar|con esto)/.test(text);
   const discoveryIntent =
-    /(recomiend|sugier|que pido|qué pido|quiero probar|sorprendeme|sorpréndeme|algo nuevo|algo diferente)/.test(
+    /(recomiend|sugier|que pido|quiero probar|sorprendeme|algo nuevo|algo diferente)/.test(
       text,
     );
-  const noveltyIntent = /(algo nuevo|algo diferente|quiero probar|sorprendeme|sorpréndeme)/.test(
+  const noveltyIntent = /(algo nuevo|algo diferente|quiero probar|sorprendeme)/.test(
     text,
   );
 
@@ -241,34 +309,54 @@ export function buildContextualCommerceGuidance(
     !complementIntent &&
     !discoveryIntent
   ) {
-    return {
-      version: CONTEXTUAL_COMMERCE_VERSION,
-      status: "NO_ACTION",
-      suppressionReason: null,
-      action: null,
-      context:
-        "CONTEXTUAL COMMERCE V18: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
-    };
+    return noAction(
+      "CONTEXTUAL COMMERCE V18: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
+    );
   }
 
   const favoriteByName = favoriteMap(input.favorites);
-  const activeIds = new Set(input.activeProposalProductIds ?? []);
-  const available = eligibleProducts(input.products);
+  if (repeatIntent && favoriteByName.size === 0) {
+    return noAction(
+      "CONTEXTUAL COMMERCE V18: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
+    );
+  }
 
+  const activeIds = new Set(input.activeProposalProductIds ?? []);
+  const hasActiveProposal = activeIds.size > 0;
+
+  if (
+    hasActiveProposal &&
+    discoveryIntent &&
+    !repeatIntent &&
+    !drinkIntent &&
+    !sweetIntent &&
+    !shareIntent &&
+    !complementIntent
+  ) {
+    return noAction(
+      "CONTEXTUAL COMMERCE V18: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
+    );
+  }
+
+  const available = eligibleProducts(input.products, input);
   let candidates = available.filter((product) => !activeIds.has(product.id));
   let actionType: ContextualCommerceAction["type"] = "DISCOVER_PRODUCT";
   let reason: ContextualCommerceAction["reason"] = "guided_discovery";
   let requiredMoment: string | null = null;
 
-  if (repeatIntent && input.lifecycleMode !== "ANONYMOUS") {
+  if (repeatIntent) {
     candidates = candidates.filter((product) =>
       favoriteByName.has(normalize(product.name)),
     );
     actionType = "REPEAT_FAVORITE";
     reason = "explicit_repeat";
   } else if (drinkIntent) {
-    requiredMoment = "drink";
-    candidates = candidates.filter((product) => matchesMoment(product, requiredMoment));
+    const allowedDrinkCategories = drinkCategories(text, input.drinkPreference);
+    candidates = candidates.filter(
+      (product) =>
+        Boolean(product.category) &&
+        allowedDrinkCategories.has(product.category ?? ""),
+    );
     actionType = "DISCOVER_PRODUCT";
     reason = "explicit_category";
   } else if (sweetIntent) {
@@ -297,14 +385,9 @@ export function buildContextualCommerceGuidance(
   }
 
   if (!candidates.length) {
-    return {
-      version: CONTEXTUAL_COMMERCE_VERSION,
-      status: "NO_ACTION",
-      suppressionReason: null,
-      action: null,
-      context:
-        "CONTEXTUAL COMMERCE V18: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario o guardrails comerciales.",
-    };
+    return noAction(
+      "CONTEXTUAL COMMERCE V18: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
+    );
   }
 
   const returning =
@@ -318,7 +401,7 @@ export function buildContextualCommerceGuidance(
       const favoriteScore =
         returning && !noveltyIntent ? Math.min(60, favoriteUnits * 5) : 0;
       const repeatScore = repeatIntent && favoriteUnits > 0 ? 220 : 0;
-      const categoryScore = requiredMoment ? 140 : 0;
+      const categoryScore = drinkIntent || requiredMoment ? 140 : 0;
       const completionScore = reason === "table_completion" ? 40 : 0;
       const discoveryScore = discoveryIntent ? 35 : 0;
       return {
@@ -343,13 +426,7 @@ export function buildContextualCommerceGuidance(
 
   const selected = ranked[0]?.product;
   if (!selected) {
-    return {
-      version: CONTEXTUAL_COMMERCE_VERSION,
-      status: "NO_ACTION",
-      suppressionReason: null,
-      action: null,
-      context: "CONTEXTUAL COMMERCE V18: sin acción aplicable.",
-    };
+    return noAction("CONTEXTUAL COMMERCE V18: sin acción aplicable.");
   }
 
   const action: ContextualCommerceAction = {
