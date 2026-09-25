@@ -125,13 +125,9 @@ export async function getBehavioralIntelligence() {
     for (const event of events) {
       if (!event.productSlug) continue;
       if (
-        ![
-          "product_view",
-          "cart_add",
-          "visual_table_suggestion_add",
-          "concierge_nba_view",
-          "concierge_nba_add",
-        ].includes(event.tipo)
+        !["product_view", "cart_add", "visual_table_suggestion_add"].includes(
+          event.tipo,
+        )
       )
         continue;
 
@@ -142,14 +138,8 @@ export async function getBehavioralIntelligence() {
         sessions: new Set<string>(),
       };
 
-      if (["product_view", "concierge_nba_view"].includes(event.tipo)) {
-        current.views += 1;
-      }
-      if (
-        ["cart_add", "visual_table_suggestion_add", "concierge_nba_add"].includes(
-          event.tipo,
-        )
-      ) {
+      if (event.tipo === "product_view") current.views += 1;
+      if (["cart_add", "visual_table_suggestion_add"].includes(event.tipo)) {
         current.adds += 1;
       }
       current.sessions.add(event.sessionId);
