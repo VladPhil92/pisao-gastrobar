@@ -275,3 +275,171 @@ test("profitability is only a tie-breaker and cannot override explicit category 
   assert.equal(result.action?.category, "postre");
   assert.equal(result.action?.productName, "Postre de la Casa");
 });
+
+
+test("mature closed-loop evidence can break a tie between equally eligible products", () => {
+  const alternatives = [
+    {
+      id: "lemon-a",
+      name: "Limonada A",
+      slug: "limonada-a",
+      category: "limonadas",
+      price: 14000,
+      cost: 7000,
+      available: true,
+    },
+    {
+      id: "lemon-b",
+      name: "Limonada B",
+      slug: "limonada-b",
+      category: "limonadas",
+      price: 14000,
+      cost: 7000,
+      available: true,
+    },
+  ];
+
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "¿Qué bebida me recomiendas?",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products: alternatives,
+    drinkPreference: "sin-alcohol",
+    learningSignals: [
+      {
+        productSlug: "limonada-a",
+        exposures: 40,
+        accepted: 4,
+        addRatePct: 10,
+        matchedPaidOrders: 1,
+        paidMatchRatePct: 3,
+      },
+      {
+        productSlug: "limonada-b",
+        exposures: 40,
+        accepted: 18,
+        addRatePct: 45,
+        matchedPaidOrders: 8,
+        paidMatchRatePct: 20,
+      },
+    ],
+  });
+
+  assert.equal(result.status, "READY");
+  assert.equal(result.action?.productSlug, "limonada-b");
+  assert.equal(result.action?.learning.applied, true);
+  assert.ok((result.action?.learning.adjustment ?? 0) > 0);
+});
+
+test("closed-loop evidence below sample floor cannot change deterministic ordering", () => {
+  const alternatives = [
+    {
+      id: "a",
+      name: "Entrada A",
+      slug: "entrada-a",
+      category: "entradas",
+      price: 12000,
+      cost: 5000,
+      available: true,
+    },
+    {
+      id: "b",
+      name: "Entrada B",
+      slug: "entrada-b",
+      category: "entradas",
+      price: 12000,
+      cost: 5000,
+      available: true,
+    },
+  ];
+
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero una entrada para compartir",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products: alternatives,
+    learningSignals: [
+      {
+        productSlug: "entrada-b",
+        exposures: 11,
+        accepted: 11,
+        addRatePct: 100,
+        matchedPaidOrders: 11,
+        paidMatchRatePct: 100,
+      },
+    ],
+  });
+
+  assert.equal(result.action?.productSlug, "entrada-a");
+  assert.equal(result.action?.learning.applied, false);
+});
+
+test("closed-loop learning never revives unavailable or low-inventory products", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Recomiéndame una cerveza",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products,
+    drinkPreference: "cerveza",
+    learningSignals: [
+      {
+        productSlug: "producto-escaso",
+        exposures: 100,
+        accepted: 90,
+        addRatePct: 90,
+        matchedPaidOrders: 80,
+        paidMatchRatePct: 80,
+      },
+    ],
+  });
+
+  assert.notEqual(result.action?.productSlug, "producto-escaso");
+});
+
+test("explicit repeat ignores aggregate closed-loop learning", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero lo de siempre",
+    lifecycleMode: "RETURNING",
+    favorites: [
+      { name: "Golden Pale Ale", units: 8 },
+      { name: "Patacón Callejero", units: 3 },
+    ],
+    products,
+    learningSignals: [
+      {
+        productSlug: "patacon-callejero",
+        exposures: 100,
+        accepted: 90,
+        addRatePct: 90,
+        matchedPaidOrders: 80,
+        paidMatchRatePct: 80,
+      },
+    ],
+  });
+
+  assert.equal(result.action?.productName, "Golden Pale Ale");
+  assert.equal(result.action?.learning.applied, false);
+  assert.equal(result.action?.learning.adjustment, 0);
+});
+
+test("explicit category remains a hard filter regardless of learned evidence", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero un postre, ¿cuál me recomiendas?",
+    lifecycleMode: "RETURNING",
+    favorites: [],
+    products,
+    learningSignals: [
+      {
+        productSlug: "golden-pale-ale",
+        exposures: 100,
+        accepted: 95,
+        addRatePct: 95,
+        matchedPaidOrders: 90,
+        paidMatchRatePct: 90,
+      },
+    ],
+  });
+
+  assert.equal(result.action?.category, "postre");
+  assert.equal(result.action?.productSlug, "postre-casa");
+});
