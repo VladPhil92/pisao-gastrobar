@@ -45,7 +45,7 @@
     "test:meta-app-review": "node scripts/test-meta-app-review-v8.mjs",
     "test:meta-review-evidence": "node scripts/test-meta-review-evidence-v9.mjs",
     "test:owner-governance": "node scripts/test-owner-governance-v10.mjs",
-    "test:crm-loyalty": "tsx --test lib/crm/lifecycle-core.test.ts && node scripts/test-customer-crm-loyalty-v11.mjs",
+    "test:crm-loyalty": "tsx --test lib/crm/lifecycle-core.test.ts lib/crm/concierge-lifecycle-core.test.ts && node scripts/test-customer-crm-loyalty-v11.mjs",
     "verify:release-integrity": "node scripts/verify-release-integrity.mjs",
     "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
     "verify:render-release": "npm run verify:release-integrity && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",

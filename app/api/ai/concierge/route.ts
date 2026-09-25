@@ -63,6 +63,7 @@ import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
 import { getAdaptiveRevenueContext } from "@/lib/revenue/revenue-policy-engine";
 import { lookupOrderStatusForCustomer } from "@/lib/orders/customer-status";
+import { getAuthenticatedConciergeLifecycleContext } from "@/lib/crm/concierge-context";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -610,14 +611,16 @@ export async function POST(request: Request) {
       latestUserMessage: latestUserMessage.content,
     });
 
-    const [revenuePlaybook, adaptiveRevenueContext] = await Promise.all([
-      getActiveRevenuePlaybook(),
-      getAdaptiveRevenueContext({
-        behaviorSessionId: body.behaviorSessionId,
-        latestUserMessage: latestUserMessage.content,
-        suppress: experimentContext.experiment?.eligible === true,
-      }),
-    ]);
+    const [revenuePlaybook, adaptiveRevenueContext, lifecycleContext] =
+      await Promise.all([
+        getActiveRevenuePlaybook(),
+        getAdaptiveRevenueContext({
+          behaviorSessionId: body.behaviorSessionId,
+          latestUserMessage: latestUserMessage.content,
+          suppress: experimentContext.experiment?.eligible === true,
+        }),
+        getAuthenticatedConciergeLifecycleContext(),
+      ]);
 
     if (experimentContext.experiment) {
       void emitKevGovernanceEvent("pisao.revenue.experiment_assigned", {
@@ -639,6 +642,14 @@ export async function POST(request: Request) {
         served: adaptiveRevenueContext.policy.served,
       });
     }
+
+    void emitKevGovernanceEvent("pisao.concierge.lifecycle_context", {
+      source: "concierge_api",
+      version: lifecycleContext.version,
+      mode: lifecycleContext.mode,
+      contains_pii: false,
+      outbound_authorized: false,
+    });
 
     const clientRequestId = crypto.randomUUID();
     const nativeTools = buildNativeToolDefinitions({
@@ -664,6 +675,11 @@ ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
+
+AUTHENTICATED CUSTOMER PERSONALIZATION
+${lifecycleContext.context}
+- Este contexto solo puede mejorar relevancia dentro de la sesión iniciada por el cliente.
+- No puede sobreescribir disponibilidad, precios, restricciones, decisiones de experimento ni reglas comerciales aprobadas.
 
 REVENUE PLAYBOOK APROBADO
 ${revenuePlaybook}

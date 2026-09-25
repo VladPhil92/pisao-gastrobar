@@ -12,6 +12,9 @@ const identity = read("lib/crm/customer-identity.ts");
 const loyalty = read("lib/crm/loyalty.ts");
 const dashboard = read("lib/crm/dashboard.ts");
 const lifecycle = read("lib/crm/lifecycle-core.ts");
+const conciergeLifecycle = read("lib/crm/concierge-lifecycle-core.ts");
+const conciergeContext = read("lib/crm/concierge-context.ts");
+const conciergeRoute = read("app/api/ai/concierge/route.ts");
 const orderCreate = read("lib/orders/create-order.ts");
 const reservationCreate = read("lib/reservas/create-reservation.ts");
 const orderStatus = read("app/api/admin/pedidos/[id]/estado/route.ts");
@@ -51,6 +54,17 @@ assert.match(dashboard, /classifyCustomerLifecycle/);
 assert.match(lifecycle, /CUSTOMER_LIFECYCLE_ENGINE_VERSION/);
 assert.match(lifecycle, /outreachAllowed/);
 assert.match(lifecycle, /marketingConsent && input\.hasContact/);
+assert.match(conciergeLifecycle, /CONCIERGE_LIFECYCLE_VERSION/);
+assert.match(conciergeLifecycle, /ONSITE ONLY/);
+assert.match(conciergeLifecycle, /no autoriza contacto saliente/);
+assert.match(conciergeLifecycle, /No inventes descuentos, regalos, privilegios/);
+assert.match(conciergeContext, /readCustomerLocalSession/);
+assert.match(conciergeContext, /readCustomerSession/);
+assert.match(conciergeContext, /estado: "ENTREGADO"/);
+assert.match(conciergeContext, /estado: "APROBADO"/);
+assert.match(conciergeRoute, /AUTHENTICATED CUSTOMER PERSONALIZATION/);
+assert.match(conciergeRoute, /getAuthenticatedConciergeLifecycleContext/);
+assert.match(conciergeRoute, /outbound_authorized: false/);
 assert.match(crmPage, /Customer Lifecycle Operations V16/);
 assert.match(crmPage, /Sin contacto saliente/);
 assert.match(crmDetail, /Customer 360/);
@@ -59,7 +73,16 @@ assert.match(account, /El canje todavía no está habilitado/);
 assert.match(roles, /"\/admin\/clientes": ALL_ADMIN/);
 assert.match(sidebar, /href: "\/admin\/clientes"/);
 
-for (const source of [identity, loyalty, dashboard, lifecycle, crmPage, crmDetail]) {
+for (const source of [
+  identity,
+  loyalty,
+  dashboard,
+  lifecycle,
+  conciergeLifecycle,
+  conciergeRoute,
+  crmPage,
+  crmDetail,
+]) {
   assert.doesNotMatch(
     source,
     /passwordHash|accessTokenCiphertext|WHATSAPP_META_APP_SECRET/,
@@ -67,4 +90,4 @@ for (const source of [identity, loyalty, dashboard, lifecycle, crmPage, crmDetai
   );
 }
 
-console.log("Customer CRM & Loyalty V11 + Customer Lifecycle V16 invariants: OK");
+console.log("Customer CRM V11 + Lifecycle V16 + Concierge Personalization V17 invariants: OK");
