@@ -51,3 +51,31 @@ test("rejects malformed product identifiers", () => {
 
   assert.equal(result.success, false);
 });
+
+
+test("accepts V21 contextual bandit arm tags on recommendation telemetry", () => {
+  for (const intent of [
+    "bandit_exploit",
+    "bandit_explore",
+    "bandit_holdout",
+  ] as const) {
+    const result = behaviorEventSchema.safeParse({
+      ...base,
+      eventName: "concierge_nba_view",
+      productSlug: "golden-pale-ale",
+      intent,
+    });
+    assert.equal(result.success, true);
+  }
+});
+
+test("rejects arbitrary experiment labels in the intent dimension", () => {
+  const result = behaviorEventSchema.safeParse({
+    ...base,
+    eventName: "concierge_nba_view",
+    productSlug: "golden-pale-ale",
+    intent: "bandit_force_winner",
+  });
+
+  assert.equal(result.success, false);
+});
