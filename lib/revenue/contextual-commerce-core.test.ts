@@ -258,3 +258,17 @@ test("dietary constraints filter contextual candidates", () => {
   assert.equal(result.status, "READY");
   assert.notEqual(result.action?.productId, "spicy");
 });
+
+
+test("profitability is only a tie-breaker and cannot override explicit category intent", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero un postre, ¿cuál me recomiendas?",
+    lifecycleMode: "LOYALTY",
+    favorites: [{ name: "Golden Pale Ale", units: 50 }],
+    products,
+  });
+
+  assert.equal(result.status, "READY");
+  assert.equal(result.action?.category, "postre");
+  assert.equal(result.action?.productName, "Postre de la Casa");
+});
