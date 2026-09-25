@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/optimize-images.mjs",
+    "prebuild": "npm run images:optimize && npm run verify:release",
     "build": "next build",
     "images:optimize": "node scripts/optimize-images.mjs",
     "postbuild": "node scripts/postbuild-standalone.mjs",
@@ -45,7 +45,9 @@
     "test:meta-app-review": "node scripts/test-meta-app-review-v8.mjs",
     "test:meta-review-evidence": "node scripts/test-meta-review-evidence-v9.mjs",
     "test:owner-governance": "node scripts/test-owner-governance-v10.mjs",
-    "test:crm-loyalty": "node scripts/test-customer-crm-loyalty-v11.mjs"
+    "test:crm-loyalty": "node scripts/test-customer-crm-loyalty-v11.mjs",
+    "verify:release-integrity": "node scripts/verify-release-integrity.mjs",
+    "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -71,8 +73,6 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^17.4.2",
-    "eslint": "^10",
     "dotenv": "^18.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
