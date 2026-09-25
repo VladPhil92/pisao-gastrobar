@@ -90,29 +90,44 @@ test("explicit repeat uses a verified available favorite", () => {
   assert.doesNotMatch(result.context, /costo|rentabilidad|margen/i);
 });
 
-test("explicit category intent dominates a more profitable unrelated product", () => {
+test("generic beverage intent defaults to non-alcoholic options", () => {
   const result = buildContextualCommerceGuidance({
     latestUserMessage: "¿Qué bebida me recomiendas?",
     lifecycleMode: "FIRST_PURCHASE",
     favorites: [],
     products,
+    drinkPreference: "sin-alcohol",
   });
 
   assert.equal(result.status, "READY");
-  assert.equal(result.action?.category, "cervezas");
-  assert.notEqual(result.action?.productName, "Postre de la Casa");
+  assert.equal(result.action?.category, "limonadas");
+  assert.notEqual(result.action?.productName, "Golden Pale Ale");
 });
 
-test("low inventory products are never selected even with strong economics", () => {
+test("explicit beer intent may select beer but still respects inventory", () => {
   const result = buildContextualCommerceGuidance({
     latestUserMessage: "Recomiéndame una cerveza",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products,
+    drinkPreference: "cerveza",
+  });
+
+  assert.equal(result.action?.productName, "Golden Pale Ale");
+  assert.notEqual(result.action?.productName, "Producto Escaso");
+});
+
+test("anonymous repeat intent does not guess prior orders", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero lo de siempre",
     lifecycleMode: "ANONYMOUS",
     favorites: [],
     products,
   });
 
-  assert.equal(result.action?.productName, "Golden Pale Ale");
-  assert.notEqual(result.action?.productName, "Producto Escaso");
+  assert.equal(result.status, "NO_ACTION");
+  assert.equal(result.action, null);
+  assert.match(result.context, /no existe un favorito histórico verificable/i);
 });
 
 test("table completion selects a missing moment and does not duplicate active items", () => {
@@ -186,4 +201,60 @@ test("novelty intent does not recycle a known favorite", () => {
   assert.notEqual(result.action?.productName, "Patacón Callejero");
   assert.match(result.context, /No agregues productos al carrito/);
   assert.match(result.context, /No inventes descuentos/);
+});
+
+
+test("explicit budget prevents out-of-budget suggestion", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Recomiéndame algo nuevo",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products,
+    maxSuggestedUnitPrice: 15000,
+  });
+
+  assert.equal(result.status, "READY");
+  assert.ok((result.action?.currentPrice ?? Infinity) <= 15000);
+});
+
+test("existing calculated proposal blocks generic extra upsell", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Recomiéndame algo",
+    lifecycleMode: "RETURNING",
+    favorites: [],
+    products,
+    activeProposalProductIds: ["patacon", "beer"],
+    activeProposalCategories: ["patacones-insignia", "cervezas"],
+  });
+
+  assert.equal(result.status, "NO_ACTION");
+  assert.match(result.context, /ya existe una propuesta calculada/i);
+});
+
+test("dietary constraints filter contextual candidates", () => {
+  const constrainedProducts = [
+    ...products,
+    {
+      id: "spicy",
+      name: "Patacón Jalapeño",
+      slug: "patacon-jalapeno",
+      description: "Con carne y jalapeño picante",
+      category: "patacones-insignia",
+      price: 13000,
+      cost: 3000,
+      available: true,
+    },
+  ];
+
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero algo nuevo y sin picante",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products: constrainedProducts,
+    noSpicy: true,
+    maxSuggestedUnitPrice: 15000,
+  });
+
+  assert.equal(result.status, "READY");
+  assert.notEqual(result.action?.productId, "spicy");
 });
