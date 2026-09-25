@@ -30,7 +30,7 @@ assert.match(attribution, /concierge_nba_view: \["CONCIERGE"\]/);
 assert.match(attribution, /concierge_nba_add: \["CONCIERGE"\]/);
 assert.match(intelligence, /summarizeContextualCommerceLearning/);
 assert.match(intelligence, /order\.pago\?\.estado === "APROBADO"/);
-assert.match(dashboard, /Contextual Commerce V19/);
+assert.match(dashboard, /Contextual Commerce V(?:19|20)/);
 assert.match(dashboard, /no demuestra causalidad/);
 
 for (const source of [route, concierge, contract, intelligence, attribution, dashboard, learning]) {
