@@ -15,6 +15,7 @@ const lifecycle = read("lib/crm/lifecycle-core.ts");
 const conciergeLifecycle = read("lib/crm/concierge-lifecycle-core.ts");
 const conciergeContext = read("lib/crm/concierge-context.ts");
 const conciergeRoute = read("app/api/ai/concierge/route.ts");
+const contextualCommerce = read("lib/revenue/contextual-commerce-core.ts");
 const orderCreate = read("lib/orders/create-order.ts");
 const reservationCreate = read("lib/reservas/create-reservation.ts");
 const orderStatus = read("app/api/admin/pedidos/[id]/estado/route.ts");
@@ -65,6 +66,14 @@ assert.match(conciergeContext, /estado: "APROBADO"/);
 assert.match(conciergeRoute, /AUTHENTICATED CUSTOMER PERSONALIZATION/);
 assert.match(conciergeRoute, /getAuthenticatedConciergeLifecycleContext/);
 assert.match(conciergeRoute, /outbound_authorized: false/);
+assert.match(conciergeLifecycle, /signals:/);
+assert.match(contextualCommerce, /CONTEXTUAL_COMMERCE_VERSION/);
+assert.match(contextualCommerce, /ONE OPTIONAL NEXT BEST ACTION/);
+assert.match(contextualCommerce, /controlled_revenue_layer/);
+assert.match(contextualCommerce, /No agregues productos al carrito/);
+assert.match(conciergeRoute, /buildContextualCommerceGuidance/);
+assert.match(conciergeRoute, /pisao\.concierge\.next_best_action/);
+assert.match(conciergeRoute, /autonomous_discount: false/);
 assert.match(crmPage, /Customer Lifecycle Operations V16/);
 assert.match(crmPage, /Sin contacto saliente/);
 assert.match(crmDetail, /Customer 360/);
@@ -79,6 +88,7 @@ for (const source of [
   dashboard,
   lifecycle,
   conciergeLifecycle,
+  contextualCommerce,
   conciergeRoute,
   crmPage,
   crmDetail,
@@ -90,4 +100,4 @@ for (const source of [
   );
 }
 
-console.log("Customer CRM V11 + Lifecycle V16 + Concierge Personalization V17 invariants: OK");
+console.log("Customer CRM V11 + Lifecycle V16 + Concierge V17 + Contextual Commerce V18 invariants: OK");
