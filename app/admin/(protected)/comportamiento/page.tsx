@@ -180,7 +180,7 @@ export default async function AdminComportamientoPage() {
             ) : (
               <div className="mt-3">
                 <EmptyState>
-                  V19 empezará a formar la línea base cuando el Concierge muestre las primeras recomendaciones contextuales.
+                  V20 empezará en modo base y activará aprendizaje por producto cuando cada señal alcance la muestra mínima.
                 </EmptyState>
               </div>
             )}
