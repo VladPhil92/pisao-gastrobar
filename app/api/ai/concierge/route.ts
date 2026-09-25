@@ -662,6 +662,7 @@ export async function POST(request: Request) {
         id: product.id,
         name: product.nombre,
         slug: product.slug,
+        description: product.descripcion ?? undefined,
         category: product.categoriaSlug,
         price: Number(product.precio),
         cost: product.costoUnitario ?? null,
@@ -676,6 +677,18 @@ export async function POST(request: Request) {
           .filter((value): value is string => Boolean(value)) ?? [],
       reservationIntent,
       requiresHumanValidation: commerceAnalysis.requiresHumanValidation,
+      vegetarian: commerceAnalysis.vegetarian,
+      noSpicy: commerceAnalysis.noSpicy,
+      drinkPreference: commerceAnalysis.drinkPreference,
+      maxSuggestedUnitPrice:
+        commerceAnalysis.budgetPerPerson ??
+        (commerceAnalysis.budgetTotal
+          ? commerceAnalysis.diners
+            ? Math.floor(
+                commerceAnalysis.budgetTotal / commerceAnalysis.diners,
+              )
+            : commerceAnalysis.budgetTotal
+          : undefined),
       experimentEligible: experimentContext.experiment?.eligible === true,
       adaptivePolicyRelevant: Boolean(adaptiveRevenueContext.policy),
     });
