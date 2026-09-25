@@ -98,26 +98,29 @@ export default async function AdminComportamientoPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
-              Contextual Commerce V19
+              Contextual Commerce V20
             </p>
             <h2 className="font-display mt-2 text-2xl text-pisao-cream">
               De sugerencia a resultado observado
             </h2>
             <p className="mt-2 max-w-3xl text-xs leading-relaxed text-pisao-cream-muted">
-              Mide recomendaciones contextuales del Concierge sin texto de chat ni PII. Un “match pago” significa que la misma sesión compró el mismo producto sugerido dentro de la ventana first-party; no demuestra causalidad.
+              Mide recomendaciones contextuales del Concierge sin texto de chat ni PII. V20 solo incorpora aprendizaje al ranking cuando existe muestra suficiente y con influencia acotada. Un “match pago” significa que la misma sesión compró el mismo producto sugerido dentro de la ventana first-party; no demuestra causalidad.
             </p>
           </div>
           <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/60 px-4 py-3 text-xs text-pisao-cream-muted">
             Ventana de resultado: <span className="font-semibold text-pisao-cream">12 horas</span>
+            <span className="mx-2 text-pisao-gold/40">·</span>
+            Mínimo adaptativo: <span className="font-semibold text-pisao-cream">{data.closedLoop.minExposures} exposiciones</span>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
             ["Exposiciones", data.contextualLearning.exposures],
             ["Agregados explícitos", data.contextualLearning.accepted],
             ["Add / view", `${data.contextualLearning.addRatePct}%`],
             ["Pedidos pagos con match", data.contextualLearning.matchedPaidOrders],
+            ["Productos habilitados V20", data.closedLoop.eligibleProducts],
           ].map(([label, value]) => (
             <div
               key={String(label)}
