@@ -79,18 +79,14 @@ export function selectContextualBanditCandidate(params: {
 }): ContextualBanditDecision {
   const candidates = params.candidates
     .filter((candidate) => candidate.productSlug.trim())
-    .map((candidate) => ({
+    .map((candidate, index) => ({
       productSlug: candidate.productSlug,
       score: finiteScore(candidate.score),
       exposures: finiteExposures(candidate.exposures),
+      index,
     }))
     .filter((candidate) => Number.isFinite(candidate.score))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.exposures - b.exposures ||
-        a.productSlug.localeCompare(b.productSlug),
-    );
+    .sort((a, b) => b.score - a.score || a.index - b.index);
 
   const top = candidates[0];
   if (!top) {
