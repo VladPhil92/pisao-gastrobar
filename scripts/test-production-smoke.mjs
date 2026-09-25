@@ -149,15 +149,18 @@ async function main() {
 
   // V15 commercial fail-closed probes: all are deliberately invalid/read-only.
   // They must prove validation and privacy without creating orders or payments.
-  assert.equal(
-    invalidOrder.status,
-    400,
-    "Invalid order payload must be rejected before persistence",
+  const edgeSecretMode =
+    healthJson?.security?.cloudflare?.origin?.edgeSecret ?? "disabled";
+  const acceptedWriteRejections =
+    edgeSecretMode === "required" ? [403] : [400];
+
+  assert.ok(
+    acceptedWriteRejections.includes(invalidOrder.status),
+    `Invalid order payload must fail closed before persistence; got ${invalidOrder.status}`,
   );
-  assert.equal(
-    missingEvidence.status,
-    400,
-    "Missing payment evidence must be rejected before persistence",
+  assert.ok(
+    acceptedWriteRejections.includes(missingEvidence.status),
+    `Missing payment evidence must fail closed before persistence; got ${missingEvidence.status}`,
   );
   assert.equal(
     unauthorizedTracking.status,
@@ -207,6 +210,11 @@ async function main() {
 
   assert.equal(healthJson.status, "ok", "Application health is not ok");
   assert.equal(healthJson.database, "available", "Production database unavailable");
+  assert.equal(
+    healthJson?.customerExperience?.commercialFlow?.engineVersion,
+    "commercial_e2e_v15",
+    "Commercial E2E certification engine is not active",
+  );
 
   const imageType = image.headers.get("content-type") || "";
   assert.match(imageType, /^image\//, "Experience media route is not returning an image");
@@ -265,6 +273,8 @@ async function main() {
         imageSource: image.headers.get("x-pisao-image-source"),
         database: healthJson.database,
         commercialCertification: {
+          engineVersion: healthJson?.customerExperience?.commercialFlow?.engineVersion ?? null,
+          edgeSecretMode,
           invalidOrderRejected: invalidOrder.status,
           missingEvidenceRejected: missingEvidence.status,
           trackingWithoutToken: unauthorizedTracking.status,
