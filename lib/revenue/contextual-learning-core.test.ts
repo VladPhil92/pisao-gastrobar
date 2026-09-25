@@ -201,3 +201,47 @@ test("keeps product-level associations descriptive and bounded", () => {
     0,
   );
 });
+
+
+test("paid-match rate stays bounded when one exposure precedes multiple paid orders", () => {
+  const result = summarizeContextualCommerceLearning(
+    [
+      {
+        tipo: "concierge_nba_view",
+        sessionId: "session_multi",
+        productSlug: "golden-pale-ale",
+        createdAt: at(0),
+      },
+    ],
+    [
+      {
+        id: "order_1",
+        sessionId: "session_multi",
+        createdAt: at(10),
+        items: [
+          {
+            productSlug: "golden-pale-ale",
+            quantity: 1,
+            subtotalCop: 18000,
+          },
+        ],
+      },
+      {
+        id: "order_2",
+        sessionId: "session_multi",
+        createdAt: at(20),
+        items: [
+          {
+            productSlug: "golden-pale-ale",
+            quantity: 1,
+            subtotalCop: 18000,
+          },
+        ],
+      },
+    ],
+  );
+
+  assert.equal(result.matchedPaidOrders, 2);
+  assert.equal(result.paidMatchRatePct, 100);
+  assert.equal(result.products[0]?.paidMatchRatePct, 100);
+});
