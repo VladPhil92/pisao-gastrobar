@@ -125,3 +125,20 @@ test("exploration selection remains stable within the same session", () => {
   assert.equal(first.selectedSlug, second.selectedSlug);
   assert.equal(first.arm, second.arm);
 });
+
+
+test("baseline tie order is preserved outside exploration even when a later candidate has fewer exposures", () => {
+  const sessionId = findSessionForArm("EXPLOIT");
+  const result = selectContextualBanditCandidate({
+    sessionId,
+    allowExploration: true,
+    candidates: [
+      { productSlug: "baseline-winner", score: 50, exposures: 80 },
+      { productSlug: "under-exposed", score: 50, exposures: 0 },
+    ],
+  });
+
+  assert.equal(result.arm, "EXPLOIT");
+  assert.equal(result.selectedSlug, "baseline-winner");
+  assert.equal(result.explored, false);
+});
