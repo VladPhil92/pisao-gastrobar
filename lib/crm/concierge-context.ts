@@ -26,7 +26,8 @@ function anonymousContext() {
 }
 
 export async function getAuthenticatedConciergeLifecycleContext() {
-  const store = await cookies();
+  try {
+    const store = await cookies();
   const localSession = readCustomerLocalSession(
     store.get(CUSTOMER_SESSION_COOKIE)?.value,
   );
@@ -118,11 +119,14 @@ export async function getAuthenticatedConciergeLifecycleContext() {
     .sort((a, b) => b.units - a.units)
     .slice(0, 4);
 
-  return buildConciergeLifecycleGuidance({
-    authenticated: true,
-    stage: lifecycle.stage,
-    deliveredOrders,
-    loyaltyPoints,
-    favorites,
-  });
+    return buildConciergeLifecycleGuidance({
+      authenticated: true,
+      stage: lifecycle.stage,
+      deliveredOrders,
+      loyaltyPoints,
+      favorites,
+    });
+  } catch {
+    return anonymousContext();
+  }
 }
