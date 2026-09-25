@@ -1,9 +1,14 @@
 import {
+  selectContextualBanditCandidate,
+  type ContextualBanditArm,
+} from "./contextual-bandit-core";
+
+import {
   closedLoopAdjustment,
   type ClosedLoopSignal,
 } from "./closed-loop-recommendation-core";
 
-export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v20";
+export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v21";
 
 export type ContextualLifecycleMode =
   | "ANONYMOUS"
@@ -45,6 +50,7 @@ export type ContextualCommerceInput = {
   drinkPreference?: "sin-alcohol" | "cerveza" | "cualquiera";
   maxSuggestedUnitPrice?: number;
   learningSignals?: ClosedLoopSignal[];
+  explorationSessionId?: string;
 };
 
 export type ContextualCommerceAction = {
@@ -58,6 +64,12 @@ export type ContextualCommerceAction = {
     applied: boolean;
     adjustment: number;
     exposures: number;
+  };
+  bandit: {
+    arm: ContextualBanditArm;
+    explored: boolean;
+    eligiblePoolSize: number;
+    reason: string;
   };
   reason:
     | "explicit_repeat"
@@ -234,7 +246,7 @@ function actionContext(action: ContextualCommerceAction) {
           : "La persona pidió una recomendación y este producto pasó los guardrails comerciales y operativos.";
 
   return [
-    "CONTEXTUAL COMMERCE V20 — ONE OPTIONAL NEXT BEST ACTION",
+    "CONTEXTUAL COMMERCE V21 — ONE OPTIONAL NEXT BEST ACTION",
     `Acción: ${action.type}.`,
     `Producto elegible: ${action.productName} — $${price} COP.`,
     `Motivo: ${reason}`,
@@ -267,7 +279,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "human_validation_required",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
+        "CONTEXTUAL COMMERCE V21 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
     };
   }
 
@@ -278,7 +290,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "reservation_priority",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
+        "CONTEXTUAL COMMERCE V21 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
     };
   }
 
@@ -289,7 +301,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "controlled_revenue_layer",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
+        "CONTEXTUAL COMMERCE V21 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
     };
   }
 
@@ -321,14 +333,14 @@ export function buildContextualCommerceGuidance(
     !discoveryIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V20: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
+      "CONTEXTUAL COMMERCE V21: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
     );
   }
 
   const favoriteByName = favoriteMap(input.favorites);
   if (repeatIntent && favoriteByName.size === 0) {
     return noAction(
-      "CONTEXTUAL COMMERCE V20: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
+      "CONTEXTUAL COMMERCE V21: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
     );
   }
 
@@ -345,7 +357,7 @@ export function buildContextualCommerceGuidance(
     !complementIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V20: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
+      "CONTEXTUAL COMMERCE V21: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
     );
   }
 
@@ -397,7 +409,7 @@ export function buildContextualCommerceGuidance(
 
   if (!candidates.length) {
     return noAction(
-      "CONTEXTUAL COMMERCE V20: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
+      "CONTEXTUAL COMMERCE V21: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
     );
   }
 
@@ -449,10 +461,23 @@ export function buildContextualCommerceGuidance(
         a.product.name.localeCompare(b.product.name),
     );
 
-  const selectedCandidate = ranked[0];
+  const banditDecision = selectContextualBanditCandidate({
+    sessionId: input.explorationSessionId,
+    allowExploration: !repeatIntent,
+    candidates: ranked.map((candidate) => ({
+      productSlug: candidate.product.slug,
+      score: candidate.score,
+      exposures: candidate.learning.exposures,
+    })),
+  });
+  const selectedCandidate =
+    ranked.find(
+      (candidate) =>
+        candidate.product.slug === banditDecision.selectedSlug,
+    ) ?? ranked[0];
   const selected = selectedCandidate?.product;
   if (!selected) {
-    return noAction("CONTEXTUAL COMMERCE V20: sin acción aplicable.");
+    return noAction("CONTEXTUAL COMMERCE V21: sin acción aplicable.");
   }
 
   const action: ContextualCommerceAction = {
@@ -466,6 +491,12 @@ export function buildContextualCommerceGuidance(
       applied: selectedCandidate?.learning.eligible === true,
       adjustment: selectedCandidate?.learning.adjustment ?? 0,
       exposures: selectedCandidate?.learning.exposures ?? 0,
+    },
+    bandit: {
+      arm: banditDecision.arm,
+      explored: banditDecision.explored,
+      eligiblePoolSize: banditDecision.eligiblePoolSize,
+      reason: banditDecision.reason,
     },
     reason,
   };
