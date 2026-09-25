@@ -137,6 +137,19 @@ async function requestOpenAI(params: {
   return { response, payload };
 }
 
+function sanitizeBehaviorSessionId(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (
+    normalized.length < 8 ||
+    normalized.length > 64 ||
+    !/^[A-Za-z0-9_-]+$/.test(normalized)
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
 function sanitizeMessages(value: unknown): ClientMessage[] {
   if (!Array.isArray(value)) return [];
 
@@ -361,6 +374,9 @@ export async function POST(request: Request) {
       sessionKey?: unknown;
       behaviorSessionId?: unknown;
     };
+    const behaviorSessionId = sanitizeBehaviorSessionId(
+      body.behaviorSessionId,
+    );
     const messages = sanitizeMessages(body.messages);
     const latestUserMessage = [...messages]
       .reverse()
@@ -621,7 +637,7 @@ export async function POST(request: Request) {
     }
 
     const experimentContext = await getConciergeExperimentContext({
-      behaviorSessionId: body.behaviorSessionId,
+      behaviorSessionId,
       latestUserMessage: latestUserMessage.content,
     });
 
@@ -629,7 +645,7 @@ export async function POST(request: Request) {
       await Promise.all([
         getActiveRevenuePlaybook(),
         getAdaptiveRevenueContext({
-          behaviorSessionId: body.behaviorSessionId,
+          behaviorSessionId,
           latestUserMessage: latestUserMessage.content,
           suppress: experimentContext.experiment?.eligible === true,
         }),
@@ -719,7 +735,7 @@ export async function POST(request: Request) {
         matchedPaidOrders: signal.matchedPaidOrders,
         paidMatchRatePct: signal.paidMatchRatePct,
       })),
-      explorationSessionId: body.behaviorSessionId,
+      explorationSessionId: behaviorSessionId,
     });
 
     void emitKevGovernanceEvent("pisao.concierge.next_best_action", {
