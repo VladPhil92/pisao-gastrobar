@@ -76,6 +76,15 @@ export async function GET() {
           whatsappDependency: false,
           publicPiiLookup: false,
         },
+        commercialFlow: {
+          engineVersion: "commercial_e2e_v15",
+          manualPaymentEvidence: "required",
+          paymentApproval: "human_required",
+          operationalReleaseRequiresApprovedPayment: true,
+          customerNotifications: "durable_retry_dead_letter",
+          trackingPrivacy: "private_token",
+          syntheticProductionWrites: false,
+        },
       },
       payments: {
         activeMethod: "QR_TRANSFERENCIA",
