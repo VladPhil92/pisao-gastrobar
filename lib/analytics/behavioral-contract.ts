@@ -23,6 +23,8 @@ export const BEHAVIOR_EVENT_NAMES = [
   "concierge_open",
   "concierge_proposal_view",
   "concierge_proposal_add",
+  "concierge_nba_view",
+  "concierge_nba_add",
   "concierge_reservation_ready",
   "concierge_reservation_submit_success",
   "concierge_handoff_whatsapp",
