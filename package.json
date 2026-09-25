@@ -47,8 +47,9 @@
     "test:owner-governance": "node scripts/test-owner-governance-v10.mjs",
     "test:crm-loyalty": "node scripts/test-customer-crm-loyalty-v11.mjs",
     "verify:release-integrity": "node scripts/verify-release-integrity.mjs",
-    "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
-    "verify:render-release": "npm run verify:release-integrity && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty"
+    "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
+    "verify:render-release": "npm run verify:release-integrity && npx prisma validate && npm run test:security && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
+    "test:commercial-e2e": "tsx --test lib/commercial/e2e-certification.test.ts && node scripts/test-commercial-e2e-v15.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

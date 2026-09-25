@@ -95,6 +95,9 @@ jobs:
       - name: Customer order tracking tests
         run: npm run test:tracking
 
+      - name: Commercial end-to-end certification
+        run: npm run test:commercial-e2e
+
       - name: WhatsApp coexistence tests
         run: npm run test:whatsapp
 

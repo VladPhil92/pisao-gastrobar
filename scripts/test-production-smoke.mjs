@@ -46,16 +46,17 @@ function readJpegDimensions(buffer) {
 }
 
 async function request(path, options = {}) {
+  const { headers = {}, ...rest } = options;
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
     signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
+    ...rest,
     headers: {
       "User-Agent": "PISAO-Production-Smoke/2.0",
       "Cache-Control": "no-cache",
-      ...(options.headers || {}),
+      ...headers,
     },
-    ...options,
   });
 }
 
@@ -101,7 +102,19 @@ async function waitForRelease() {
 async function main() {
   const releaseSha = await waitForRelease();
 
-  const [home, menu, reservations, tracking, health, image, release] = await Promise.all([
+  const [
+    home,
+    menu,
+    reservations,
+    tracking,
+    health,
+    image,
+    release,
+    invalidOrder,
+    missingEvidence,
+    unauthorizedTracking,
+    unauthorizedOrderDetail,
+  ] = await Promise.all([
     request("/"),
     request("/menu"),
     request("/reservas"),
@@ -109,6 +122,21 @@ async function main() {
     request("/api/health"),
     request("/api/media/pisao-experience"),
     request("/api/release"),
+    request("/api/pedidos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: baseUrl,
+      },
+      body: "{}",
+    }),
+    request("/api/pagos/comprobante", {
+      method: "POST",
+      headers: { Origin: baseUrl },
+      body: new FormData(),
+    }),
+    request("/api/pedidos/seguimiento"),
+    request("/api/pedidos/synthetic-certification-probe"),
   ]);
 
   assert.equal(home.status, 200, "Home must return 200");
@@ -118,6 +146,42 @@ async function main() {
   assert.equal(health.status, 200, "Health endpoint must return 200");
   assert.equal(image.status, 200, "Experience image route must return 200");
   assert.equal(release.status, 200, "Release endpoint must return 200");
+
+  // V15 commercial fail-closed probes: all are deliberately invalid/read-only.
+  // They must prove validation and privacy without creating orders or payments.
+  const edgeSecretMode =
+    healthJson?.security?.cloudflare?.origin?.edgeSecret ?? "disabled";
+  const acceptedWriteRejections =
+    edgeSecretMode === "required" ? [403] : [400];
+
+  assert.ok(
+    acceptedWriteRejections.includes(invalidOrder.status),
+    `Invalid order payload must fail closed before persistence; got ${invalidOrder.status}`,
+  );
+  assert.ok(
+    acceptedWriteRejections.includes(missingEvidence.status),
+    `Missing payment evidence must fail closed before persistence; got ${missingEvidence.status}`,
+  );
+  assert.equal(
+    unauthorizedTracking.status,
+    401,
+    "Tracking API must require private access token",
+  );
+  assert.equal(
+    unauthorizedOrderDetail.status,
+    401,
+    "Order detail API must not disclose existence without tracking token",
+  );
+  assert.equal(
+    unauthorizedTracking.headers.get("cache-control"),
+    "no-store, private",
+    "Tracking API must remain private and non-cacheable",
+  );
+  assert.equal(
+    unauthorizedTracking.headers.get("x-robots-tag"),
+    "noindex, nofollow",
+    "Tracking API must remain excluded from search indexing",
+  );
 
   const [homeHtml, healthJson, imageBytes, releaseJson] = await Promise.all([
     home.text(),
@@ -146,6 +210,11 @@ async function main() {
 
   assert.equal(healthJson.status, "ok", "Application health is not ok");
   assert.equal(healthJson.database, "available", "Production database unavailable");
+  assert.equal(
+    healthJson?.customerExperience?.commercialFlow?.engineVersion,
+    "commercial_e2e_v15",
+    "Commercial E2E certification engine is not active",
+  );
 
   const imageType = image.headers.get("content-type") || "";
   assert.match(imageType, /^image\//, "Experience media route is not returning an image");
@@ -203,6 +272,16 @@ async function main() {
         imageQuality: image.headers.get("x-pisao-image-quality"),
         imageSource: image.headers.get("x-pisao-image-source"),
         database: healthJson.database,
+        commercialCertification: {
+          engineVersion: healthJson?.customerExperience?.commercialFlow?.engineVersion ?? null,
+          edgeSecretMode,
+          invalidOrderRejected: invalidOrder.status,
+          missingEvidenceRejected: missingEvidence.status,
+          trackingWithoutToken: unauthorizedTracking.status,
+          orderDetailWithoutToken: unauthorizedOrderDetail.status,
+          trackingCacheControl: unauthorizedTracking.headers.get("cache-control"),
+          trackingRobots: unauthorizedTracking.headers.get("x-robots-tag"),
+        },
         timestamp: new Date().toISOString(),
       },
       null,
