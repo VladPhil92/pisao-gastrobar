@@ -32,6 +32,15 @@ const products = [
     available: true,
   },
   {
+    id: "share",
+    name: "Arepitas de la Casa",
+    slug: "arepitas-casa",
+    category: "entradas",
+    price: 12000,
+    cost: 5000,
+    available: true,
+  },
+  {
     id: "sweet",
     name: "Postre de la Casa",
     slug: "postre-casa",
