@@ -62,6 +62,12 @@ type HospitalityState = {
 type ContextualRecommendation = {
   id: string;
   version: string;
+  bandit?: {
+    arm: "EXPLOIT" | "EXPLORE" | "HOLDOUT";
+    explored: boolean;
+    eligiblePoolSize: number;
+    reason: string;
+  } | null;
   product: {
     productoId: string;
     nombre: string;
@@ -120,7 +126,15 @@ function hospitalityHeadline(analysis?: HospitalityAnalysis) {
 }
 
 function money(value: number) {
-  return `$${Math.round(value).toLocaleString("es-CO")}`;
+  return `${Math.round(value).toLocaleString("es-CO")}`;
+}
+
+function banditIntent(
+  recommendation: ContextualRecommendation,
+): "bandit_exploit" | "bandit_explore" | "bandit_holdout" {
+  if (recommendation.bandit?.arm === "EXPLORE") return "bandit_explore";
+  if (recommendation.bandit?.arm === "HOLDOUT") return "bandit_holdout";
+  return "bandit_exploit";
 }
 
 function proposalItemCount(proposal: ConversationalProposal) {
@@ -237,6 +251,7 @@ export function PisaoConcierge() {
           productSlug: payload.contextualRecommendation.product.slug,
           categorySlug:
             payload.contextualRecommendation.product.categoriaSlug ?? undefined,
+          intent: banditIntent(payload.contextualRecommendation),
         });
       }
 
@@ -556,6 +571,7 @@ export function PisaoConcierge() {
       surface: "concierge",
       productSlug: product.slug,
       categorySlug: product.categoriaSlug ?? undefined,
+      intent: banditIntent(recommendation),
     });
     trackBehavior("cart_add", {
       surface: "concierge",
