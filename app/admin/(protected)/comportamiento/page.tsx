@@ -18,6 +18,10 @@ function slugLabel(value: string) {
     .join(" ");
 }
 
+function moneyCop(value: number) {
+  return `${Math.round(value).toLocaleString("es-CO")}`;
+}
+
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-dashed border-pisao-gold/10 bg-pisao-noche/50 p-5 text-sm text-pisao-cream-muted">
@@ -88,6 +92,97 @@ export default async function AdminComportamientoPage() {
           <p className="font-display mt-1 text-3xl text-pisao-cream">{data.assists.planOpenSessions}</p>
           <p className="mt-2 text-xs text-pisao-cream-muted">Propuestas agregadas: {data.assists.planProposalSessions}</p>
         </article>
+      </section>
+
+      <section className="mt-8 rounded-3xl border border-pisao-gold/10 bg-pisao-carbon-soft p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
+              Contextual Commerce V19
+            </p>
+            <h2 className="font-display mt-2 text-2xl text-pisao-cream">
+              De sugerencia a resultado observado
+            </h2>
+            <p className="mt-2 max-w-3xl text-xs leading-relaxed text-pisao-cream-muted">
+              Mide recomendaciones contextuales del Concierge sin texto de chat ni PII. Un “match pago” significa que la misma sesión compró el mismo producto sugerido dentro de la ventana first-party; no demuestra causalidad.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/60 px-4 py-3 text-xs text-pisao-cream-muted">
+            Ventana de resultado: <span className="font-semibold text-pisao-cream">12 horas</span>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Exposiciones", data.contextualLearning.exposures],
+            ["Agregados explícitos", data.contextualLearning.accepted],
+            ["Add / view", `${data.contextualLearning.addRatePct}%`],
+            ["Pedidos pagos con match", data.contextualLearning.matchedPaidOrders],
+          ].map(([label, value]) => (
+            <div
+              key={String(label)}
+              className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/60 p-4"
+            >
+              <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+                {label}
+              </p>
+              <p className="font-display mt-2 text-2xl text-pisao-gold">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[.72fr_1.28fr]">
+          <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/50 p-5">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Producto sugerido comprado
+            </p>
+            <p className="font-display mt-2 text-3xl text-pisao-cream">
+              {moneyCop(data.contextualLearning.matchedProductRevenueCop)}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-pisao-cream-muted">
+              {data.contextualLearning.matchedPaidUnits} unidad(es) observada(s) en pedidos pagos. Tasa exposición → match pago: {data.contextualLearning.paidMatchRatePct}%.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/50 p-5">
+            <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+              Productos con señal contextual
+            </p>
+            {data.contextualLearning.products.length ? (
+              <div className="mt-3 divide-y divide-pisao-gold/10">
+                {data.contextualLearning.products.slice(0, 6).map((item) => (
+                  <div
+                    key={item.productSlug}
+                    className="flex flex-col gap-1 py-3 text-xs sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-pisao-cream">
+                        {slugLabel(item.productSlug)}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-pisao-cream-muted">
+                        {item.exposures} view · {item.accepted} add · {item.matchedPaidOrders} match pago
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-left sm:text-right">
+                      <p className="font-semibold text-pisao-gold">
+                        {item.addRatePct}% add/view
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-pisao-cream-muted">
+                        {moneyCop(item.matchedProductRevenueCop)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3">
+                <EmptyState>
+                  V19 empezará a formar la línea base cuando el Concierge muestre las primeras recomendaciones contextuales.
+                </EmptyState>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
