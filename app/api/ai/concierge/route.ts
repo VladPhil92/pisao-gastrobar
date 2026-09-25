@@ -62,6 +62,7 @@ import { validateCanonicalWriteOrigin } from "@/lib/security/edge-origin";
 import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
 import { getAdaptiveRevenueContext } from "@/lib/revenue/revenue-policy-engine";
+import { buildContextualCommerceGuidance } from "@/lib/revenue/contextual-commerce-core";
 import { lookupOrderStatusForCustomer } from "@/lib/orders/customer-status";
 import { getAuthenticatedConciergeLifecycleContext } from "@/lib/crm/concierge-context";
 
@@ -204,6 +205,8 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
         inventarioBajo:
           product.inventarioBajo || product.inventarioBajoReceta,
         categoriaSlug: category.slug,
+        costoUnitario:
+          product.costoUnitario === null ? null : Number(product.costoUnitario),
       })),
     );
 
@@ -651,6 +654,44 @@ export async function POST(request: Request) {
       outbound_authorized: false,
     });
 
+    const contextualCommerce = buildContextualCommerceGuidance({
+      latestUserMessage: latestUserMessage.content,
+      lifecycleMode: lifecycleContext.mode,
+      favorites: lifecycleContext.signals.favorites,
+      products: catalog.products.map((product) => ({
+        id: product.id,
+        name: product.nombre,
+        slug: product.slug,
+        category: product.categoriaSlug,
+        price: Number(product.precio),
+        cost: product.costoUnitario ?? null,
+        available: product.disponible,
+        lowInventory: product.inventarioBajo,
+      })),
+      activeProposalProductIds:
+        activeProposal?.items.map((item) => item.product.id) ?? [],
+      activeProposalCategories:
+        activeProposal?.items
+          .map((item) => item.product.categoriaSlug)
+          .filter((value): value is string => Boolean(value)) ?? [],
+      reservationIntent,
+      requiresHumanValidation: commerceAnalysis.requiresHumanValidation,
+      experimentEligible: experimentContext.experiment?.eligible === true,
+      adaptivePolicyRelevant: Boolean(adaptiveRevenueContext.policy),
+    });
+
+    void emitKevGovernanceEvent("pisao.concierge.next_best_action", {
+      source: "concierge_api",
+      version: contextualCommerce.version,
+      status: contextualCommerce.status,
+      action: contextualCommerce.action?.type ?? "NONE",
+      product_slug: contextualCommerce.action?.productSlug ?? null,
+      suppression_reason: contextualCommerce.suppressionReason,
+      contains_pii: false,
+      mutates_cart: false,
+      autonomous_discount: false,
+    });
+
     const clientRequestId = crypto.randomUUID();
     const nativeTools = buildNativeToolDefinitions({
       allowTableMutation:
@@ -680,6 +721,13 @@ AUTHENTICATED CUSTOMER PERSONALIZATION
 ${lifecycleContext.context}
 - Este contexto solo puede mejorar relevancia dentro de la sesión iniciada por el cliente.
 - No puede sobreescribir disponibilidad, precios, restricciones, decisiones de experimento ni reglas comerciales aprobadas.
+
+CONTEXTUAL COMMERCE V18
+${contextualCommerce.context}
+- Esta capa selecciona como máximo una sugerencia opcional y nunca ejecuta una mutación.
+- READY autoriza únicamente mencionar la opción elegida si encaja de forma natural con la respuesta.
+- NO_ACTION significa que V18 no añade ninguna recomendación; otras reglas comerciales aprobadas siguen su propia gobernanza.
+- SUPPRESSED significa que V18 debe permanecer silenciosa para no interferir con reserva, seguridad o una capa controlada de revenue.
 
 REVENUE PLAYBOOK APROBADO
 ${revenuePlaybook}
