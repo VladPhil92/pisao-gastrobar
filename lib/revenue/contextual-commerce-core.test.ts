@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildContextualCommerceGuidance } from "./contextual-commerce-core";
+import { assignContextualBanditArm } from "./contextual-bandit-core";
 
 const products = [
   {
@@ -442,4 +443,154 @@ test("explicit category remains a hard filter regardless of learned evidence", (
 
   assert.equal(result.action?.category, "postre");
   assert.equal(result.action?.productSlug, "postre-casa");
+});
+
+
+function findBanditSession(
+  target: ReturnType<typeof assignContextualBanditArm>,
+) {
+  for (let index = 0; index < 10_000; index += 1) {
+    const sessionId = `bandit_session_${String(index).padStart(6, "0")}`;
+    if (assignContextualBanditArm(sessionId) === target) return sessionId;
+  }
+  throw new Error(`No deterministic session for ${target}`);
+}
+
+test("V21 exploration can choose only a near-tied eligible cold-start product", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Recomiéndame una bebida sin alcohol",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    drinkPreference: "sin-alcohol",
+    explorationSessionId: findBanditSession("EXPLORE"),
+    products: [
+      {
+        id: "a",
+        name: "Limonada A",
+        slug: "limonada-a",
+        category: "limonadas",
+        price: 14000,
+        cost: 7000,
+        available: true,
+      },
+      {
+        id: "b",
+        name: "Limonada B",
+        slug: "limonada-b",
+        category: "limonadas",
+        price: 14000,
+        cost: 7000,
+        available: true,
+      },
+    ],
+    learningSignals: [
+      {
+        productSlug: "limonada-a",
+        exposures: 40,
+        accepted: 8,
+        addRatePct: 20,
+        matchedPaidOrders: 3,
+        paidMatchRatePct: 8,
+      },
+      {
+        productSlug: "limonada-b",
+        exposures: 1,
+        accepted: 0,
+        addRatePct: 0,
+        matchedPaidOrders: 0,
+        paidMatchRatePct: 0,
+      },
+    ],
+  });
+
+  assert.equal(result.status, "READY");
+  assert.equal(result.action?.bandit.arm, "EXPLORE");
+  assert.equal(result.action?.bandit.explored, true);
+  assert.equal(result.action?.productSlug, "limonada-b");
+});
+
+test("V21 never explores away from an explicit repeat request", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Quiero lo de siempre",
+    lifecycleMode: "RETURNING",
+    favorites: [
+      { name: "Golden Pale Ale", units: 8 },
+      { name: "Patacón Callejero", units: 3 },
+    ],
+    products,
+    explorationSessionId: findBanditSession("EXPLORE"),
+  });
+
+  assert.equal(result.action?.type, "REPEAT_FAVORITE");
+  assert.equal(result.action?.productName, "Golden Pale Ale");
+  assert.equal(result.action?.bandit.arm, "EXPLORE");
+  assert.equal(result.action?.bandit.explored, false);
+  assert.equal(result.action?.bandit.reason, "exploration_disabled");
+});
+
+test("V21 exploration cannot bypass low inventory or category filters", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "Recomiéndame una cerveza",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    products,
+    drinkPreference: "cerveza",
+    explorationSessionId: findBanditSession("EXPLORE"),
+    learningSignals: [
+      {
+        productSlug: "producto-escaso",
+        exposures: 0,
+        accepted: 0,
+        addRatePct: 0,
+        matchedPaidOrders: 0,
+        paidMatchRatePct: 0,
+      },
+      {
+        productSlug: "postre-casa",
+        exposures: 0,
+        accepted: 0,
+        addRatePct: 0,
+        matchedPaidOrders: 0,
+        paidMatchRatePct: 0,
+      },
+    ],
+  });
+
+  assert.equal(result.action?.productSlug, "golden-pale-ale");
+  assert.notEqual(result.action?.productSlug, "producto-escaso");
+  assert.notEqual(result.action?.productSlug, "postre-casa");
+});
+
+test("V21 holdout preserves the normal V20 winner", () => {
+  const result = buildContextualCommerceGuidance({
+    latestUserMessage: "¿Qué bebida me recomiendas?",
+    lifecycleMode: "FIRST_PURCHASE",
+    favorites: [],
+    drinkPreference: "sin-alcohol",
+    explorationSessionId: findBanditSession("HOLDOUT"),
+    products: [
+      {
+        id: "a",
+        name: "Limonada A",
+        slug: "limonada-a",
+        category: "limonadas",
+        price: 14000,
+        cost: 7000,
+        available: true,
+      },
+      {
+        id: "b",
+        name: "Limonada B",
+        slug: "limonada-b",
+        category: "limonadas",
+        price: 14000,
+        cost: 7000,
+        available: true,
+      },
+    ],
+  });
+
+  assert.equal(result.action?.bandit.arm, "HOLDOUT");
+  assert.equal(result.action?.bandit.explored, false);
+  assert.equal(result.action?.productSlug, "limonada-a");
 });

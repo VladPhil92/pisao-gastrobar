@@ -98,13 +98,13 @@ export default async function AdminComportamientoPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-pisao-gold text-[10px] font-semibold tracking-[0.2em] uppercase">
-              Contextual Commerce V20
+              Contextual Commerce V21
             </p>
             <h2 className="font-display mt-2 text-2xl text-pisao-cream">
               De sugerencia a resultado observado
             </h2>
             <p className="mt-2 max-w-3xl text-xs leading-relaxed text-pisao-cream-muted">
-              Mide recomendaciones contextuales del Concierge sin texto de chat ni PII. V20 solo incorpora aprendizaje al ranking cuando existe muestra suficiente y con influencia acotada. Un “match pago” significa que la misma sesión compró el mismo producto sugerido dentro de la ventana first-party; no demuestra causalidad.
+              Mide recomendaciones contextuales del Concierge sin texto de chat ni PII. V21 combina el aprendizaje cerrado con exploración controlada y holdout estable, manteniendo límites estrictos de relevancia. Un “match pago” significa que la misma sesión compró el mismo producto sugerido dentro de la ventana first-party; no demuestra causalidad.
             </p>
           </div>
           <div className="rounded-2xl border border-pisao-gold/10 bg-pisao-noche/60 px-4 py-3 text-xs text-pisao-cream-muted">
@@ -120,7 +120,7 @@ export default async function AdminComportamientoPage() {
             ["Agregados explícitos", data.contextualLearning.accepted],
             ["Add / view", `${data.contextualLearning.addRatePct}%`],
             ["Pedidos pagos con match", data.contextualLearning.matchedPaidOrders],
-            ["Productos habilitados V20", data.closedLoop.eligibleProducts],
+            ["Productos habilitados V21", data.closedLoop.eligibleProducts],
           ].map(([label, value]) => (
             <div
               key={String(label)}
@@ -132,6 +132,53 @@ export default async function AdminComportamientoPage() {
               <p className="font-display mt-2 text-2xl text-pisao-gold">{value}</p>
             </div>
           ))}
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-pisao-gold/10 bg-pisao-noche/50 p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold tracking-[.14em] text-pisao-cream-muted uppercase">
+                Exploration Governance V21
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-pisao-cream-muted">
+                La exploración solo compara alternativas ya elegibles y cercanas al mejor score. EXPLORE y HOLDOUT son asignaciones first-party deterministas; estas métricas son observacionales y no declaran un ganador.
+              </p>
+            </div>
+            <div className="text-[10px] text-pisao-cream-muted">
+              Tráfico observado: {data.contextualBandit.explorationSharePct}% explore · {data.contextualBandit.holdoutSharePct}% holdout
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {data.contextualBandit.arms.map((arm) => (
+              <div
+                key={arm.arm}
+                className="rounded-2xl border border-pisao-gold/10 bg-pisao-carbon/60 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-bold tracking-[.16em] text-pisao-gold uppercase">
+                    {arm.arm}
+                  </p>
+                  <span className="text-[10px] text-pisao-cream-muted">
+                    {arm.exposures} view
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-pisao-cream-muted">Add / view</p>
+                    <p className="mt-1 font-semibold text-pisao-cream">{arm.addRatePct}%</p>
+                  </div>
+                  <div>
+                    <p className="text-pisao-cream-muted">Paid match</p>
+                    <p className="mt-1 font-semibold text-pisao-cream">{arm.paidMatchRatePct}%</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-[10px] text-pisao-cream-muted">
+                  {arm.accepted} add · {arm.matchedPaidOrders} pedido(s) pago(s) con match · {moneyCop(arm.matchedProductRevenueCop)}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[.72fr_1.28fr]">
@@ -180,7 +227,7 @@ export default async function AdminComportamientoPage() {
             ) : (
               <div className="mt-3">
                 <EmptyState>
-                  V20 empezará en modo base y activará aprendizaje por producto cuando cada señal alcance la muestra mínima.
+                  V21 empezará en modo base, activará aprendizaje por producto con muestra suficiente y reservará una fracción acotada de tráfico para explorar alternativas cercanas.
                 </EmptyState>
               </div>
             )}

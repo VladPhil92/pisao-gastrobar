@@ -92,6 +92,9 @@ jobs:
       - name: Closed-loop recommendation V20 tests
         run: npm run test:closed-loop
 
+      - name: Contextual bandit V21 tests
+        run: npm run test:contextual-bandit
+
       - name: Profit and inventory guardrail tests
         run: npm run test:profit
 

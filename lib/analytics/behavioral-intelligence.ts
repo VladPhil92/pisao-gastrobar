@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { summarizeContextualCommerceLearning } from "@/lib/revenue/contextual-learning-core";
+import { summarizeContextualBanditMetrics } from "@/lib/revenue/contextual-bandit-metrics-core";
 import {
   CLOSED_LOOP_MIN_EXPOSURES,
   closedLoopAdjustment,
@@ -69,16 +70,9 @@ export async function getBehavioralIntelligence() {
       }),
     ]);
 
-    const contextualLearning = summarizeContextualCommerceLearning(
-      events.map((event) => ({
-        tipo: event.tipo,
-        sessionId: event.sessionId,
-        productSlug: event.productSlug,
-        createdAt: event.createdAt,
-      })),
-      paidOrders
-        .filter((order) => order.pago?.estado === "APROBADO")
-        .map((order) => ({
+    const contextualPaidOrders = paidOrders
+      .filter((order) => order.pago?.estado === "APROBADO")
+      .map((order) => ({
         id: order.id,
         sessionId: order.attribution?.sessionId ?? null,
         createdAt: order.createdAt,
@@ -87,7 +81,27 @@ export async function getBehavioralIntelligence() {
           quantity: item.cantidad,
           subtotalCop: Number(item.subtotal),
         })),
+      }));
+
+    const contextualLearning = summarizeContextualCommerceLearning(
+      events.map((event) => ({
+        tipo: event.tipo,
+        sessionId: event.sessionId,
+        productSlug: event.productSlug,
+        createdAt: event.createdAt,
       })),
+      contextualPaidOrders,
+    );
+
+    const contextualBandit = summarizeContextualBanditMetrics(
+      events.map((event) => ({
+        tipo: event.tipo,
+        sessionId: event.sessionId,
+        productSlug: event.productSlug,
+        intent: event.intent,
+        createdAt: event.createdAt,
+      })),
+      contextualPaidOrders,
     );
 
     const closedLoopProducts = contextualLearning.products
@@ -325,6 +339,7 @@ export async function getBehavioralIntelligence() {
       productInterest,
       categoryInterest,
       contextualLearning,
+      contextualBandit,
       closedLoop: {
         minExposures: CLOSED_LOOP_MIN_EXPOSURES,
         eligibleProducts: closedLoopProducts.length,
@@ -362,6 +377,7 @@ export async function getBehavioralIntelligence() {
       productInterest: [],
       categoryInterest: [],
       contextualLearning: summarizeContextualCommerceLearning([], []),
+      contextualBandit: summarizeContextualBanditMetrics([], []),
       closedLoop: {
         minExposures: CLOSED_LOOP_MIN_EXPOSURES,
         eligibleProducts: 0,
