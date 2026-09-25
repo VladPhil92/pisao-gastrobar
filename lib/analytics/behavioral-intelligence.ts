@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { summarizeContextualCommerceLearning } from "@/lib/revenue/contextual-learning-core";
+import {
+  CLOSED_LOOP_MIN_EXPOSURES,
+  closedLoopAdjustment,
+} from "@/lib/revenue/closed-loop-recommendation-core";
 
 const DAY_MS = 86_400_000;
 
@@ -85,6 +89,13 @@ export async function getBehavioralIntelligence() {
         })),
       })),
     );
+
+    const closedLoopProducts = contextualLearning.products
+      .map((product) => ({
+        ...product,
+        ranking: closedLoopAdjustment(product),
+      }))
+      .filter((product) => product.ranking.eligible);
 
     const sessions = distinctSessions(events);
     const events7 = events.filter((event) => event.createdAt >= since7);
@@ -314,6 +325,16 @@ export async function getBehavioralIntelligence() {
       productInterest,
       categoryInterest,
       contextualLearning,
+      closedLoop: {
+        minExposures: CLOSED_LOOP_MIN_EXPOSURES,
+        eligibleProducts: closedLoopProducts.length,
+        positiveProducts: closedLoopProducts.filter(
+          (product) => product.ranking.adjustment > 0,
+        ).length,
+        negativeProducts: closedLoopProducts.filter(
+          (product) => product.ranking.adjustment < 0,
+        ).length,
+      },
       devices,
       assists: {
         planOpenSessions,
@@ -341,6 +362,12 @@ export async function getBehavioralIntelligence() {
       productInterest: [],
       categoryInterest: [],
       contextualLearning: summarizeContextualCommerceLearning([], []),
+      closedLoop: {
+        minExposures: CLOSED_LOOP_MIN_EXPOSURES,
+        eligibleProducts: 0,
+        positiveProducts: 0,
+        negativeProducts: 0,
+      },
       devices: [],
       assists: {
         planOpenSessions: 0,
