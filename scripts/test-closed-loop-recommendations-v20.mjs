@@ -28,8 +28,8 @@ assert.match(learning, /concierge_nba_view/);
 assert.match(learning, /concierge_nba_add/);
 assert.match(learning, /order\.pago\?\.estado === "APROBADO"/);
 assert.match(intelligence, /closedLoopAdjustment/);
-assert.match(dashboard, /Contextual Commerce V20/);
-assert.match(dashboard, /Productos habilitados V20/);
+assert.match(dashboard, /Contextual Commerce V(?:20|21)/);
+assert.match(dashboard, /Productos habilitados V(?:20|21)/);
 assert.match(dashboard, /no demuestra causalidad/);
 
 for (const source of [route, commerce, learning, ranking, intelligence, dashboard]) {
