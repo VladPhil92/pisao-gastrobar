@@ -719,6 +719,7 @@ export async function POST(request: Request) {
         matchedPaidOrders: signal.matchedPaidOrders,
         paidMatchRatePct: signal.paidMatchRatePct,
       })),
+      explorationSessionId: body.behaviorSessionId,
     });
 
     void emitKevGovernanceEvent("pisao.concierge.next_best_action", {
@@ -736,6 +737,10 @@ export async function POST(request: Request) {
         contextualCommerce.action?.learning.adjustment ?? 0,
       closed_loop_exposures:
         contextualCommerce.action?.learning.exposures ?? 0,
+      bandit_arm: contextualCommerce.action?.bandit.arm ?? "EXPLOIT",
+      bandit_explored: contextualCommerce.action?.bandit.explored ?? false,
+      bandit_pool_size:
+        contextualCommerce.action?.bandit.eligiblePoolSize ?? 0,
     });
 
     const recommendedProduct = contextualCommerce.action
@@ -748,6 +753,7 @@ export async function POST(request: Request) {
         ? {
             id: crypto.randomUUID(),
             version: contextualCommerce.version,
+            bandit: contextualCommerce.action?.bandit ?? null,
             product: {
               productoId: recommendedProduct.id,
               nombre: recommendedProduct.nombre,
@@ -789,12 +795,12 @@ ${lifecycleContext.context}
 - Este contexto solo puede mejorar relevancia dentro de la sesión iniciada por el cliente.
 - No puede sobreescribir disponibilidad, precios, restricciones, decisiones de experimento ni reglas comerciales aprobadas.
 
-CONTEXTUAL COMMERCE V20
+CONTEXTUAL COMMERCE V21
 ${contextualCommerce.context}
 - Esta capa selecciona como máximo una sugerencia opcional y nunca ejecuta una mutación.
 - READY autoriza únicamente mencionar la opción elegida si encaja de forma natural con la respuesta.
-- NO_ACTION significa que V18 no añade ninguna recomendación; otras reglas comerciales aprobadas siguen su propia gobernanza.
-- SUPPRESSED significa que V18 debe permanecer silenciosa para no interferir con reserva, seguridad o una capa controlada de revenue.
+- NO_ACTION significa que V21 no añade ninguna recomendación; otras reglas comerciales aprobadas siguen su propia gobernanza.
+- SUPPRESSED significa que V21 debe permanecer silenciosa para no interferir con reserva, seguridad o una capa controlada de revenue.
 
 REVENUE PLAYBOOK APROBADO
 ${revenuePlaybook}
