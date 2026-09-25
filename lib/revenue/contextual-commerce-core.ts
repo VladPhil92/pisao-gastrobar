@@ -3,7 +3,7 @@ import {
   type ClosedLoopSignal,
 } from "./closed-loop-recommendation-core";
 
-export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v18";
+export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v20";
 
 export type ContextualLifecycleMode =
   | "ANONYMOUS"
@@ -234,7 +234,7 @@ function actionContext(action: ContextualCommerceAction) {
           : "La persona pidió una recomendación y este producto pasó los guardrails comerciales y operativos.";
 
   return [
-    "CONTEXTUAL COMMERCE V18 — ONE OPTIONAL NEXT BEST ACTION",
+    "CONTEXTUAL COMMERCE V20 — ONE OPTIONAL NEXT BEST ACTION",
     `Acción: ${action.type}.`,
     `Producto elegible: ${action.productName} — $${price} COP.`,
     `Motivo: ${reason}`,
@@ -267,7 +267,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "human_validation_required",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
     };
   }
 
@@ -278,7 +278,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "reservation_priority",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
     };
   }
 
@@ -289,7 +289,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "controlled_revenue_layer",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
     };
   }
 
@@ -321,14 +321,14 @@ export function buildContextualCommerceGuidance(
     !discoveryIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
+      "CONTEXTUAL COMMERCE V20: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
     );
   }
 
   const favoriteByName = favoriteMap(input.favorites);
   if (repeatIntent && favoriteByName.size === 0) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
+      "CONTEXTUAL COMMERCE V20: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
     );
   }
 
@@ -345,7 +345,7 @@ export function buildContextualCommerceGuidance(
     !complementIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
+      "CONTEXTUAL COMMERCE V20: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
     );
   }
 
@@ -397,7 +397,7 @@ export function buildContextualCommerceGuidance(
 
   if (!candidates.length) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
+      "CONTEXTUAL COMMERCE V20: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
     );
   }
 
@@ -452,7 +452,7 @@ export function buildContextualCommerceGuidance(
   const selectedCandidate = ranked[0];
   const selected = selectedCandidate?.product;
   if (!selected) {
-    return noAction("CONTEXTUAL COMMERCE V18: sin acción aplicable.");
+    return noAction("CONTEXTUAL COMMERCE V20: sin acción aplicable.");
   }
 
   const action: ContextualCommerceAction = {
