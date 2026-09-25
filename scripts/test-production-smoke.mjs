@@ -147,6 +147,13 @@ async function main() {
   assert.equal(image.status, 200, "Experience image route must return 200");
   assert.equal(release.status, 200, "Release endpoint must return 200");
 
+  const [homeHtml, healthJson, imageBytes, releaseJson] = await Promise.all([
+    home.text(),
+    health.json(),
+    image.arrayBuffer(),
+    release.json(),
+  ]);
+
   // V15 commercial fail-closed probes: all are deliberately invalid/read-only.
   // They must prove validation and privacy without creating orders or payments.
   const edgeSecretMode =
@@ -182,13 +189,6 @@ async function main() {
     "noindex, nofollow",
     "Tracking API must remain excluded from search indexing",
   );
-
-  const [homeHtml, healthJson, imageBytes, releaseJson] = await Promise.all([
-    home.text(),
-    health.json(),
-    image.arrayBuffer(),
-    release.json(),
-  ]);
 
   assert.equal(releaseJson.releaseSha, releaseSha, "Release changed during smoke test");
   if (expectedRelease) {
