@@ -86,6 +86,9 @@ jobs:
       - name: Contextual commerce V18 tests
         run: npm run test:contextual-commerce
 
+      - name: Contextual learning V19 tests
+        run: npm run test:contextual-learning
+
       - name: Profit and inventory guardrail tests
         run: npm run test:profit
 
