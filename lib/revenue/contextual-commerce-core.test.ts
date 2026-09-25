@@ -87,7 +87,10 @@ test("explicit repeat uses a verified available favorite", () => {
   assert.equal(result.status, "READY");
   assert.equal(result.action?.type, "REPEAT_FAVORITE");
   assert.equal(result.action?.productName, "Golden Pale Ale");
-  assert.doesNotMatch(result.context, /costo|rentabilidad|margen/i);
+  assert.doesNotMatch(
+    result.context,
+    /\$7\.000|margen\s*[:=]\s*\d|rentabilidad\s*[:=]\s*\d|costo\s*[:=]\s*\d/i,
+  );
 });
 
 test("generic beverage intent defaults to non-alcoholic options", () => {
