@@ -13,7 +13,7 @@ const dashboard = read("app/admin/(protected)/comportamiento/page.tsx");
 const learning = read("lib/revenue/contextual-learning-core.ts");
 
 assert.match(learning, /CONTEXTUAL_LEARNING_VERSION/);
-assert.match(learning, /CONTEX[T]?UAL_OUTCOME_WINDOW_MS|CONTEXTUAL_OUTCOME_WINDOW_MS/);
+assert.match(learning, /CONTEXTUAL_OUTCOME_WINDOW_MS/);
 assert.match(learning, /concierge_nba_view/);
 assert.match(learning, /concierge_nba_add/);
 assert.match(route, /contextualRecommendation/);
@@ -29,7 +29,7 @@ assert.match(contract, /"concierge_nba_add"/);
 assert.match(attribution, /concierge_nba_view: \["CONCIERGE"\]/);
 assert.match(attribution, /concierge_nba_add: \["CONCIERGE"\]/);
 assert.match(intelligence, /summarizeContextualCommerceLearning/);
-assert.match(intelligence, /pago: \{ is: \{ estado: "APROBADO" \} \}/);
+assert.match(intelligence, /order\.pago\?\.estado === "APROBADO"/);
 assert.match(dashboard, /Contextual Commerce V19/);
 assert.match(dashboard, /no demuestra causalidad/);
 
