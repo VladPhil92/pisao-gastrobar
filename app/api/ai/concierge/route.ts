@@ -63,6 +63,7 @@ import { getActiveRevenuePlaybook } from "@/lib/revenue/revenue-action-engine";
 import { getConciergeExperimentContext } from "@/lib/revenue/revenue-experiment-engine";
 import { getAdaptiveRevenueContext } from "@/lib/revenue/revenue-policy-engine";
 import { buildContextualCommerceGuidance } from "@/lib/revenue/contextual-commerce-core";
+import { getContextualProductLearning } from "@/lib/revenue/contextual-learning";
 import { lookupOrderStatusForCustomer } from "@/lib/orders/customer-status";
 import { getAuthenticatedConciergeLifecycleContext } from "@/lib/crm/concierge-context";
 
@@ -624,16 +625,21 @@ export async function POST(request: Request) {
       latestUserMessage: latestUserMessage.content,
     });
 
-    const [revenuePlaybook, adaptiveRevenueContext, lifecycleContext] =
-      await Promise.all([
-        getActiveRevenuePlaybook(),
-        getAdaptiveRevenueContext({
-          behaviorSessionId: body.behaviorSessionId,
-          latestUserMessage: latestUserMessage.content,
-          suppress: experimentContext.experiment?.eligible === true,
-        }),
-        getAuthenticatedConciergeLifecycleContext(),
-      ]);
+    const [
+      revenuePlaybook,
+      adaptiveRevenueContext,
+      lifecycleContext,
+      contextualLearningSignals,
+    ] = await Promise.all([
+      getActiveRevenuePlaybook(),
+      getAdaptiveRevenueContext({
+        behaviorSessionId: body.behaviorSessionId,
+        latestUserMessage: latestUserMessage.content,
+        suppress: experimentContext.experiment?.eligible === true,
+      }),
+      getAuthenticatedConciergeLifecycleContext(),
+      getContextualProductLearning(catalog.products.map((product) => product.slug)),
+    ]);
 
     if (experimentContext.experiment) {
       void emitKevGovernanceEvent("pisao.revenue.experiment_assigned", {
@@ -701,6 +707,14 @@ export async function POST(request: Request) {
           : undefined),
       experimentEligible: experimentContext.experiment?.eligible === true,
       adaptivePolicyRelevant: Boolean(adaptiveRevenueContext.policy),
+      learningSignals: contextualLearningSignals.map((signal) => ({
+        productSlug: signal.productSlug,
+        exposures: signal.exposures,
+        accepted: signal.accepted,
+        addRatePct: signal.addRatePct,
+        matchedPaidOrders: signal.matchedPaidOrders,
+        paidMatchRatePct: signal.paidMatchRatePct,
+      })),
     });
 
     void emitKevGovernanceEvent("pisao.concierge.next_best_action", {
@@ -713,6 +727,11 @@ export async function POST(request: Request) {
       contains_pii: false,
       mutates_cart: false,
       autonomous_discount: false,
+      closed_loop_applied: contextualCommerce.action?.learning.applied ?? false,
+      closed_loop_adjustment:
+        contextualCommerce.action?.learning.adjustment ?? 0,
+      closed_loop_exposures:
+        contextualCommerce.action?.learning.exposures ?? 0,
     });
 
     const recommendedProduct = contextualCommerce.action
@@ -766,7 +785,7 @@ ${lifecycleContext.context}
 - Este contexto solo puede mejorar relevancia dentro de la sesión iniciada por el cliente.
 - No puede sobreescribir disponibilidad, precios, restricciones, decisiones de experimento ni reglas comerciales aprobadas.
 
-CONTEXTUAL COMMERCE V18
+CONTEXTUAL COMMERCE V20
 ${contextualCommerce.context}
 - Esta capa selecciona como máximo una sugerencia opcional y nunca ejecuta una mutación.
 - READY autoriza únicamente mencionar la opción elegida si encaja de forma natural con la respuesta.
