@@ -1,4 +1,9 @@
-export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v18";
+import {
+  closedLoopAdjustment,
+  type ClosedLoopSignal,
+} from "./closed-loop-recommendation-core";
+
+export const CONTEXTUAL_COMMERCE_VERSION = "contextual_commerce_v20";
 
 export type ContextualLifecycleMode =
   | "ANONYMOUS"
@@ -39,6 +44,7 @@ export type ContextualCommerceInput = {
   noSpicy?: boolean;
   drinkPreference?: "sin-alcohol" | "cerveza" | "cualquiera";
   maxSuggestedUnitPrice?: number;
+  learningSignals?: ClosedLoopSignal[];
 };
 
 export type ContextualCommerceAction = {
@@ -48,6 +54,11 @@ export type ContextualCommerceAction = {
   productSlug: string;
   category: string | null;
   currentPrice: number;
+  learning: {
+    applied: boolean;
+    adjustment: number;
+    exposures: number;
+  };
   reason:
     | "explicit_repeat"
     | "explicit_category"
@@ -223,7 +234,7 @@ function actionContext(action: ContextualCommerceAction) {
           : "La persona pidió una recomendación y este producto pasó los guardrails comerciales y operativos.";
 
   return [
-    "CONTEXTUAL COMMERCE V18 — ONE OPTIONAL NEXT BEST ACTION",
+    "CONTEXTUAL COMMERCE V20 — ONE OPTIONAL NEXT BEST ACTION",
     `Acción: ${action.type}.`,
     `Producto elegible: ${action.productName} — $${price} COP.`,
     `Motivo: ${reason}`,
@@ -256,7 +267,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "human_validation_required",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: la solicitud requiere validación humana; no introduzcas una recomendación comercial automática.",
     };
   }
 
@@ -267,7 +278,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "reservation_priority",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: completa primero la intención de reserva; no desvíes el turno hacia venta adicional.",
     };
   }
 
@@ -278,7 +289,7 @@ export function buildContextualCommerceGuidance(
       suppressionReason: "controlled_revenue_layer",
       action: null,
       context:
-        "CONTEXTUAL COMMERCE V18 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
+        "CONTEXTUAL COMMERCE V20 SUPRIMIDO: existe una capa controlada de experimentación o política adaptativa relevante; no añadas una segunda intervención comercial.",
     };
   }
 
@@ -310,14 +321,14 @@ export function buildContextualCommerceGuidance(
     !discoveryIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
+      "CONTEXTUAL COMMERCE V20: no hay una intención explícita que justifique una sugerencia comercial adicional en este turno.",
     );
   }
 
   const favoriteByName = favoriteMap(input.favorites);
   if (repeatIntent && favoriteByName.size === 0) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
+      "CONTEXTUAL COMMERCE V20: la persona pidió repetir, pero no existe un favorito histórico verificable; no adivines qué pidió antes.",
     );
   }
 
@@ -334,7 +345,7 @@ export function buildContextualCommerceGuidance(
     !complementIntent
   ) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
+      "CONTEXTUAL COMMERCE V20: ya existe una propuesta calculada para esta intención; no añadas un producto extra fuera de la propuesta.",
     );
   }
 
@@ -386,7 +397,7 @@ export function buildContextualCommerceGuidance(
 
   if (!candidates.length) {
     return noAction(
-      "CONTEXTUAL COMMERCE V18: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
+      "CONTEXTUAL COMMERCE V20: no existe un producto elegible que satisfaga la intención actual sin violar disponibilidad, inventario, presupuesto o guardrails comerciales.",
     );
   }
 
@@ -394,6 +405,9 @@ export function buildContextualCommerceGuidance(
     input.lifecycleMode === "RETURNING" ||
     input.lifecycleMode === "LOYALTY" ||
     input.lifecycleMode === "RETURN_RECOVERY";
+  const learningBySlug = new Map(
+    (input.learningSignals ?? []).map((signal) => [signal.productSlug, signal]),
+  );
 
   const ranked = candidates
     .map((product) => {
@@ -404,15 +418,26 @@ export function buildContextualCommerceGuidance(
       const categoryScore = drinkIntent || requiredMoment ? 140 : 0;
       const completionScore = reason === "table_completion" ? 40 : 0;
       const discoveryScore = discoveryIntent ? 35 : 0;
+      const learning = repeatIntent
+        ? {
+            eligible: false,
+            adjustment: 0,
+            exposures: 0,
+            addRatePct: 0,
+            paidMatchRatePct: 0,
+          }
+        : closedLoopAdjustment(learningBySlug.get(product.slug));
       return {
         product,
+        learning,
         score:
           repeatScore +
           categoryScore +
           completionScore +
           discoveryScore +
           favoriteScore +
-          marginAdjustment(product),
+          marginAdjustment(product) +
+          learning.adjustment,
         favoriteUnits,
       };
     })
@@ -424,9 +449,10 @@ export function buildContextualCommerceGuidance(
         a.product.name.localeCompare(b.product.name),
     );
 
-  const selected = ranked[0]?.product;
+  const selectedCandidate = ranked[0];
+  const selected = selectedCandidate?.product;
   if (!selected) {
-    return noAction("CONTEXTUAL COMMERCE V18: sin acción aplicable.");
+    return noAction("CONTEXTUAL COMMERCE V20: sin acción aplicable.");
   }
 
   const action: ContextualCommerceAction = {
@@ -436,6 +462,11 @@ export function buildContextualCommerceGuidance(
     productSlug: selected.slug,
     category: selected.category ?? null,
     currentPrice: selected.price,
+    learning: {
+      applied: selectedCandidate?.learning.eligible === true,
+      adjustment: selectedCandidate?.learning.adjustment ?? 0,
+      exposures: selectedCandidate?.learning.exposures ?? 0,
+    },
     reason,
   };
 
