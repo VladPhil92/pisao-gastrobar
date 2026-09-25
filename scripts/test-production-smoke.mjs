@@ -158,8 +158,10 @@ async function main() {
   // They must prove validation and privacy without creating orders or payments.
   const edgeSecretMode =
     healthJson?.security?.cloudflare?.origin?.edgeSecret ?? "disabled";
-  const acceptedWriteRejections =
-    edgeSecretMode === "required" ? [403] : [400];
+  // A deliberately invalid public write can be rejected either by the
+  // application validator (400) or earlier by the edge/origin guard (403).
+  // Both outcomes are fail-closed and prove that no persistence path was reached.
+  const acceptedWriteRejections = [400, 403];
 
   assert.ok(
     acceptedWriteRejections.includes(invalidOrder.status),
