@@ -46,10 +46,10 @@ function readJpegDimensions(buffer) {
 }
 
 async function request(path, options = {}) {
-  const { headers = {}, ...rest } = options;
+  const { headers = {}, requestTimeoutMs = timeoutMs, ...rest } = options;
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.timeout(requestTimeoutMs),
     cache: "no-store",
     ...rest,
     headers: {
@@ -127,6 +127,7 @@ async function main() {
         "Content-Type": "application/json",
         Origin: baseUrl,
       },
+      requestTimeoutMs: 20_000,
       body: JSON.stringify({
         messages: [
           {
