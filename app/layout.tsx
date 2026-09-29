@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Montserrat } from "next/font/google";
 import "./globals.css";
 import { siteConfig } from "@/lib/site-config";
+import { ConciergeNetworkGuard } from "@/components/ai/ConciergeNetworkGuard";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -128,6 +129,7 @@ export default function RootLayout({
       className={`${playfair.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="bg-pisao-carbon text-pisao-cream flex min-h-full flex-col">
+        <ConciergeNetworkGuard />
         {children}
         <script
           type="application/ld+json"
