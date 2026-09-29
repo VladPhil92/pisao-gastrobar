@@ -41,6 +41,18 @@ function isConciergeRequest(input: RequestInfo | URL) {
   }
 }
 
+async function hasValidConciergePayload(response: Response) {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) return false;
+
+  try {
+    const payload = (await response.clone().json()) as { text?: unknown };
+    return typeof payload.text === "string" && payload.text.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function syntheticFallbackResponse(requestId: string) {
   return new Response(
     JSON.stringify({
@@ -90,6 +102,7 @@ export function ConciergeNetworkGuard() {
       let lastStatus: number | null = null;
       let lastError: unknown;
       let lastTimedOut = false;
+      let lastInvalidResponse = false;
       let attempts = 0;
 
       for (let attempt = 1; attempt <= CONCIERGE_MAX_ATTEMPTS; attempt += 1) {
@@ -113,19 +126,32 @@ export function ConciergeNetworkGuard() {
           });
           const response = await originalFetch(attemptRequest);
 
-          if (response.ok || !isRetryableConciergeStatus(response.status)) {
-            return response;
-          }
+          if (response.ok) {
+            if (await hasValidConciergePayload(response)) {
+              return response;
+            }
 
-          lastStatus = response.status;
-          lastTimedOut = false;
-          lastError = undefined;
+            lastStatus = response.status;
+            lastInvalidResponse = true;
+            lastTimedOut = false;
+            lastError = undefined;
+            void response.body?.cancel().catch(() => undefined);
+          } else if (!isRetryableConciergeStatus(response.status)) {
+            return response;
+          } else {
+            lastStatus = response.status;
+            lastInvalidResponse = false;
+            lastTimedOut = false;
+            lastError = undefined;
+            void response.body?.cancel().catch(() => undefined);
+          }
 
           if (attempt < CONCIERGE_MAX_ATTEMPTS) {
             await sleep(conciergeRetryDelayMs(attempt));
           }
         } catch (error) {
           lastError = error;
+          lastInvalidResponse = false;
           lastTimedOut = timedOut;
 
           // A timeout already consumed the full provider window. Do not make the
@@ -144,6 +170,7 @@ export function ConciergeNetworkGuard() {
         error: lastError,
         status: lastStatus,
         timedOut: lastTimedOut,
+        invalidResponse: lastInvalidResponse,
       });
       const elapsedMs = Math.max(0, Math.round(performance.now() - overallStartedAt));
 
