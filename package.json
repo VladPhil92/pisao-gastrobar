@@ -20,7 +20,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts lib/reservas/conversation.test.ts",
-    "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts",
+    "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts lib/ai/concierge-network-policy.test.ts",
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
@@ -51,8 +51,8 @@
     "test:owner-governance": "node scripts/test-owner-governance-v10.mjs",
     "test:crm-loyalty": "tsx --test lib/crm/lifecycle-core.test.ts lib/crm/concierge-lifecycle-core.test.ts && node scripts/test-customer-crm-loyalty-v11.mjs",
     "verify:release-integrity": "node scripts/verify-release-integrity.mjs",
-    "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:security && npm run test:contextual-commerce && npm run test:contextual-learning && npm run test:closed-loop && npm run test:contextual-bandit && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
-    "verify:render-release": "npm run verify:release-integrity && npx prisma validate && npm run test:security && npm run test:contextual-commerce && npm run test:contextual-learning && npm run test:closed-loop && npm run test:contextual-bandit && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
+    "verify:release": "npm run verify:release-integrity && npm run lint && npx tsc --noEmit && npx prisma validate && npm run test:concierge && npm run test:security && npm run test:contextual-commerce && npm run test:contextual-learning && npm run test:closed-loop && npm run test:contextual-bandit && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
+    "verify:render-release": "npm run verify:release-integrity && npx prisma validate && npm run test:concierge && npm run test:security && npm run test:contextual-commerce && npm run test:contextual-learning && npm run test:closed-loop && npm run test:contextual-bandit && npm run test:payments && npm run test:tracking && npm run test:commercial-e2e && npm run test:certification && npm run test:ctgone-auth && npm run test:crm-loyalty",
     "test:commercial-e2e": "tsx --test lib/commercial/e2e-certification.test.ts && node scripts/test-commercial-e2e-v15.mjs"
   },
   "dependencies": {

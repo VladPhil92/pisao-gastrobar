@@ -46,10 +46,10 @@ function readJpegDimensions(buffer) {
 }
 
 async function request(path, options = {}) {
-  const { headers = {}, ...rest } = options;
+  const { headers = {}, requestTimeoutMs = timeoutMs, ...rest } = options;
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.timeout(requestTimeoutMs),
     cache: "no-store",
     ...rest,
     headers: {
@@ -108,6 +108,7 @@ async function main() {
     reservations,
     tracking,
     health,
+    concierge,
     image,
     release,
     invalidOrder,
@@ -120,6 +121,22 @@ async function main() {
     request("/reservas"),
     request("/pedidos/seguimiento"),
     request("/api/health"),
+    request("/api/ai/concierge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: baseUrl,
+      },
+      requestTimeoutMs: 20_000,
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "user",
+            content: "Hola, confirma brevemente que el concierge está disponible.",
+          },
+        ],
+      }),
+    }),
     request("/api/media/pisao-experience"),
     request("/api/release"),
     request("/api/pedidos", {
@@ -144,15 +161,27 @@ async function main() {
   assert.equal(reservations.status, 200, "Reservations must return 200");
   assert.equal(tracking.status, 200, "Order tracking must return 200");
   assert.equal(health.status, 200, "Health endpoint must return 200");
+  assert.equal(concierge.status, 200, "Concierge API must return 200");
   assert.equal(image.status, 200, "Experience image route must return 200");
   assert.equal(release.status, 200, "Release endpoint must return 200");
 
-  const [homeHtml, healthJson, imageBytes, releaseJson] = await Promise.all([
+  const [homeHtml, healthJson, conciergeJson, imageBytes, releaseJson] = await Promise.all([
     home.text(),
     health.json(),
+    concierge.json(),
     image.arrayBuffer(),
     release.json(),
   ]);
+
+  assert.equal(
+    typeof conciergeJson?.text,
+    "string",
+    "Concierge API must return a text response",
+  );
+  assert.ok(
+    conciergeJson.text.trim().length > 0,
+    "Concierge API returned an empty response",
+  );
 
   // V15 commercial fail-closed probes: all are deliberately invalid/read-only.
   // They must prove validation and privacy without creating orders or payments.
@@ -266,8 +295,13 @@ async function main() {
           reservations: reservations.status,
           tracking: tracking.status,
           health: health.status,
+          concierge: concierge.status,
           experienceImage: image.status,
           release: release.status,
+        },
+        concierge: {
+          fallback: conciergeJson?.fallback === true,
+          menuSource: conciergeJson?.menuSource ?? null,
         },
         imageBytes: imageBytes.byteLength,
         imageDimensions,
