@@ -8,6 +8,7 @@ export type ConciergeTransportFailureKind =
   | "network"
   | "timeout"
   | "http_retryable"
+  | "invalid_response"
   | "unknown";
 
 export function isRetryableConciergeStatus(status: number) {
@@ -24,8 +25,10 @@ export function classifyConciergeTransportFailure(params: {
   error?: unknown;
   status?: number | null;
   timedOut?: boolean;
+  invalidResponse?: boolean;
 }): ConciergeTransportFailureKind {
   if (params.timedOut) return "timeout";
+  if (params.invalidResponse) return "invalid_response";
   if (
     typeof params.status === "number" &&
     isRetryableConciergeStatus(params.status)
