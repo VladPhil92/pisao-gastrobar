@@ -6,6 +6,7 @@ const FAILURE_KINDS = new Set([
   "network",
   "timeout",
   "http_retryable",
+  "invalid_response",
   "unknown",
 ]);
 
