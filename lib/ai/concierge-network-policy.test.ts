@@ -31,6 +31,10 @@ test("classifies browser transport failures without leaking raw messages", () =>
     classifyConciergeTransportFailure({ timedOut: true }),
     "timeout",
   );
+  assert.equal(
+    classifyConciergeTransportFailure({ invalidResponse: true }),
+    "invalid_response",
+  );
 
   assert.equal(CONCIERGE_MAX_ATTEMPTS, 3);
   assert.equal(conciergeRetryDelayMs(1), 250);
