@@ -254,7 +254,7 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
       costByProductId: {},
       context: products.length
         ? menuContextFromProducts(products)
-        : "CATÁLOGO NO VERIFICABLE EN ESTE MOMENTO. No confirmar productos, precios, ingredientes, promociones ni disponibilidad. Ofrecer /menu o atención humana para validar la carta actual.",
+        : "CATÁLOGO NO VERIFICABLE EN ESTE MOMENTO. No confirmar productos, precios, ingredientes, promociones ni disponibilidad. Ofrecer atención humana para validar la carta actual.",
       source: "fallback",
     };
   }
@@ -498,10 +498,16 @@ export async function POST(request: Request) {
       });
     }
 
+    const liveCatalogUnavailable =
+      catalog.source === "fallback" && process.env.NODE_ENV === "production";
+    const catalogUnavailableText =
+      "Ahora mismo no puedo verificar la carta, los precios ni el inventario vigente. Prefiero confirmártelo bien: puedes escribirnos por WhatsApp y el equipo te ayuda con el producto que buscas.";
     let fallbackText =
-      commerceTool.summary ??
-      reservationFallbackText(reservationDraft) ??
-      deterministicCommerceReply(commerceAnalysis, activeProposal);
+      liveCatalogUnavailable && !reservationDraft && agent.id === "ventas"
+        ? catalogUnavailableText
+        : commerceTool.summary ??
+          reservationFallbackText(reservationDraft) ??
+          deterministicCommerceReply(commerceAnalysis, activeProposal);
 
     if (!commerceTool.handled) {
       if (oversizedGroup && reservationDraft?.personas) {
@@ -989,12 +995,12 @@ REGLAS ADICIONALES
       ),
     );
     const catalogNeedsAuthoritativeReply =
-      catalog.source === "fallback" &&
-      process.env.NODE_ENV === "production" &&
+      liveCatalogUnavailable &&
       !reservationDraft &&
-      /(men[uú]|carta|precio|cu[aá]nto|vale|ingrediente|al[eé]rgeno|disponib|promoci[oó]n|\bplato\b|cerveza|patac[oó]n)/i.test(latestUserMessage.content);
+      (agent.id === "ventas" ||
+        /(men[uú]|carta|precio|cu[aá]nto|vale|ingrediente|al[eé]rgeno|disponib|promoci[oó]n|\bplato\b|cerveza|patac[oó]n|hamburguesa|cayeye|comer|recomien|bebida)/i.test(latestUserMessage.content));
     const verifiedText = catalogNeedsAuthoritativeReply
-      ? "Por ahora no puedo verificar la carta ni los precios actualizados. Prefiero no darte un dato equivocado. Puedes consultar /menu o escribirnos por WhatsApp para confirmar el producto que buscas."
+      ? catalogUnavailableText
       : reservationNeedsAuthoritativeReply
         ? fallbackText
         : null;
