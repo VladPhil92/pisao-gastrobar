@@ -443,7 +443,19 @@ export async function POST(request: Request) {
     }
 
     const catalog = await getMenuCatalog();
-    const commerceAnalysis = analyzeCommerceRequest(userTranscript);
+    // No heredar presupuestos de una reserva o queja anterior.
+    const userTurns = messages.filter((message) => message.role === "user");
+    const previousDifferentTopic = userTurns.findLastIndex(
+      (message, index) =>
+        index < userTurns.length - 1 &&
+        ["reservas", "servicio", "eventos"].includes(
+          routePisaoAgent(message.content).id,
+        ),
+    );
+    const commerceTranscript = agent.id === "ventas" && previousDifferentTopic >= 0
+      ? userTurns.slice(previousDifferentTopic + 1).map((message) => message.content).join("\n")
+      : userTranscript;
+    const commerceAnalysis = analyzeCommerceRequest(commerceTranscript);
     const persistentCommerceState = await loadPersistentCommerceState(
       body.sessionKey,
     );
@@ -964,21 +976,43 @@ REGLAS ADICIONALES
       ];
     }
 
-    const modelText = finalPayload ? extractOutputText(finalPayload) : "";
-    const text = modelText || fallbackText;
+    const modelText = finalPayload && !nativeToolFailure
+      ? extractOutputText(finalPayload)
+      : "";
+    // La decisión verificada del backend prevalece sobre una afirmación del modelo.
+    const reservationNeedsAuthoritativeReply = Boolean(
+      reservationDraft && (
+        oversizedGroup ||
+        reservationAvailabilityError ||
+        (reservationAvailability && !reservationAvailability.available) ||
+        action?.type === "reservation.confirm"
+      ),
+    );
+    const catalogNeedsAuthoritativeReply =
+      catalog.source === "fallback" &&
+      process.env.NODE_ENV === "production" &&
+      !reservationDraft &&
+      /(men[uú]|carta|precio|cu[aá]nto|vale|ingrediente|al[eé]rgeno|disponib|promoci[oó]n|\bplato\b|cerveza|patac[oó]n)/i.test(latestUserMessage.content);
+    const verifiedText = catalogNeedsAuthoritativeReply
+      ? "Por ahora no puedo verificar la carta ni los precios actualizados. Prefiero no darte un dato equivocado. Puedes consultar /menu o escribirnos por WhatsApp para confirmar el producto que buscas."
+      : reservationNeedsAuthoritativeReply
+        ? fallbackText
+        : null;
+    const usedModelText = Boolean(modelText && !verifiedText);
+    const text = verifiedText || modelText || fallbackText;
 
     void emitKevGovernanceEvent(
-      modelText ? "pisao.concierge.completed" : "pisao.concierge.fallback",
+      usedModelText ? "pisao.concierge.completed" : "pisao.concierge.fallback",
       {
         source: "concierge_api",
-        mode: modelText ? "openai" : "fallback",
+        mode: usedModelText ? "openai" : "fallback",
         model: aiModel,
         reservation_intent: reservationIntent,
         availability: availabilityState,
         message_count: messages.length,
         outcome: nativeToolFailure
           ? "tool_loop_failed"
-          : modelText
+          : usedModelText
             ? "model_response"
             : "empty_model_response",
         native_tool_count: nativeToolCount,
@@ -995,10 +1029,10 @@ REGLAS ADICIONALES
       model: aiModel,
       outcome: nativeToolFailure
         ? "tool_loop_failed"
-        : modelText
+        : usedModelText
           ? "model_response"
           : "empty_model_response",
-      fallback: !modelText,
+      fallback: !usedModelText,
       latencyMs: Date.now() - startedAt,
       reservationIntent,
       proposalCreated: Boolean(activeProposal),
@@ -1022,7 +1056,7 @@ REGLAS ADICIONALES
       action,
       contextualRecommendation,
       commands,
-      fallback: !modelText,
+      fallback: !usedModelText,
       agent: agent.id,
       agentLabel: agent.label,
       menuSource: catalog.source,
