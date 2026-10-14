@@ -106,3 +106,31 @@ test("contexto del modelo no expone memoria como registro de vigilancia", () => 
   assert.match(context, /Porter/);
   assert.match(context, /jamás digas “según nuestros registros”/);
 });
+
+test("a new menu request replaces an earlier reservation and complaint", () => {
+  const analysis = analyzeHospitalityConversation([
+    { role: "user", content: "Quiero reservar una mesa para mañana" },
+    { role: "assistant", content: "¿Cuántas personas?" },
+    { role: "user", content: "Tuve un problema antes" },
+    { role: "assistant", content: "Lamento lo ocurrido" },
+    { role: "user", content: "Ahora, ¿qué patacones tienen en el menú?" },
+  ]);
+  assert.equal(analysis.intent, "menu");
+  assert.notEqual(analysis.guestState, "needs_help");
+});
+
+test("a short follow-up keeps the current reservation intent", () => {
+  const analysis = analyzeHospitalityConversation([
+    { role: "user", content: "Quiero reservar mañana a las 7 pm" },
+    { role: "assistant", content: "¿Cuántas personas?" },
+    { role: "user", content: "4 personas" },
+  ]);
+  assert.equal(analysis.intent, "reservation");
+});
+
+test("Mesa Visual is not misclassified as a booking", () => {
+  const analysis = analyzeHospitalityConversation([
+    { role: "user", content: "¿Cómo miro mi mesa visual y el pedido?" },
+  ]);
+  assert.equal(analysis.intent, "order");
+});
