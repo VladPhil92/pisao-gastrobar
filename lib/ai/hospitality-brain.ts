@@ -100,7 +100,7 @@ function inferIntent(transcript: string): HospitalityIntent {
   if (/(queja|reclamo|problema|malo|terrible|demora|inconforme|devolucion|mal servicio)/.test(text)) {
     return "service";
   }
-  if (/(reserv|mesa|cupo|disponibilidad|visitar|esta noche|manana|hoy)/.test(text)) {
+  if (/(reserv|mesa\s+para|cupo\s+de\s+mesa|disponibilidad\s+(?:de\s+)?(?:mesa|reserva)|quiero\s+(?:ir|venir|visitar)|podemos\s+(?:ir|venir))/.test(text)) {
     return "reservation";
   }
   if (/(evento|cumple|cumpleanos|aniversario|celebr|corporativo|fiesta)/.test(text)) {
@@ -308,9 +308,30 @@ export function analyzeHospitalityConversation(
   profile?: HospitalityProfile,
 ): HospitalityAnalysis {
   const transcript = userTranscript(messages);
-  const intent = inferIntent(transcript);
+  const userMessages = messages
+    .filter((message) => message.role === "user")
+    .map((message) => message.content.trim())
+    .filter(Boolean);
+  const latest = userMessages.at(-1) ?? "";
+  const explicitIntent = inferIntent(latest);
+  // Solo un seguimiento breve conserva el tema anterior; una nueva petición lo sustituye.
+  const shortFollowUp =
+    explicitIntent === "general" &&
+    /^(?:si|no|claro|correcto|de una|perfecto|gracias|\d{1,2}(?:\s+personas?)?|(?:mi\s+)?(?:nombre|telefono|correo|email)\b|(?:para\s+)?\d{1,2}\s+personas?\b)/i.test(normalize(latest));
+  const priorExplicit = [...userMessages.slice(0, -1)]
+    .reverse()
+    .map(inferIntent)
+    .find((value) => value !== "general");
+  const intent = explicitIntent !== "general"
+    ? explicitIntent
+    : shortFollowUp && priorExplicit
+      ? priorExplicit
+      : "general";
+  const activeTranscript = shortFollowUp && intent !== "general"
+    ? [userMessages.at(-2), latest].filter(Boolean).join("\n")
+    : latest;
   const conversationStyle = inferConversationStyle(messages);
-  const guestState = inferGuestState(transcript, intent);
+  const guestState = inferGuestState(activeTranscript, intent);
 
   return {
     guestState,
