@@ -53,7 +53,7 @@ const intentPatterns: Array<{ agent: PisaoAgentId; pattern: RegExp }> = [
   {
     agent: "reservas",
     pattern:
-      /(reserv|mesa\\s+para|separar\\s+(?:una?\\s+)?mesa|cupo\\s+(?:de\\s+)?mesa|disponibilidad\\s+(?:de\\s+)?(?:mesa|reserva)|quiero\\s+(?:ir|venir|visitar)|podemos\\s+(?:ir|venir))/i,
+      /(reserv|mesa\s+para|separar\s+(?:una?\s+)?mesa|cupo\s+(?:de\s+)?mesa|disponibilidad\s+(?:de\s+)?(?:mesa|reserva)|quiero\s+(?:ir|venir|visitar)|podemos\s+(?:ir|venir))/i,
   },
   {
     agent: "eventos",
