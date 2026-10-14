@@ -146,14 +146,35 @@ export function analyzeReservationConversation(
 
   if (!userMessages.length) return null;
 
-  const transcript = userMessages.join("\n");
-  const normalized = normalize(transcript);
-  const hasReservationIntent =
-    /(reserv|mesa|visitar|visita|cupo|disponibilidad|esta\s+noche|hoy|manana|fecha|hora)/.test(
-      normalized,
-    );
+  // Segmenta el diálogo: una solicitud de carta posterior no puede reactivar
+  // una reserva antigua ni heredar los datos de otra visita.
+  const reservationStart =
+    /(reserv|mesa\s+para|separar\s+(?:una?\s+)?mesa|disponibilidad\s+(?:de\s+)?(?:mesa|reserva)|quiero\s+(?:ir|venir|visitar)|podemos\s+(?:ir|venir))/;
+  const latest = normalize(userMessages.at(-1) ?? "");
+  if (/(queja|reclamo|problema|devolucion|mal servicio)/.test(latest)) {
+    return null;
+  }
+  const startIndex = userMessages.findLastIndex((message) =>
+    reservationStart.test(normalize(message)),
+  );
+  if (startIndex < 0) return null;
 
-  if (!hasReservationIntent) return null;
+  const isReservationFollowUp = (message: string) => {
+    const text = normalize(message);
+    if (
+      /(menu|carta|comer|patacon|hamburguesa|cerveza|coctel|domicilio|pedido|cuanto cuesta)/.test(
+        text,
+      )
+    ) return false;
+    return text.length <= 180 && (
+      /(\d|nombre|llamo|telefono|celular|correo|email|hoy|manana|fecha|hora|a nombre de)/.test(text) ||
+      /^(si|claro|correcto|de una|perfecto|no|gracias)[.! ]*$/.test(text)
+    );
+  };
+  if (userMessages.slice(startIndex + 1).some((message) => !isReservationFollowUp(message))) {
+    return null;
+  }
+  const transcript = userMessages.slice(startIndex).join("\n");
 
   const nombre = parseName(transcript);
   const telefono = parsePhone(transcript);

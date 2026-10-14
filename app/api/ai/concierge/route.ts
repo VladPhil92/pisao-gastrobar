@@ -97,12 +97,13 @@ type MenuCatalog = {
 };
 
 function extractOutputText(payload: OpenAIResponse) {
+  const texts: string[] = [];
   for (const item of payload.output ?? []) {
     for (const part of item.content ?? []) {
-      if (part.type === "output_text" && part.text) return part.text.trim();
+      if (part.type === "output_text" && part.text) texts.push(part.text);
     }
   }
-  return "";
+  return texts.join("\n").trim();
 }
 
 async function requestOpenAI(params: {
@@ -123,7 +124,7 @@ async function requestOpenAI(params: {
     body: JSON.stringify({
       model: params.model,
       store: false,
-      max_output_tokens: 500,
+      max_output_tokens: 900,
       instructions: params.instructions,
       input: params.input,
       tools: params.tools,
@@ -241,15 +242,19 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
       source: "database",
     };
   } catch (error) {
-    console.error("[PISAO AI] Catálogo dinámico degradado; usando carta verificada", error);
-    const products: CommerceProduct[] = productosPlaceholder.map((product) => ({
-      ...product,
-    }));
+    console.error("[PISAO AI] Catálogo dinámico degradado", error);
+    // Los precios del seed de desarrollo no acreditan carta ni stock vigentes en producción.
+    const products: CommerceProduct[] =
+      process.env.NODE_ENV === "production"
+        ? []
+        : productosPlaceholder.map((product) => ({ ...product }));
 
     return {
       products,
       costByProductId: {},
-      context: menuContextFromProducts(products),
+      context: products.length
+        ? menuContextFromProducts(products)
+        : "CATÁLOGO NO VERIFICABLE EN ESTE MOMENTO. No confirmar productos, precios, ingredientes, promociones ni disponibilidad. Ofrecer atención humana para validar la carta actual.",
       source: "fallback",
     };
   }
@@ -391,8 +396,8 @@ export async function POST(request: Request) {
       .map((message) => message.content)
       .join("\n");
 
-    // Se enruta con todo el contexto del usuario, no solo con el último turno.
-    const agent = routePisaoAgent(userTranscript);
+    // La intención anterior no debe secuestrar un cambio de tema actual.
+    const agent = routePisaoAgent(latestUserMessage.content);
     const clientHospitalityProfile = sanitizeHospitalityProfile(
       body.guestProfile,
     );
@@ -438,7 +443,19 @@ export async function POST(request: Request) {
     }
 
     const catalog = await getMenuCatalog();
-    const commerceAnalysis = analyzeCommerceRequest(userTranscript);
+    // No heredar presupuestos de una reserva o queja anterior.
+    const userTurns = messages.filter((message) => message.role === "user");
+    const previousDifferentTopic = userTurns.findLastIndex(
+      (message, index) =>
+        index < userTurns.length - 1 &&
+        ["reservas", "servicio", "eventos"].includes(
+          routePisaoAgent(message.content).id,
+        ),
+    );
+    const commerceTranscript = agent.id === "ventas" && previousDifferentTopic >= 0
+      ? userTurns.slice(previousDifferentTopic + 1).map((message) => message.content).join("\n")
+      : userTranscript;
+    const commerceAnalysis = analyzeCommerceRequest(commerceTranscript);
     const persistentCommerceState = await loadPersistentCommerceState(
       body.sessionKey,
     );
@@ -481,10 +498,16 @@ export async function POST(request: Request) {
       });
     }
 
+    const liveCatalogUnavailable =
+      catalog.source === "fallback" && process.env.NODE_ENV === "production";
+    const catalogUnavailableText =
+      "Ahora mismo no puedo verificar la carta, los precios ni el inventario vigente. Prefiero confirmártelo bien: puedes escribirnos por WhatsApp y el equipo te ayuda con el producto que buscas.";
     let fallbackText =
-      commerceTool.summary ??
-      reservationFallbackText(reservationDraft) ??
-      deterministicCommerceReply(commerceAnalysis, activeProposal);
+      liveCatalogUnavailable && !reservationDraft && agent.id === "ventas"
+        ? catalogUnavailableText
+        : commerceTool.summary ??
+          reservationFallbackText(reservationDraft) ??
+          deterministicCommerceReply(commerceAnalysis, activeProposal);
 
     if (!commerceTool.handled) {
       if (oversizedGroup && reservationDraft?.personas) {
@@ -562,7 +585,7 @@ export async function POST(request: Request) {
       proposalForDisplay ??
       (action?.type === "cart.add_proposal" ? activeProposal : null);
 
-    const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
+    const aiModel = process.env.PISAO_AI_MODEL?.trim() || "gpt-4.1";
     const reservationIntent = Boolean(reservationDraft);
     const availabilityState = reservationAvailabilityError
       ? "error"
@@ -802,6 +825,8 @@ ${commerceToolContextForModel(commerceTool)}
 RESERVAS TRANSACCIONALES
 ${reservationContextForModel(reservationDraft)}
 ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
+- Estado de fuente del menú: ${catalog.source}. Solo "database" acredita datos comerciales actuales; si es fallback en producción, no citar datos del seed como si fueran vigentes.
+- La consulta de cupo no equivale a reserva confirmada. Cuando haya una discrepancia, manda el resultado verificado del backend sobre cualquier frase del modelo.
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
@@ -957,21 +982,43 @@ REGLAS ADICIONALES
       ];
     }
 
-    const modelText = finalPayload ? extractOutputText(finalPayload) : "";
-    const text = modelText || fallbackText;
+    const modelText = finalPayload && !nativeToolFailure
+      ? extractOutputText(finalPayload)
+      : "";
+    // La decisión verificada del backend prevalece sobre una afirmación del modelo.
+    const reservationNeedsAuthoritativeReply = Boolean(
+      reservationDraft && (
+        oversizedGroup ||
+        reservationAvailabilityError ||
+        (reservationAvailability && !reservationAvailability.available) ||
+        action?.type === "reservation.confirm"
+      ),
+    );
+    const catalogNeedsAuthoritativeReply =
+      liveCatalogUnavailable &&
+      !reservationDraft &&
+      (agent.id === "ventas" ||
+        /(men[uú]|carta|precio|cu[aá]nto|vale|ingrediente|al[eé]rgeno|disponib|promoci[oó]n|\bplato\b|cerveza|patac[oó]n|hamburguesa|cayeye|comer|recomien|bebida)/i.test(latestUserMessage.content));
+    const verifiedText = catalogNeedsAuthoritativeReply
+      ? catalogUnavailableText
+      : reservationNeedsAuthoritativeReply
+        ? fallbackText
+        : null;
+    const usedModelText = Boolean(modelText && !verifiedText);
+    const text = verifiedText || modelText || fallbackText;
 
     void emitKevGovernanceEvent(
-      modelText ? "pisao.concierge.completed" : "pisao.concierge.fallback",
+      usedModelText ? "pisao.concierge.completed" : "pisao.concierge.fallback",
       {
         source: "concierge_api",
-        mode: modelText ? "openai" : "fallback",
+        mode: usedModelText ? "openai" : "fallback",
         model: aiModel,
         reservation_intent: reservationIntent,
         availability: availabilityState,
         message_count: messages.length,
         outcome: nativeToolFailure
           ? "tool_loop_failed"
-          : modelText
+          : usedModelText
             ? "model_response"
             : "empty_model_response",
         native_tool_count: nativeToolCount,
@@ -988,10 +1035,10 @@ REGLAS ADICIONALES
       model: aiModel,
       outcome: nativeToolFailure
         ? "tool_loop_failed"
-        : modelText
+        : usedModelText
           ? "model_response"
           : "empty_model_response",
-      fallback: !modelText,
+      fallback: !usedModelText,
       latencyMs: Date.now() - startedAt,
       reservationIntent,
       proposalCreated: Boolean(activeProposal),
@@ -1015,7 +1062,7 @@ REGLAS ADICIONALES
       action,
       contextualRecommendation,
       commands,
-      fallback: !modelText,
+      fallback: !usedModelText,
       agent: agent.id,
       agentLabel: agent.label,
       menuSource: catalog.source,
@@ -1033,7 +1080,7 @@ REGLAS ADICIONALES
     void emitKevGovernanceEvent("pisao.concierge.provider_error", {
       source: "concierge_api",
       mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
-      model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+      model: process.env.PISAO_AI_MODEL?.trim() || "gpt-4.1",
       reservation_intent: false,
       availability: "unknown",
       message_count: 0,
