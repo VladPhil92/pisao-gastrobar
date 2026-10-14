@@ -20,7 +20,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test:reservations": "tsx --test lib/reservas/table-allocation.test.ts lib/reservas/conversation.test.ts",
-    "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts lib/ai/concierge-network-policy.test.ts",
+    "test:concierge": "tsx --test lib/ai/hospitality-brain.test.ts lib/ai/pisao-agents.test.ts lib/ai/concierge-network-policy.test.ts",
     "test:actions": "tsx --test lib/ai/action-runtime.test.ts",
     "test:tools": "tsx --test lib/ai/tool-orchestrator.test.ts",
     "test:native-tools": "tsx --test lib/ai/native-tools.test.ts",
