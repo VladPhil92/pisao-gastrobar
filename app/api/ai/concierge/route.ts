@@ -97,12 +97,13 @@ type MenuCatalog = {
 };
 
 function extractOutputText(payload: OpenAIResponse) {
+  const texts: string[] = [];
   for (const item of payload.output ?? []) {
     for (const part of item.content ?? []) {
-      if (part.type === "output_text" && part.text) return part.text.trim();
+      if (part.type === "output_text" && part.text) texts.push(part.text);
     }
   }
-  return "";
+  return texts.join("\n").trim();
 }
 
 async function requestOpenAI(params: {
@@ -123,7 +124,7 @@ async function requestOpenAI(params: {
     body: JSON.stringify({
       model: params.model,
       store: false,
-      max_output_tokens: 500,
+      max_output_tokens: 900,
       instructions: params.instructions,
       input: params.input,
       tools: params.tools,
@@ -241,15 +242,19 @@ async function getMenuCatalog(): Promise<MenuCatalog> {
       source: "database",
     };
   } catch (error) {
-    console.error("[PISAO AI] Catálogo dinámico degradado; usando carta verificada", error);
-    const products: CommerceProduct[] = productosPlaceholder.map((product) => ({
-      ...product,
-    }));
+    console.error("[PISAO AI] Catálogo dinámico degradado", error);
+    // Los precios del seed de desarrollo no acreditan carta ni stock vigentes en producción.
+    const products: CommerceProduct[] =
+      process.env.NODE_ENV === "production"
+        ? []
+        : productosPlaceholder.map((product) => ({ ...product }));
 
     return {
       products,
       costByProductId: {},
-      context: menuContextFromProducts(products),
+      context: products.length
+        ? menuContextFromProducts(products)
+        : "CATÁLOGO NO VERIFICABLE EN ESTE MOMENTO. No confirmar productos, precios, ingredientes, promociones ni disponibilidad. Ofrecer /menu o atención humana para validar la carta actual.",
       source: "fallback",
     };
   }
@@ -391,8 +396,8 @@ export async function POST(request: Request) {
       .map((message) => message.content)
       .join("\n");
 
-    // Se enruta con todo el contexto del usuario, no solo con el último turno.
-    const agent = routePisaoAgent(userTranscript);
+    // La intención anterior no debe secuestrar un cambio de tema actual.
+    const agent = routePisaoAgent(latestUserMessage.content);
     const clientHospitalityProfile = sanitizeHospitalityProfile(
       body.guestProfile,
     );
@@ -562,7 +567,7 @@ export async function POST(request: Request) {
       proposalForDisplay ??
       (action?.type === "cart.add_proposal" ? activeProposal : null);
 
-    const aiModel = process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna";
+    const aiModel = process.env.PISAO_AI_MODEL?.trim() || "gpt-4.1";
     const reservationIntent = Boolean(reservationDraft);
     const availabilityState = reservationAvailabilityError
       ? "error"
@@ -802,6 +807,8 @@ ${commerceToolContextForModel(commerceTool)}
 RESERVAS TRANSACCIONALES
 ${reservationContextForModel(reservationDraft)}
 ${availabilityContext(reservationAvailability, reservationAvailabilityError)}
+- Estado de fuente del menú: ${catalog.source}. Solo "database" acredita datos comerciales actuales; si es fallback en producción, no citar datos del seed como si fueran vigentes.
+- La consulta de cupo no equivale a reserva confirmada. Cuando haya una discrepancia, manda el resultado verificado del backend sobre cualquier frase del modelo.
 
 HOSPITALITY INTELLIGENCE
 ${hospitalityContextForModel(hospitalityAnalysis, hospitalityProfile)}
@@ -1033,7 +1040,7 @@ REGLAS ADICIONALES
     void emitKevGovernanceEvent("pisao.concierge.provider_error", {
       source: "concierge_api",
       mode: process.env.OPENAI_API_KEY ? "openai" : "fallback",
-      model: process.env.PISAO_AI_MODEL ?? "gpt-5.6-luna",
+      model: process.env.PISAO_AI_MODEL?.trim() || "gpt-4.1",
       reservation_intent: false,
       availability: "unknown",
       message_count: 0,
